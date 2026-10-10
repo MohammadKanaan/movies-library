@@ -7,9 +7,11 @@ import { createPersonAction, deletePersonAction, updatePersonAction } from '@/ac
 import { ActionGroup } from '@/components/ActionGroup'
 import { ConfirmDialog } from '@/components/Admin/ConfirmDialog'
 import { NameDialog } from '@/components/Admin/NameDialog'
+import { HeadshotDialog } from '@/components/Admin/People/HeadshotDialog'
 import { Empty } from '@/components/Empty'
 import { Input } from '@/components/Form/Input'
 import { Pagination } from '@/components/Pagination'
+import { Headshot } from '@/components/People/Headshot'
 import { Button } from '@/components/SCN/button'
 import {
   Table,
@@ -33,10 +35,15 @@ import styles from './styles.module.scss'
 
 type PeopleViewProps = {
   people: Page<PersonListItem>
+  /** Whether storage is configured (`canUpload()` on the server): the photo dialog's controls. */
+  canUpload: boolean
 }
 
-/** People by name with their credit count: search in the URL, add, rename and delete through dialogs. */
-export const PeopleView = ({ people }: PeopleViewProps) => {
+/**
+ * People by name with their credit count: search in the URL; add, rename, set the photo of and
+ * delete people through dialogs.
+ */
+export const PeopleView = ({ people, canUpload }: PeopleViewProps) => {
   const { state, setState, isPending } = useUrlState(peopleUrlQuery)
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
@@ -100,7 +107,12 @@ export const PeopleView = ({ people }: PeopleViewProps) => {
                 const credited = person.creditCount > 0
                 return (
                   <TableRow key={person.id}>
-                    <TableCell className={styles.name}>{person.name}</TableCell>
+                    <TableCell>
+                      <span className={styles.person}>
+                        <Headshot person={person} size="sm" />
+                        <span className={styles.name}>{person.name}</span>
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <code className={styles.slug}>{person.slug}</code>
                     </TableCell>
@@ -116,6 +128,7 @@ export const PeopleView = ({ people }: PeopleViewProps) => {
                     <TableCell className={styles.nowrap}>{formatDate(person.createdAt)}</TableCell>
                     <TableCell>
                       <ActionGroup label={`${person.name} actions`}>
+                        <HeadshotDialog person={person} canUpload={canUpload} />
                         <NameDialog
                           trigger={`Rename ${person.name}`}
                           triggerAction="edit"

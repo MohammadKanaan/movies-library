@@ -57,9 +57,16 @@ describe('SettingsView', () => {
     expect(screen.queryByLabelText(/Current password/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete account' })).not.toBeInTheDocument()
     expect(screen.getByText(/signed in with Google/)).toBeInTheDocument()
-    for (const link of screen.getAllByRole('link', { name: 'Forgot password' })) {
-      expect(link).toHaveAttribute('href', '/forgot-password')
-    }
-    expect(screen.getAllByRole('link', { name: 'Forgot password' })).toHaveLength(2)
+    expect(screen.getByRole('link', { name: 'Forgot password' })).toHaveAttribute(
+      'href',
+      '/forgot-password',
+    )
+    expect(
+      screen.getByText(/To delete your account, you need to confirm your password/),
+    ).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Set a password' })).toHaveAttribute(
+      'href',
+      '/forgot-password',
+    )
   })
 })

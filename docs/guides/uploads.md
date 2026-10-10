@@ -6,7 +6,8 @@ bucket through a presigned PUT; the code in `lib/server/storage.ts`, `lib/data/u
 
 The five `R2_*` variables are **optional as a group** (`lib/server/env.ts` refuses a partial set).
 Without them `isStorageConfigured()` is false, the DAL refuses tickets, `/settings` hides the profile
-photo card (`canUpload()`), and the template runs without an R2 account. With them:
+photo card and the admin poster card and people photo dialog show a note instead of their controls
+(`canUpload()`), and the template runs without an R2 account. With them:
 
 | Variable               | Value                                                                                               |
 | ---------------------- | --------------------------------------------------------------------------------------------------- |

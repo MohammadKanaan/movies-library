@@ -1,14 +1,13 @@
 'use client'
 
-import { useId, useRef, useState, type ChangeEvent } from 'react'
 import { toast } from 'sonner'
 import { attachPosterAction, removePosterAction } from '@/actions/movies'
 import { createUploadAction } from '@/actions/uploads'
 import { ConfirmDialog } from '@/components/Admin/ConfirmDialog'
 import { LoadingButton } from '@/components/LoadingButton'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/SCN/card'
-import { uploadFile } from '@/lib/client/uploads'
-import { POSTER_CONTENT_TYPES, UPLOAD_RULES, createUploadInput } from '@/lib/dto/uploads'
+import { useImageUpload } from '@/hooks/useImageUpload'
+import { POSTER_CONTENT_TYPES, UPLOAD_RULES } from '@/lib/dto/uploads'
 import { formatBytes } from '@/lib/formatBytes'
 import styles from './styles.module.scss'
 
@@ -20,52 +19,14 @@ export type PosterCardProps = {
 
 /** Uploads, replaces and removes a movie's poster. The page refreshes itself after each action. */
 export const PosterCard = ({ movie, canUpload }: PosterCardProps) => {
-  const inputId = useId()
-  const errorId = `${inputId}-error`
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
-
-  const upload = async (file: File) => {
-    const input = createUploadInput.safeParse({
+  const { inputId, errorId, inputRef, error, uploading, handleChange, openPicker } = useImageUpload(
+    {
       purpose: 'poster',
-      contentType: file.type,
-      size: file.size,
-    })
-    if (!input.success) {
-      setError(input.error.issues[0].message)
-      return
-    }
-    setError(null)
-    setUploading(true)
-    try {
-      const ticket = await createUploadAction(input.data)
-      if (!ticket.ok) {
-        setError(ticket.message)
-        return
-      }
-      await uploadFile(ticket.data, file)
-      const attached = await attachPosterAction({ id: movie.id, key: ticket.data.key })
-      if (!attached.ok) {
-        setError(attached.message)
-        return
-      }
-      toast.success('Poster updated')
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'The upload failed. Try again.')
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    // Clearing the value lets the same file be picked again after a failure.
-    event.target.value = ''
-    if (file) {
-      void upload(file)
-    }
-  }
+      createUpload: createUploadAction,
+      attach: (key) => attachPosterAction({ id: movie.id, key }),
+      onAttached: () => toast.success('Poster updated'),
+    },
+  )
 
   return (
     <Card>
@@ -107,7 +68,7 @@ export const PosterCard = ({ movie, canUpload }: PosterCardProps) => {
                   type="button"
                   variant="outline"
                   loading={uploading}
-                  onClick={() => inputRef.current?.click()}
+                  onClick={openPicker}
                 >
                   {movie.posterUrl ? 'Replace poster' : 'Upload poster'}
                 </LoadingButton>

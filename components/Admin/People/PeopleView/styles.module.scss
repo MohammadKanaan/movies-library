@@ -36,6 +36,12 @@
   }
 }
 
+.person {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .name {
   font-weight: 500;
 }

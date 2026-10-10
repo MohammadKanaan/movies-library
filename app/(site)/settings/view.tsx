@@ -176,8 +176,10 @@ export const SettingsView = ({ user, sessions, hasPassword, canUpload }: Setting
             <DeleteAccountDialog onConfirm={handleDelete} />
           ) : (
             <p className={styles.note}>
-              Deleting an account asks for its password, and yours has none yet. Set one with{' '}
-              <Link href={ROUTE_FORGOT_PASSWORD}>Forgot password</Link> first.
+              To delete your account, you need to confirm your password. Because you signed up with
+              Google, you don&apos;t have a password yet.{' '}
+              <Link href={ROUTE_FORGOT_PASSWORD}>Set a password</Link>, then come back here to
+              delete your account.
             </p>
           )}
         </CardContent>

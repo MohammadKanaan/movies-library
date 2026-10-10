@@ -5,6 +5,7 @@ import { ROUTE_ADMIN_PEOPLE } from '@/lib/constants-routes'
 import { requireAdmin } from '@/lib/data/auth'
 import { loadPage } from '@/lib/data/page'
 import { listPeople } from '@/lib/data/people'
+import { canUpload } from '@/lib/data/uploads'
 import { peopleUrlQuery } from '@/lib/dto/people'
 import { toScalarParams } from '@/lib/searchParams'
 import styles from './styles.module.scss'
@@ -30,7 +31,7 @@ const AdminPeoplePage = async ({ searchParams }: PageProps<'/admin/people'>) => 
         title="People"
         description={`${people.totalItems} ${people.totalItems === 1 ? 'person' : 'people'} in the catalog. Someone with credits cannot be deleted.`}
       />
-      <PeopleView people={people} />
+      <PeopleView people={people} canUpload={canUpload()} />
     </div>
   )
 }

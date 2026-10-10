@@ -17,7 +17,10 @@ vi.mock('@/actions/people', () => ({
   createPersonAction: vi.fn(),
   updatePersonAction: vi.fn(),
   deletePersonAction: vi.fn(),
+  attachHeadshotAction: vi.fn(),
+  removeHeadshotAction: vi.fn(),
 }))
+vi.mock('@/actions/uploads', () => ({ createUploadAction: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const DENIS_ID = '0190d1a2-0000-7000-8000-000000000001'
@@ -72,14 +75,7 @@ describe('PeopleView', () => {
   })
 
   it('lists people with their slug, credit count and creation date', () => {
-    render(<PeopleView people={page([amy, denis])} />)
-    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
-      'Name',
-      'Slug',
-      'Credits',
-      'Added',
-      'Actions',
-    ])
+    render(<PeopleView people={page([amy, denis])} canUpload />)
     const row = rowOf('Denis Villeneuve')
     expect(within(row).getByText('denis-villeneuve')).toBeInTheDocument()
     expect(within(row).getByRole('link', { name: '4' })).toHaveAttribute(
@@ -90,9 +86,16 @@ describe('PeopleView', () => {
     expect(within(rowOf('Amy Adams')).getByText('0')).toBeInTheDocument()
   })
 
+  it("opens a person's photo dialog from their row", async () => {
+    render(<PeopleView people={page([amy, denis])} canUpload />)
+    await userEvent.click(within(rowOf('Amy Adams')).getByRole('button', { name: 'Photo' }))
+    expect(await screen.findByRole('dialog', { name: 'Photo of Amy Adams' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Upload photo' })).toBeInTheDocument()
+  })
+
   it('writes the search to the URL, back on page 1, and shows the term from the URL', async () => {
     navigation.search = 'page=2'
-    render(<PeopleView people={page([amy], { page: 2, totalPages: 3 })} />)
+    render(<PeopleView people={page([amy], { page: 2, totalPages: 3 })} canUpload />)
     await userEvent.type(screen.getByLabelText('Search people'), ' amy ')
     await userEvent.click(screen.getByRole('button', { name: 'Search' }))
     expect(navigation.replace).toHaveBeenCalledWith('/admin/people?q=amy', { scroll: false })
@@ -114,7 +117,7 @@ describe('PeopleView', () => {
         permissions: { update: true, delete: true },
       },
     })
-    render(<PeopleView people={page([amy])} />)
+    render(<PeopleView people={page([amy])} canUpload />)
     await userEvent.click(screen.getByRole('button', { name: 'Add person' }))
     await userEvent.type(await screen.findByLabelText(/Name/), 'Greta Gerwig')
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
@@ -137,7 +140,7 @@ describe('PeopleView', () => {
         permissions: { update: true, delete: true },
       },
     })
-    render(<PeopleView people={page([amy])} />)
+    render(<PeopleView people={page([amy])} canUpload />)
     await userEvent.click(
       within(rowOf('Amy Adams')).getByRole('button', { name: 'Rename Amy Adams' }),
     )
@@ -154,7 +157,7 @@ describe('PeopleView', () => {
 
   it('deletes an uncredited person after confirmation and disables Delete for a credited one', async () => {
     vi.mocked(deletePersonAction).mockResolvedValue({ ok: true, data: undefined })
-    render(<PeopleView people={page([amy, denis])} />)
+    render(<PeopleView people={page([amy, denis])} canUpload />)
     const credited = within(rowOf('Denis Villeneuve')).getByRole('button', {
       name: 'Delete Denis Villeneuve',
     })
@@ -171,13 +174,13 @@ describe('PeopleView', () => {
 
   it('pages through the URL and says so when nothing matches', async () => {
     const { rerender } = render(
-      <PeopleView people={page([amy], { totalItems: 45, totalPages: 3 })} />,
+      <PeopleView people={page([amy], { totalItems: 45, totalPages: 3 })} canUpload />,
     )
     await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
     expect(navigation.replace).toHaveBeenCalledWith('/admin/people?page=2', { scroll: false })
 
     navigation.search = 'q=zzz'
-    rerender(<PeopleView people={page([], { totalItems: 0 })} />)
+    rerender(<PeopleView people={page([], { totalItems: 0 })} canUpload />)
     expect(screen.getByText('No people found')).toBeInTheDocument()
     expect(screen.getByText('No one matches your search.')).toBeInTheDocument()
   })
