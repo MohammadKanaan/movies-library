@@ -22,10 +22,7 @@ export const fillOf = (rating: number, position: number): StarFill => {
   return rating >= position - 0.5 ? 'half' : 'empty'
 }
 
-/**
- * One star: an outline with the filled star clipped over it, sized by the `--star-size` of the row
- * around it. The fill sweeps when it changes, which `StarRatingInput`'s hover preview shows off.
- */
+/** One star: an outline with the filled star clipped over it, sized by the `--star-size` around it. */
 export const StarGlyph = ({ fill }: { fill: StarFill }) => {
   return (
     <span className={`${styles.star} ${styles[fill]}`}>
