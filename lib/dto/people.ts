@@ -1,15 +1,23 @@
 import { z } from 'zod'
-import { catalogIdSchema } from './catalog'
+import { catalogIdSchema, creditRoleSchema } from './catalog'
 import { pageQuerySchema, permissionsSchema, searchTermSchema } from './common'
+import { genreSchema } from './genres'
+import { uploadKeySchema } from './uploads'
 
 export const PERSON_NAME_MAX_LENGTH = 200
+export const PERSON_BIO_MAX_LENGTH = 2000
 export const PEOPLE_SEARCH_MAX_LENGTH = 100
+/** The oldest birth date the catalog accepts; the earliest film-makers were born in the 1800s. */
+export const PERSON_BIRTH_MIN = '1800-01-01'
+const today = () => new Date().toISOString().slice(0, 10)
 
-/** A person as a movie's credits show them. */
+/** A person as a movie's credits and the people list show them. */
 export const personSummarySchema = z.object({
   id: z.string(),
   slug: z.string(),
   name: z.string(),
+  /** A `headshot` upload's public URL, or null (the views show initials). */
+  headshotUrl: z.string().nullable(),
 })
 
 export type PersonSummary = z.infer<typeof personSummarySchema>
@@ -22,26 +30,35 @@ export const personListItemSchema = personSummarySchema.extend({
 
 export type PersonListItem = z.infer<typeof personListItemSchema>
 
-/** A movie as a person's filmography shows it. */
+/**
+ * A movie as a person's filmography shows it: the fields of a `MovieSummary` (so a `MovieCard` can
+ * render it) plus every role the person holds on it, in `credit_role` order. Spelled out here rather
+ * than extended from `movieSummarySchema`, because `movies.ts` imports this file.
+ */
 export const movieCreditSchema = z.object({
   id: z.string(),
   slug: z.string(),
   title: z.string(),
   releaseDate: z.coerce.date(),
+  runtimeMinutes: z.number().int().nullable(),
   posterUrl: z.string().nullable(),
+  genres: z.array(genreSchema),
+  roles: z.array(creditRoleSchema).min(1),
 })
 
 export type MovieCredit = z.infer<typeof movieCreditSchema>
 
-/** One person with their filmography by role (each list newest release first) and the viewer's permissions. */
+/**
+ * One person with their profile, their filmography (one entry per movie, newest release first) and
+ * the viewer's permissions.
+ */
 export const personDetailSchema = personSummarySchema.extend({
+  bio: z.string().nullable(),
+  /** A calendar day, stored as midnight UTC like a release date. */
+  birthDate: z.coerce.date().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
-  filmography: z.object({
-    directed: z.array(movieCreditSchema),
-    written: z.array(movieCreditSchema),
-    acted: z.array(movieCreditSchema),
-  }),
+  filmography: z.array(movieCreditSchema),
   permissions: permissionsSchema,
 })
 
@@ -60,17 +77,45 @@ export const peopleUrlQuery = z.object({
   q: searchTermSchema(PEOPLE_SEARCH_MAX_LENGTH).catch(''),
 })
 
-/** Create: the slug is derived from the name. Update: the name only, the slug is kept. */
+/**
+ * Create and update share this shape; the slug is derived from the name on create and never
+ * changes. `bio` and `birthDate` are optional: left out, an update keeps the stored value (so a
+ * rename sends the name alone), and `null` (or a blank bio) clears it.
+ */
 export const personInput = z.object({
   name: z
     .string()
     .trim()
     .min(1, 'Name is required')
     .max(PERSON_NAME_MAX_LENGTH, `Name must be ${PERSON_NAME_MAX_LENGTH} characters or fewer`),
+  bio: z
+    .string()
+    .trim()
+    .max(PERSON_BIO_MAX_LENGTH, `Bio must be ${PERSON_BIO_MAX_LENGTH} characters or fewer`)
+    .nullable()
+    .transform((value) => value || null)
+    .optional(),
+  /** A calendar day, `YYYY-MM-DD`, not in the future; the DAL stores it in a `date` column. */
+  birthDate: z.iso
+    .date('Enter a birth date as YYYY-MM-DD')
+    .refine((value) => value >= PERSON_BIRTH_MIN && value <= today(), {
+      error: 'Enter a birth date between 1800 and today',
+    })
+    .nullable()
+    .optional(),
 })
 
-export type PersonInput = z.infer<typeof personInput>
+/** What callers pass (optional profile fields); the DAL works on the parsed output. */
+export type PersonInput = z.input<typeof personInput>
 
 export const updatePersonInput = personInput.extend({ id: catalogIdSchema })
 
-export type UpdatePersonInput = z.infer<typeof updatePersonInput>
+export type UpdatePersonInput = z.input<typeof updatePersonInput>
+
+/** Makes an uploaded `headshot` object the person's headshot. */
+export const attachHeadshotInput = z.object({
+  id: catalogIdSchema,
+  key: uploadKeySchema,
+})
+
+export type AttachHeadshotInput = z.infer<typeof attachHeadshotInput>

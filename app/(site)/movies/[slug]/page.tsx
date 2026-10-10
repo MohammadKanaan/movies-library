@@ -5,14 +5,14 @@ import { cache, Fragment } from 'react'
 import { DeleteMovieDialog } from '@/components/Movies/DeleteMovieDialog'
 import { GenreTags } from '@/components/Movies/GenreTags'
 import { MoviePoster } from '@/components/Movies/MoviePoster'
+import { Headshot } from '@/components/People/Headshot'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/SCN/tooltip'
-import { moviePath, moviesByPersonPath, ROUTE_MOVIES } from '@/lib/constants-routes'
+import { moviePath, personPath, ROUTE_MOVIES } from '@/lib/constants-routes'
 import { getMovieBySlug } from '@/lib/data/movies'
 import { loadPage } from '@/lib/data/page'
 import type { PersonSummary } from '@/lib/dto/people'
 import { formatDate } from '@/lib/formatDate'
 import { formatRuntime } from '@/lib/formatRuntime'
-import { getInitials } from '@/lib/getInitials'
 import { presentMovieDetail, type SupportingCredit } from '@/presenters/movieDetail'
 import styles from './styles.module.scss'
 
@@ -20,7 +20,7 @@ import styles from './styles.module.scss'
 const loadMovie = cache((slug: string) => loadPage(() => getMovieBySlug(slug), moviePath(slug)))
 
 /**
- * Names as links to each person's movies, separated by dots. Each dot travels with the name before
+ * Names as links to each person's page, separated by dots. Each dot travels with the name before
  * it, so a line break falls between names and never opens a line with a dot.
  */
 const NameList = ({ people }: { people: PersonSummary[] }) =>
@@ -28,7 +28,7 @@ const NameList = ({ people }: { people: PersonSummary[] }) =>
     <Fragment key={person.id}>
       {index > 0 ? ' ' : null}
       <span className={styles.nameItem}>
-        <Link href={moviesByPersonPath(person.slug)} className={styles.name}>
+        <Link href={personPath(person.slug)} className={styles.name}>
           {person.name}
         </Link>
         {index < people.length - 1 ? (
@@ -164,9 +164,9 @@ const MoviePage = async ({ params }: PageProps<'/movies/[slug]'>) => {
             <ol className={styles.rail}>
               {movie.supporting.map(({ person, role, label }) => (
                 <li key={`${role}:${person.id}`} className={styles.railItem}>
-                  <Link href={moviesByPersonPath(person.slug)} className={styles.card}>
-                    <span className={styles.avatar} aria-hidden="true">
-                      {getInitials(person.name)}
+                  <Link href={personPath(person.slug)} className={styles.card}>
+                    <span className={styles.avatar}>
+                      <Headshot person={person} size="sm" />
                     </span>
                     <span className={styles.cardName}>{person.name}</span>
                     <span className={styles.cardRole}>{label}</span>

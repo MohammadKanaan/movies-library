@@ -8,14 +8,19 @@ import {
   ValidationError,
 } from '@/lib/data/errors'
 import {
+  attachHeadshot,
   createPerson,
   deletePerson,
   getPersonBySlug,
   listPeople,
+  removeHeadshot,
   updatePerson,
 } from '@/lib/data/people'
+import { objectDeleteDelaySeconds } from '@/lib/dto/uploads'
+import { enqueue } from '@/lib/server/queue'
 import { getRedis } from '@/lib/server/redis'
-import { seedMovie, seedPerson } from '../../helpers/catalog'
+import { deleteObject, headObject } from '@/lib/server/storage'
+import { seedGenre, seedMovie, seedPerson } from '../../helpers/catalog'
 import { createUser, resetDatabase, signInAs, signOut } from '../../helpers/server'
 
 const { cookieStore, requestHeaders } = await vi.hoisted(
@@ -26,13 +31,37 @@ vi.mock('next/headers', () => ({
   headers: async () => requestHeaders(),
 }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), refresh: vi.fn() }))
+const BUCKET_URL = vi.hoisted(() => 'https://pub-abc.r2.dev/')
+vi.mock('@/lib/server/storage', () => ({
+  isStorageConfigured: vi.fn(() => true),
+  createUploadTicket: vi.fn(async () => ({ url: 'https://r2.example/put', headers: {} })),
+  headObject: vi.fn(async () => ({ size: 4096, contentType: 'image/jpeg' })),
+  deleteObject: vi.fn(async () => {}),
+  publicUrl: (key: string) => `${BUCKET_URL}${key}`,
+  keyFromPublicUrl: (url: string | null) =>
+    url?.startsWith(BUCKET_URL) ? url.slice(BUCKET_URL.length) : null,
+}))
 
 const all = { page: 1, perPage: 10 }
 
-const signInAsAdmin = async () => signInAs(await createUser({ role: 'admin' }))
+const deleteJobs = () => vi.mocked(enqueue).mock.calls.filter(([name]) => name === 'delete-object')
+
+const headshotKey = (userId: string) => `headshots/${userId}/${crypto.randomUUID()}`
+
+const signInAsAdmin = async () => {
+  const admin = await createUser({ role: 'admin' })
+  await signInAs(admin)
+  return admin
+}
 
 describe('people DAL', () => {
-  beforeEach(resetDatabase)
+  beforeEach(async () => {
+    await resetDatabase()
+    vi.mocked(enqueue).mockClear()
+    vi.mocked(headObject).mockClear()
+    vi.mocked(headObject).mockResolvedValue({ size: 4096, contentType: 'image/jpeg' })
+    vi.mocked(deleteObject).mockClear()
+  })
   afterAll(async () => {
     await getRedis().quit()
     await db.$disconnect()
@@ -66,6 +95,7 @@ describe('people DAL', () => {
           id: amy.id,
           slug: 'amy-adams',
           name: 'Amy Adams',
+          headshotUrl: null,
           creditCount: 1,
           createdAt: expect.any(Date),
         },
@@ -73,6 +103,7 @@ describe('people DAL', () => {
           id: denis.id,
           slug: 'denis-villeneuve',
           name: 'Denis Villeneuve',
+          headshotUrl: null,
           creditCount: 3,
           createdAt: expect.any(Date),
         },
@@ -133,20 +164,31 @@ describe('people DAL', () => {
       await expect(getPersonBySlug('')).rejects.toBeInstanceOf(NotFoundError)
     })
 
-    it('groups the filmography by role, newest release first', async () => {
-      const denis = await seedPerson('Denis Villeneuve')
+    it('lists each film once with every role held on it, newest release first', async () => {
+      const scifi = await seedGenre('Science Fiction')
+      const denis = await db.person.create({
+        data: {
+          name: 'Denis Villeneuve',
+          slug: 'denis-villeneuve',
+          bio: 'Canadian filmmaker.',
+          birthDate: new Date('1967-10-03T00:00:00.000Z'),
+        },
+      })
       const arrival = await seedMovie({
         title: 'Arrival',
         releaseDate: '2016-11-11',
         credits: [{ personId: denis.id, role: 'DIRECTOR' }],
       })
+      // Credited as writer before director: the roles still come out in `credit_role` order.
       const dune = await seedMovie({
         title: 'Dune',
         releaseDate: '2021-10-22',
+        runtimeMinutes: 155,
         posterUrl: 'https://pub.example/dune.jpg',
+        genreIds: [scifi.id],
         credits: [
-          { personId: denis.id, role: 'DIRECTOR' },
           { personId: denis.id, role: 'WRITER' },
+          { personId: denis.id, role: 'DIRECTOR' },
         ],
       })
 
@@ -155,28 +197,33 @@ describe('people DAL', () => {
         id: denis.id,
         slug: 'denis-villeneuve',
         name: 'Denis Villeneuve',
+        headshotUrl: null,
+        bio: 'Canadian filmmaker.',
+        birthDate: new Date('1967-10-03T00:00:00.000Z'),
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
-        filmography: {
-          directed: [
-            {
-              id: dune.id,
-              slug: 'dune-2021',
-              title: 'Dune',
-              releaseDate: new Date('2021-10-22T00:00:00.000Z'),
-              posterUrl: 'https://pub.example/dune.jpg',
-            },
-            {
-              id: arrival.id,
-              slug: 'arrival-2016',
-              title: 'Arrival',
-              releaseDate: new Date('2016-11-11T00:00:00.000Z'),
-              posterUrl: null,
-            },
-          ],
-          written: [expect.objectContaining({ id: dune.id })],
-          acted: [],
-        },
+        filmography: [
+          {
+            id: dune.id,
+            slug: 'dune-2021',
+            title: 'Dune',
+            releaseDate: new Date('2021-10-22T00:00:00.000Z'),
+            runtimeMinutes: 155,
+            posterUrl: 'https://pub.example/dune.jpg',
+            genres: [{ id: scifi.id, name: 'Science Fiction', slug: 'science-fiction' }],
+            roles: ['DIRECTOR', 'WRITER'],
+          },
+          {
+            id: arrival.id,
+            slug: 'arrival-2016',
+            title: 'Arrival',
+            releaseDate: new Date('2016-11-11T00:00:00.000Z'),
+            runtimeMinutes: null,
+            posterUrl: null,
+            genres: [],
+            roles: ['DIRECTOR'],
+          },
+        ],
         permissions: { update: false, delete: false },
       })
     })
@@ -234,13 +281,28 @@ describe('people DAL', () => {
       await signInAsAdmin()
       const first = await createPerson({ name: ' John Williams ' })
       expect(first).toMatchObject({ slug: 'john-williams', name: 'John Williams' })
-      expect(first.filmography).toEqual({ directed: [], written: [], acted: [] })
+      expect(first.filmography).toEqual([])
+      expect(first).toMatchObject({ bio: null, birthDate: null, headshotUrl: null })
       expect(first.permissions).toEqual({ update: true, delete: true })
 
       expect((await createPerson({ name: 'John Williams' })).slug).toBe('john-williams-2')
       expect((await createPerson({ name: 'John Williams' })).slug).toBe('john-williams-3')
       // An unrelated slug that merely starts the same way is not in the way.
       expect((await createPerson({ name: 'John Williamson' })).slug).toBe('john-williamson')
+    })
+
+    it('stores the bio and birth date', async () => {
+      await signInAsAdmin()
+      expect(
+        await createPerson({
+          name: 'Greta Gerwig',
+          bio: ' Writer and director. ',
+          birthDate: '1983-08-04',
+        }),
+      ).toMatchObject({
+        bio: 'Writer and director.',
+        birthDate: new Date('1983-08-04T00:00:00.000Z'),
+      })
     })
   })
 
@@ -270,6 +332,20 @@ describe('people DAL', () => {
         slug: 'amy-adams',
         name: 'Amy Lou Adams',
       })
+    })
+
+    it('keeps the bio and birth date on a rename, and clears them with null', async () => {
+      const amy = await seedPerson('Amy Adams')
+      await signInAsAdmin()
+      await updatePerson({ id: amy.id, name: 'Amy Adams', bio: 'Actor.', birthDate: '1974-08-20' })
+
+      expect(await updatePerson({ id: amy.id, name: 'Amy Lou Adams' })).toMatchObject({
+        bio: 'Actor.',
+        birthDate: new Date('1974-08-20T00:00:00.000Z'),
+      })
+      expect(
+        await updatePerson({ id: amy.id, name: 'Amy', bio: '', birthDate: null }),
+      ).toMatchObject({ bio: null, birthDate: null })
     })
   })
 
@@ -307,6 +383,131 @@ describe('people DAL', () => {
       await deletePerson(amy.id)
       await expect(getPersonBySlug('amy-adams')).rejects.toBeInstanceOf(NotFoundError)
       expect(await db.person.count()).toBe(0)
+      expect(deleteJobs()).toHaveLength(0)
+    })
+
+    it('queues the headshot object for deletion when it is in the bucket', async () => {
+      const admin = await signInAsAdmin()
+      const key = headshotKey(admin.id)
+      const amy = await db.person.create({
+        data: { name: 'Amy Adams', slug: 'amy-adams', headshotUrl: `${BUCKET_URL}${key}` },
+      })
+      await deletePerson(amy.id)
+      expect(deleteJobs()).toEqual([
+        ['delete-object', { key }, { startAfter: objectDeleteDelaySeconds('headshot') }],
+      ])
+    })
+  })
+
+  describe('attachHeadshot', () => {
+    const headshotOf = async (id: string) =>
+      (await db.person.findUniqueOrThrow({ where: { id } })).headshotUrl
+
+    it('checks admin, then the key, then ownership, then the person, then the object', async () => {
+      const amy = await seedPerson('Amy Adams')
+      const otherAdmin = await createUser({ role: 'admin' })
+      const theirKey = headshotKey(otherAdmin.id)
+
+      await expect(attachHeadshot({ id: amy.id, key: 'nope' })).rejects.toBeInstanceOf(
+        UnauthorizedError,
+      )
+      await signInAs(await createUser({ role: 'editor' }))
+      await expect(attachHeadshot({ id: amy.id, key: theirKey })).rejects.toBeInstanceOf(
+        ForbiddenError,
+      )
+
+      const admin = await signInAsAdmin()
+      await expect(attachHeadshot({ id: amy.id, key: 'nope' })).rejects.toBeInstanceOf(
+        ValidationError,
+      )
+      await expect(attachHeadshot({ id: amy.id, key: theirKey })).rejects.toBeInstanceOf(
+        ForbiddenError,
+      )
+      // A poster under this admin's own id is still not a headshot.
+      await expect(
+        attachHeadshot({ id: amy.id, key: `posters/${admin.id}/${crypto.randomUUID()}` }),
+      ).rejects.toBeInstanceOf(ForbiddenError)
+      await expect(
+        attachHeadshot({ id: crypto.randomUUID(), key: headshotKey(admin.id) }),
+      ).rejects.toBeInstanceOf(NotFoundError)
+      expect(headObject).not.toHaveBeenCalled()
+
+      vi.mocked(headObject).mockResolvedValueOnce(null)
+      await expect(
+        attachHeadshot({ id: amy.id, key: headshotKey(admin.id) }),
+      ).rejects.toMatchObject({ fieldErrors: { key: ['The file was not uploaded'] } })
+      expect(await headshotOf(amy.id)).toBeNull()
+    })
+
+    it('rejects an object that breaks the headshot rule and deletes it at once', async () => {
+      const amy = await seedPerson('Amy Adams')
+      const admin = await signInAsAdmin()
+      const key = headshotKey(admin.id)
+      vi.mocked(headObject).mockResolvedValueOnce({
+        size: 3 * 1024 * 1024,
+        contentType: 'image/jpeg',
+      })
+      await expect(attachHeadshot({ id: amy.id, key })).rejects.toBeInstanceOf(ValidationError)
+      expect(deleteObject).toHaveBeenCalledWith(key)
+      expect(await headshotOf(amy.id)).toBeNull()
+    })
+
+    it('sets the headshot to the public URL, shown on the detail and in the list', async () => {
+      const amy = await seedPerson('Amy Adams')
+      const admin = await signInAsAdmin()
+      const key = headshotKey(admin.id)
+
+      const person = await attachHeadshot({ id: amy.id, key })
+
+      expect(person.headshotUrl).toBe(`${BUCKET_URL}${key}`)
+      expect(headObject).toHaveBeenCalledWith(key)
+      expect(deleteJobs()).toHaveLength(0)
+      signOut()
+      expect((await getPersonBySlug('amy-adams')).headshotUrl).toBe(person.headshotUrl)
+      expect((await listPeople(all)).items[0]?.headshotUrl).toBe(person.headshotUrl)
+    })
+
+    it('queues the replaced headshot, unless it is the same object', async () => {
+      const amy = await seedPerson('Amy Adams')
+      const admin = await signInAsAdmin()
+      const first = headshotKey(admin.id)
+      const second = headshotKey(admin.id)
+
+      await attachHeadshot({ id: amy.id, key: first })
+      await attachHeadshot({ id: amy.id, key: first })
+      expect(deleteJobs()).toHaveLength(0)
+      await attachHeadshot({ id: amy.id, key: second })
+      expect(deleteJobs()).toEqual([
+        ['delete-object', { key: first }, { startAfter: objectDeleteDelaySeconds('headshot') }],
+      ])
+    })
+  })
+
+  describe('removeHeadshot', () => {
+    it('requires an admin, then a valid id, then an existing person', async () => {
+      const amy = await seedPerson('Amy Adams')
+      await expect(removeHeadshot(amy.id)).rejects.toBeInstanceOf(UnauthorizedError)
+      await signInAs(await createUser({ role: 'editor' }))
+      await expect(removeHeadshot(amy.id)).rejects.toBeInstanceOf(ForbiddenError)
+      await signInAsAdmin()
+      await expect(removeHeadshot('a b')).rejects.toBeInstanceOf(ValidationError)
+      await expect(removeHeadshot(crypto.randomUUID())).rejects.toBeInstanceOf(NotFoundError)
+    })
+
+    it('clears the headshot and queues its object, or nothing when there was none', async () => {
+      const admin = await signInAsAdmin()
+      const key = headshotKey(admin.id)
+      const amy = await db.person.create({
+        data: { name: 'Amy Adams', slug: 'amy-adams', headshotUrl: `${BUCKET_URL}${key}` },
+      })
+      const bare = await seedPerson('Zendaya')
+
+      expect((await removeHeadshot(amy.id)).headshotUrl).toBeNull()
+      expect((await removeHeadshot(bare.id)).headshotUrl).toBeNull()
+
+      expect(deleteJobs()).toEqual([
+        ['delete-object', { key }, { startAfter: objectDeleteDelaySeconds('headshot') }],
+      ])
     })
   })
 })

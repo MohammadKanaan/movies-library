@@ -27,6 +27,7 @@ const denis: PersonListItem = {
   id: DENIS_ID,
   slug: 'denis-villeneuve',
   name: 'Denis Villeneuve',
+  headshotUrl: null,
   creditCount: 4,
   createdAt: new Date('2026-10-05T15:04:00.000Z'),
 }
@@ -34,6 +35,7 @@ const amy: PersonListItem = {
   id: AMY_ID,
   slug: 'amy-adams',
   name: 'Amy Adams',
+  headshotUrl: null,
   creditCount: 0,
   createdAt: new Date('2026-10-06T15:04:00.000Z'),
 }
@@ -103,9 +105,12 @@ describe('PeopleView', () => {
         id: 'p3',
         slug: 'greta-gerwig',
         name: 'Greta Gerwig',
+        headshotUrl: null,
+        bio: null,
+        birthDate: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-        filmography: { directed: [], written: [], acted: [] },
+        filmography: [],
         permissions: { update: true, delete: true },
       },
     })
@@ -125,8 +130,10 @@ describe('PeopleView', () => {
       data: {
         ...amy,
         name: 'Amy Lou Adams',
+        bio: null,
+        birthDate: null,
         updatedAt: new Date(),
-        filmography: { directed: [], written: [], acted: [] },
+        filmography: [],
         permissions: { update: true, delete: true },
       },
     })

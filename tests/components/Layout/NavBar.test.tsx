@@ -46,6 +46,22 @@ describe('NavBar', () => {
     expect(linksNamed('UI Kit').length).toBeGreaterThan(0)
   })
 
+  it('links to the movies and the people for everyone', () => {
+    const { rerender } = render(<NavBar user={null} />)
+    for (const [name, href] of [
+      ['Movies', '/movies'],
+      ['People', '/people'],
+    ]) {
+      const links = linksNamed(name)
+      expect(links).toHaveLength(2)
+      for (const link of links) {
+        expect(link).toHaveAttribute('href', href)
+      }
+    }
+    rerender(<NavBar user={user} />)
+    expect(linksNamed('People')).toHaveLength(2)
+  })
+
   it('has no Dashboard link and no notification bell for anyone', () => {
     const { rerender } = render(<NavBar user={{ ...user, role: 'admin' }} />)
     expect(linksNamed('Dashboard')).toHaveLength(0)

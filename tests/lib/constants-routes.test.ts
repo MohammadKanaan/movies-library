@@ -6,6 +6,7 @@ import {
   isPublicRoute,
   loginPath,
   moviesByPersonPath,
+  personPath,
   ROUTE_ADMIN_GENRES,
   ROUTE_ADMIN_MOVIE_NEW,
   ROUTE_ADMIN_MOVIES,
@@ -41,6 +42,10 @@ describe('admin routes', () => {
   it('builds the public movie list filtered to one person', () => {
     expect(moviesByPersonPath('denis-villeneuve')).toBe('/movies?person=denis-villeneuve')
   })
+
+  it('builds a person page from the slug', () => {
+    expect(personPath('denis-villeneuve')).toBe('/people/denis-villeneuve')
+  })
 })
 
 describe('route helpers', () => {
@@ -55,6 +60,8 @@ describe('route helpers', () => {
       '/ui-kit/anything',
       '/movies',
       '/movies/dune-2021',
+      '/people',
+      '/people/denis-villeneuve',
     ]) {
       expect(isPublicRoute(path)).toBe(true)
     }

@@ -264,11 +264,20 @@ describe('movies DAL', () => {
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
         credits: {
-          directors: [{ id: denis.id, slug: 'denis-villeneuve', name: 'Denis Villeneuve' }],
-          writers: [{ id: denis.id, slug: 'denis-villeneuve', name: 'Denis Villeneuve' }],
+          directors: [
+            { id: denis.id, slug: 'denis-villeneuve', name: 'Denis Villeneuve', headshotUrl: null },
+          ],
+          writers: [
+            { id: denis.id, slug: 'denis-villeneuve', name: 'Denis Villeneuve', headshotUrl: null },
+          ],
           cast: [
-            { id: timothee.id, slug: 'timothee-chalamet', name: 'Timothée Chalamet' },
-            { id: zendaya.id, slug: 'zendaya', name: 'Zendaya' },
+            {
+              id: timothee.id,
+              slug: 'timothee-chalamet',
+              name: 'Timothée Chalamet',
+              headshotUrl: null,
+            },
+            { id: zendaya.id, slug: 'zendaya', name: 'Zendaya', headshotUrl: null },
           ],
         },
         permissions: { update: false, delete: false },

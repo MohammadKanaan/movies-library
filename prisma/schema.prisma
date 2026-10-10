@@ -163,12 +163,17 @@ model MovieGenre {
 }
 
 model Person {
-  id        String   @id @default(uuid(7)) @db.Uuid
+  id          String    @id @default(uuid(7)) @db.Uuid
   // Names are not unique either; the slug is the seed's upsert key.
-  slug      String   @unique
-  name      String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  slug        String    @unique
+  name        String
+  bio         String?
+  // A calendar day, like movies.release_date. No death date yet: the pages show "Born ..." only.
+  birthDate   DateTime? @map("birth_date") @db.Date
+  // A `headshot` upload's public URL (attachHeadshot), never a pasted URL.
+  headshotUrl String?   @map("headshot_url")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   credits Credit[]
 

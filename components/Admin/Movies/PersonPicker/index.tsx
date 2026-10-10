@@ -114,7 +114,8 @@ export const PersonPicker = ({ label, excludeIds = [], disabled, onPick }: Perso
     const result = await createPersonAction({ name })
     setCreating(false)
     if (result.ok) {
-      finish({ id: result.data.id, slug: result.data.slug, name: result.data.name })
+      const { id, slug, name, headshotUrl } = result.data
+      finish({ id, slug, name, headshotUrl })
       return
     }
     setMessage(result.fieldErrors?.name?.[0] ?? result.message)
@@ -125,8 +126,8 @@ export const PersonPicker = ({ label, excludeIds = [], disabled, onPick }: Perso
       return
     }
     if (option.kind === 'person') {
-      const { id, slug, name } = option.person
-      finish({ id, slug, name })
+      const { id, slug, name, headshotUrl } = option.person
+      finish({ id, slug, name, headshotUrl })
       return
     }
     void create(option.name)

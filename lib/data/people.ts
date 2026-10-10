@@ -1,13 +1,15 @@
 import 'server-only'
 import { Prisma } from '@/generated/prisma/client'
-import { catalogIdSchema, slugSchema } from '@/lib/dto/catalog'
+import { catalogIdSchema, creditRoleSchema, slugSchema } from '@/lib/dto/catalog'
 import { pageSchema, toPage, type Page } from '@/lib/dto/common'
 import {
+  attachHeadshotInput,
   listPeopleQuery,
   personDetailSchema,
   personInput,
   personListItemSchema,
   updatePersonInput,
+  type AttachHeadshotInput,
   type ListPeopleQuery,
   type MovieCredit,
   type PersonDetail,
@@ -17,22 +19,30 @@ import {
 } from '@/lib/dto/people'
 import { slugify } from '@/lib/slug'
 import { invalidateTags, remember } from '@/lib/server/cache'
+import { logger } from '@/lib/server/logger'
+import { keyFromPublicUrl, publicUrl } from '@/lib/server/storage'
 import { getSessionUser, requireAdmin, type SessionUser } from './auth'
 import { CATALOG_TAG } from './cacheTags'
 import { db } from './db'
 import { escapeLike } from './escapeLike'
 import { NotFoundError, parseInput, ValidationError } from './errors'
+import { genreSelect } from './genres'
 import { personPolicy } from './policies/person'
 import { authorize, permissionsFor } from './policy'
 import { uniqueSlug } from './slugs'
+import { deleteObjectAfterTicket, requireOwnKey, verifyStoredObject } from './uploads'
 
 // People (directors, writers, cast): public to read, admin-only to write. A person's slug comes
-// from their name once, with a numeric suffix for namesakes, and never changes.
+// from their name once, with a numeric suffix for namesakes, and never changes. The headshot comes
+// from an upload (`attachHeadshot`), like a movie's poster.
+
+const log = logger.child({ module: 'people' })
 
 export const personSummarySelect = {
   id: true,
   slug: true,
   name: true,
+  headshotUrl: true,
 } satisfies Prisma.PersonSelect
 
 /** A list row: the summary plus the credit count (a person in two roles on one movie counts twice). */
@@ -49,16 +59,25 @@ const toPersonListItem = ({ _count, ...person }: PersonListItemRow): PersonListI
   creditCount: _count.credits,
 })
 
+// The fields of `movieSummarySelect` (`lib/data/movies.ts`), which cannot be imported here: movies.ts
+// imports this file.
 const movieCreditSelect = {
   id: true,
   slug: true,
   title: true,
   releaseDate: true,
+  runtimeMinutes: true,
   posterUrl: true,
+  genres: {
+    select: { genre: { select: genreSelect } },
+    orderBy: [{ genre: { name: 'asc' } }, { genreId: 'asc' }],
+  },
 } satisfies Prisma.MovieSelect
 
 const personDetailSelect = {
   ...personSummarySelect,
+  bio: true,
+  birthDate: true,
   createdAt: true,
   updatedAt: true,
   credits: {
@@ -78,18 +97,31 @@ const PEOPLE_CACHE_TTL = 300
 const PERMISSION_ACTIONS = ['update', 'delete'] as const
 const CREATE_ATTEMPTS = 3
 
+const ROLE_ORDER = creditRoleSchema.options
+
+/**
+ * One entry per movie, in the rows' order (newest release first), carrying every role the person
+ * holds on it in `credit_role` order. A writer-director's film appears once.
+ */
 const toPersonRecord = ({ credits, ...person }: PersonDetailRow): PersonRecord => {
-  const filmography: PersonRecord['filmography'] = { directed: [], written: [], acted: [] }
+  const byMovie = new Map<string, MovieCredit>()
   for (const { role, movie } of credits) {
-    const entry: MovieCredit = movie
-    if (role === 'DIRECTOR') {
-      filmography.directed.push(entry)
-    } else if (role === 'WRITER') {
-      filmography.written.push(entry)
+    const entry = byMovie.get(movie.id)
+    if (entry) {
+      entry.roles.push(role)
     } else {
-      filmography.acted.push(entry)
+      const { genres, ...fields } = movie
+      byMovie.set(movie.id, {
+        ...fields,
+        genres: genres.map(({ genre }) => genre),
+        roles: [role],
+      })
     }
   }
+  const filmography = [...byMovie.values()].map((entry) => ({
+    ...entry,
+    roles: [...entry.roles].sort((a, b) => ROLE_ORDER.indexOf(a) - ROLE_ORDER.indexOf(b)),
+  }))
   return { ...person, filmography }
 }
 
@@ -171,6 +203,9 @@ export const getPersonBySlug = async (slug: string): Promise<PersonDetail> => {
   return withPermissions(record, viewer)
 }
 
+/** `YYYY-MM-DD` into the `date` column: midnight UTC, which the UTC session stores as that day. */
+const toBirthDate = (value: string | null) => (value ? new Date(`${value}T00:00:00.000Z`) : null)
+
 const slugBaseOf = (name: string) => {
   const base = slugify(name)
   if (!base) {
@@ -185,7 +220,7 @@ const slugBaseOf = (name: string) => {
  */
 export const createPerson = async (input: PersonInput): Promise<PersonDetail> => {
   const viewer = await requireAdmin()
-  const { name } = parseInput(personInput, input)
+  const { name, bio = null, birthDate = null } = parseInput(personInput, input)
   const base = slugBaseOf(name)
   for (let attempt = 1; ; attempt += 1) {
     const taken = await db.person.findMany({
@@ -197,7 +232,10 @@ export const createPerson = async (input: PersonInput): Promise<PersonDetail> =>
       taken.map((row) => row.slug),
     )
     try {
-      const person = await db.person.create({ data: { name, slug }, select: { id: true } })
+      const person = await db.person.create({
+        data: { name, slug, bio, birthDate: toBirthDate(birthDate) },
+        select: { id: true },
+      })
       await invalidateTags(CATALOG_TAG)
       return readPersonDetail(person.id, viewer)
     } catch (error) {
@@ -209,28 +247,55 @@ export const createPerson = async (input: PersonInput): Promise<PersonDetail> =>
   }
 }
 
-/** Admin only → input valid → exists (404) → allowed (403) → renames; the slug never changes. */
+/**
+ * Admin only → input valid → exists (404) → allowed (403) → renames and writes the bio and birth
+ * date that were given (a field left out keeps its value); the slug never changes.
+ */
 export const updatePerson = async (input: UpdatePersonInput): Promise<PersonDetail> => {
   const viewer = await requireAdmin()
-  const { id, name } = parseInput(updatePersonInput, input)
+  const { id, name, bio, birthDate } = parseInput(updatePersonInput, input)
   const record = await db.person.findUnique({ where: { id }, select: { id: true } })
   if (!record) {
     throw new NotFoundError('Person not found')
   }
   authorize(personPolicy.update, viewer, record)
-  await db.person.update({ where: { id }, data: { name } })
+  await db.person.update({
+    where: { id },
+    data: {
+      name,
+      ...(bio === undefined ? {} : { bio }),
+      ...(birthDate === undefined ? {} : { birthDate: toBirthDate(birthDate) }),
+    },
+  })
   await invalidateTags(CATALOG_TAG)
   return readPersonDetail(id, viewer)
 }
 
 /**
+ * Queues the headshot's object for deletion once nothing references it. Only an object under
+ * `headshots/` is ours. A failure to queue leaves an orphaned object, never a broken response.
+ */
+const queueHeadshotDeletion = (headshotUrl: string | null) => {
+  const key = keyFromPublicUrl(headshotUrl)
+  if (!key?.startsWith('headshots/')) {
+    return
+  }
+  deleteObjectAfterTicket(key, 'headshot').catch((error) =>
+    log.error({ err: error, key }, 'headshot not queued for deletion'),
+  )
+}
+
+/**
  * Admin only → id valid → exists → allowed → not credited: the foreign key is `Restrict`, and this
- * turns that into a message instead of a database error.
+ * turns that into a message instead of a database error. The headshot's object is queued after.
  */
 export const deletePerson = async (id: string): Promise<void> => {
   const viewer = await requireAdmin()
   const personId = parseInput(catalogIdSchema, id)
-  const record = await db.person.findUnique({ where: { id: personId }, select: { id: true } })
+  const record = await db.person.findUnique({
+    where: { id: personId },
+    select: { id: true, headshotUrl: true },
+  })
   if (!record) {
     throw new NotFoundError('Person not found')
   }
@@ -247,4 +312,57 @@ export const deletePerson = async (id: string): Promise<void> => {
   }
   await db.person.delete({ where: { id: personId } })
   await invalidateTags(CATALOG_TAG)
+  queueHeadshotDeletion(record.headshotUrl)
+}
+
+/**
+ * Makes an uploaded `headshot` object the person's headshot, the way `attachPoster` does for a
+ * movie. Admin → input valid (422) → the key is the admin's own and a headshot (403) → the person
+ * exists (404) → allowed → the stored object is checked against the rule (an object that broke it is
+ * deleted at once) → in one transaction that first locks the person row, the current headshot is
+ * read and replaced → the replaced object, if it is in the bucket and not the same key, is queued.
+ */
+export const attachHeadshot = async (input: AttachHeadshotInput): Promise<PersonDetail> => {
+  const viewer = await requireAdmin()
+  const { id, key } = parseInput(attachHeadshotInput, input)
+  const ownKey = requireOwnKey(viewer, key, 'headshot')
+  const record = await db.person.findUnique({ where: { id }, select: { id: true } })
+  if (!record) {
+    throw new NotFoundError('Person not found')
+  }
+  authorize(personPolicy.update, viewer, record)
+  await verifyStoredObject(ownKey, 'headshot')
+
+  const replaced = await db.$transaction(async (tx) => {
+    // Two attaches to one person run one after the other, so the later one sees (and replaces) the
+    // earlier headshot instead of losing track of it.
+    await tx.$queryRaw`SELECT 1 FROM people WHERE id = ${id}::uuid FOR UPDATE`
+    const previous = await tx.person.findUnique({ where: { id }, select: { headshotUrl: true } })
+    await tx.person.update({ where: { id }, data: { headshotUrl: publicUrl(ownKey) } })
+    return previous?.headshotUrl ?? null
+  })
+
+  await invalidateTags(CATALOG_TAG)
+  if (keyFromPublicUrl(replaced) !== ownKey) {
+    queueHeadshotDeletion(replaced)
+  }
+  return readPersonDetail(id, viewer)
+}
+
+/** Admin only → id valid → exists → allowed → the headshot is cleared and its object queued for deletion. */
+export const removeHeadshot = async (id: string): Promise<PersonDetail> => {
+  const viewer = await requireAdmin()
+  const personId = parseInput(catalogIdSchema, id)
+  const record = await db.person.findUnique({
+    where: { id: personId },
+    select: { id: true, headshotUrl: true },
+  })
+  if (!record) {
+    throw new NotFoundError('Person not found')
+  }
+  authorize(personPolicy.update, viewer, record)
+  await db.person.update({ where: { id: personId }, data: { headshotUrl: null } })
+  await invalidateTags(CATALOG_TAG)
+  queueHeadshotDeletion(record.headshotUrl)
+  return readPersonDetail(personId, viewer)
 }

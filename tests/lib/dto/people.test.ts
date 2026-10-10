@@ -4,7 +4,10 @@ import {
   listPeopleQuery,
   PEOPLE_SEARCH_MAX_LENGTH,
   peopleUrlQuery,
+  PERSON_BIO_MAX_LENGTH,
+  PERSON_BIRTH_MIN,
   PERSON_NAME_MAX_LENGTH,
+  attachHeadshotInput,
   personDetailSchema,
   personInput,
   personListItemSchema,
@@ -15,6 +18,8 @@ import {
 const ID = '0190d1a2-0000-7000-8000-000000000001'
 const MOVIE_ID = '0190d1a2-0000-7000-8000-000000000002'
 
+const today = () => new Date().toISOString().slice(0, 10)
+
 describe('personInput', () => {
   it('trims and bounds the name', () => {
     expect(personInput.parse({ name: '  Denis Villeneuve ' })).toEqual({ name: 'Denis Villeneuve' })
@@ -22,6 +27,42 @@ describe('personInput', () => {
     expect(personInput.safeParse({ name: 'a'.repeat(PERSON_NAME_MAX_LENGTH + 1) }).success).toBe(
       false,
     )
+  })
+
+  it('leaves an absent bio and birth date out, so an update keeps them', () => {
+    const parsed = personInput.parse({ name: 'Greta Gerwig' })
+    expect(parsed).not.toHaveProperty('bio')
+    expect(parsed).not.toHaveProperty('birthDate')
+  })
+
+  it('trims and bounds the bio, clearing it when blank', () => {
+    expect(personInput.parse({ name: 'A', bio: '  Born in Sacramento.  ' }).bio).toBe(
+      'Born in Sacramento.',
+    )
+    expect(personInput.parse({ name: 'A', bio: '   ' }).bio).toBeNull()
+    expect(personInput.parse({ name: 'A', bio: null }).bio).toBeNull()
+    expect(
+      personInput.safeParse({ name: 'A', bio: 'a'.repeat(PERSON_BIO_MAX_LENGTH + 1) }).error
+        ?.issues[0]?.message,
+    ).toBe(`Bio must be ${PERSON_BIO_MAX_LENGTH} characters or fewer`)
+  })
+
+  it('takes a birth date as a calendar day between 1800 and today, or null to clear it', () => {
+    expect(personInput.parse({ name: 'A', birthDate: '1983-08-04' }).birthDate).toBe('1983-08-04')
+    expect(personInput.parse({ name: 'A', birthDate: PERSON_BIRTH_MIN }).birthDate).toBe(
+      PERSON_BIRTH_MIN,
+    )
+    expect(personInput.parse({ name: 'A', birthDate: today() }).birthDate).toBe(today())
+    expect(personInput.parse({ name: 'A', birthDate: null }).birthDate).toBeNull()
+    expect(
+      personInput.safeParse({ name: 'A', birthDate: '04/08/1983' }).error?.issues[0]?.message,
+    ).toBe('Enter a birth date as YYYY-MM-DD')
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+    for (const birthDate of ['1799-12-31', tomorrow]) {
+      expect(personInput.safeParse({ name: 'A', birthDate }).error?.issues[0]?.message).toBe(
+        'Enter a birth date between 1800 and today',
+      )
+    }
   })
 
   it('needs a person id to update', () => {
@@ -54,11 +95,26 @@ describe('people list', () => {
   })
 })
 
-describe('person outputs', () => {
-  const summary = { id: ID, slug: 'denis-villeneuve', name: 'Denis Villeneuve' }
+describe('attachHeadshotInput', () => {
+  it('takes a person id and an upload key', () => {
+    const key = `headshots/${crypto.randomUUID()}/${crypto.randomUUID()}`
+    expect(attachHeadshotInput.parse({ id: ID, key })).toEqual({ id: ID, key })
+    expect(attachHeadshotInput.safeParse({ id: 'nope', key }).success).toBe(false)
+    expect(attachHeadshotInput.safeParse({ id: ID, key: 'nope' }).success).toBe(false)
+  })
+})
 
-  it('summarise a person as id, slug and name', () => {
+describe('person outputs', () => {
+  const summary = {
+    id: ID,
+    slug: 'denis-villeneuve',
+    name: 'Denis Villeneuve',
+    headshotUrl: null,
+  }
+
+  it('summarise a person as id, slug, name and headshot', () => {
     expect(personSummarySchema.parse(summary)).toEqual(summary)
+    expect(personSummarySchema.safeParse({ id: ID, slug: 's', name: 'n' }).success).toBe(false)
   })
 
   it('list a person with how many credits they hold and when they were added', () => {
@@ -81,27 +137,44 @@ describe('person outputs', () => {
       JSON.parse(
         JSON.stringify({
           ...summary,
+          bio: 'Canadian filmmaker.',
+          birthDate: new Date('1967-10-03T00:00:00Z'),
           createdAt: new Date('2026-01-01T00:00:00Z'),
           updatedAt: new Date('2026-01-02T00:00:00Z'),
-          filmography: {
-            directed: [
-              {
-                id: MOVIE_ID,
-                slug: 'dune-2021',
-                title: 'Dune',
-                releaseDate: new Date('2021-10-22T00:00:00Z'),
-                posterUrl: null,
-              },
-            ],
-            written: [],
-            acted: [],
-          },
+          filmography: [
+            {
+              id: MOVIE_ID,
+              slug: 'dune-2021',
+              title: 'Dune',
+              releaseDate: new Date('2021-10-22T00:00:00Z'),
+              runtimeMinutes: 155,
+              posterUrl: null,
+              genres: [{ id: 'g1', name: 'Drama', slug: 'drama' }],
+              roles: ['DIRECTOR', 'WRITER'],
+            },
+          ],
           permissions: { update: false, delete: false },
         }),
       ),
     )
     expect(detail.createdAt).toBeInstanceOf(Date)
-    expect(detail.filmography.directed[0]?.releaseDate).toEqual(new Date('2021-10-22T00:00:00Z'))
+    expect(detail.birthDate).toEqual(new Date('1967-10-03T00:00:00Z'))
+    expect(detail.filmography[0]?.releaseDate).toEqual(new Date('2021-10-22T00:00:00Z'))
+    expect(detail.filmography[0]?.roles).toEqual(['DIRECTOR', 'WRITER'])
     expect(detail.permissions).toEqual({ update: false, delete: false })
+  })
+
+  it('refuse a filmography entry without a role', () => {
+    const entry = {
+      id: MOVIE_ID,
+      slug: 'dune-2021',
+      title: 'Dune',
+      releaseDate: new Date('2021-10-22T00:00:00Z'),
+      runtimeMinutes: null,
+      posterUrl: null,
+      genres: [],
+      roles: [],
+    }
+    expect(personDetailSchema.shape.filmography.safeParse([entry]).success).toBe(false)
   })
 })

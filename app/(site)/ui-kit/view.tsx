@@ -14,6 +14,8 @@ import { ButtonLink } from '@/components/ButtonLink'
 import { LoadingButton } from '@/components/LoadingButton'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { PageHeader } from '@/components/PageHeader'
+import { Headshot } from '@/components/People/Headshot'
+import { PersonCard } from '@/components/People/PersonCard'
 import { Pagination } from '@/components/Pagination'
 import { AvatarUploader } from '@/components/Settings/AvatarUploader'
 import { ProfileForm } from '@/components/Settings/ProfileForm'
@@ -68,6 +70,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/SCN/tooltip'
 import { UserAvatar } from '@/components/UserAvatar'
 import { genreInput } from '@/lib/dto/genres'
+import type { PersonListItem } from '@/lib/dto/people'
 import type { CurrentUser } from '@/lib/dto/users'
 import type { ActionResult } from '@/types/api'
 import styles from './styles.module.scss'
@@ -94,6 +97,15 @@ const BADGE_VARIANTS: BadgeVariant[] = [
   'ghost',
   'link',
 ]
+
+const SAMPLE_PERSON: PersonListItem = {
+  id: '0190d1a2-0000-7000-8000-00000000000a',
+  slug: 'agnes-varda',
+  name: 'Agnès Varda',
+  headshotUrl: null,
+  creditCount: 12,
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+}
 
 const AVATAR_SAMPLE_IMAGE = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" fill="#6366f1"/><circle cx="20" cy="16" r="7" fill="#e0e7ff"/><path d="M6 40c2-10 8-13 14-13s12 3 14 13z" fill="#e0e7ff"/></svg>',
@@ -646,6 +658,40 @@ export const UiKitView = () => {
         <div className={styles.row}>
           <UserAvatar name="Ada Lovelace" image={AVATAR_SAMPLE_IMAGE} size="lg" />
           <UserAvatar name="Grace Hopper" image={null} size="lg" />
+        </div>
+      </Section>
+
+      <Section
+        id="headshot"
+        eyebrow="Application components"
+        title="Headshot"
+        description="A person's round photo, or their initials on a tinted disc, in the three catalog sizes."
+      >
+        <div className={styles.row}>
+          {(['sm', 'md', 'lg'] as const).map((size) => (
+            <Headshot
+              key={size}
+              person={{ name: 'Agnès Varda', headshotUrl: AVATAR_SAMPLE_IMAGE }}
+              size={size}
+            />
+          ))}
+          {(['sm', 'md', 'lg'] as const).map((size) => (
+            <Headshot key={size} person={{ name: 'Agnès Varda', headshotUrl: null }} size={size} />
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        id="person-card"
+        eyebrow="Application components"
+        title="PersonCard"
+        description="A person on the people grid, linking to their page with their credit count."
+      >
+        <div className={styles.statGrid}>
+          <PersonCard person={SAMPLE_PERSON} />
+          <PersonCard
+            person={{ ...SAMPLE_PERSON, headshotUrl: AVATAR_SAMPLE_IMAGE, creditCount: 1 }}
+          />
         </div>
       </Section>
 

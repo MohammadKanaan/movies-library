@@ -43,4 +43,9 @@ describe('MovieCard', () => {
     // The fallback title is decoration: the link still reads once as the title.
     expect(screen.getByRole('link')).toHaveAccessibleName('Dune: Part Two 2024')
   })
+
+  it('shows the details it is given in place of the runtime and genres', () => {
+    render(<MovieCard movie={dune} details={['Director', 'Writer']} />)
+    expect(screen.getByRole('link')).toHaveAccessibleName('Dune: Part Two 2024 Director · Writer')
+  })
 })

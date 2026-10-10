@@ -1,8 +1,8 @@
 # Cloudflare R2 setup
 
-Uploads (profile photos, movie posters) go straight from the browser to an R2 bucket through a
-presigned PUT; the code in `lib/server/storage.ts`, `lib/data/uploads.ts` and `lib/data/movies.ts`
-documents the flow. This page covers the one part the code cannot: the bucket and its variables.
+Uploads (profile photos, movie posters, people's headshots) go straight from the browser to an R2
+bucket through a presigned PUT; the code in `lib/server/storage.ts`, `lib/data/uploads.ts`,
+`lib/data/movies.ts` and `lib/data/people.ts` documents the flow. This page covers the one part the code cannot: the bucket and its variables.
 
 The five `R2_*` variables are **optional as a group** (`lib/server/env.ts` refuses a partial set).
 Without them `isStorageConfigured()` is false, the DAL refuses tickets, `/settings` hides the profile

@@ -6,7 +6,12 @@ import type { PersonPickerProps } from '@/components/Admin/Movies/PersonPicker'
 import { MOVIE_CREDITS_MAX, type CreditInput } from '@/lib/dto/movies'
 import type { PersonSummary } from '@/lib/dto/people'
 
-const picked: PersonSummary = { id: 'new', slug: 'new-person', name: 'New Person' }
+const picked: PersonSummary = {
+  id: 'new',
+  slug: 'new-person',
+  name: 'New Person',
+  headshotUrl: null,
+}
 
 vi.mock('@/components/Admin/Movies/PersonPicker', () => ({
   PersonPicker: ({ label, excludeIds, disabled, onPick }: PersonPickerProps) => (
@@ -21,7 +26,12 @@ vi.mock('@/components/Admin/Movies/PersonPicker', () => ({
   ),
 }))
 
-const person = (id: string, name: string): PersonSummary => ({ id, slug: id, name })
+const person = (id: string, name: string): PersonSummary => ({
+  id,
+  slug: id,
+  name,
+  headshotUrl: null,
+})
 const people = {
   d1: person('d1', 'Dana Director'),
   d2: person('d2', 'Dev Director'),

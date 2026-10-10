@@ -16,6 +16,7 @@ import {
   ROUTE_HOME,
   ROUTE_LOGIN,
   ROUTE_MOVIES,
+  ROUTE_PEOPLE,
   ROUTE_SETTINGS,
   ROUTE_UI_KIT,
 } from '@/lib/constants-routes'
@@ -27,6 +28,7 @@ const MOBILE_NAV_ID = 'mobile-nav'
 
 const NAV_LINKS = [
   { label: 'Movies', href: ROUTE_MOVIES },
+  { label: 'People', href: ROUTE_PEOPLE },
   { label: 'UI Kit', href: ROUTE_UI_KIT },
 ]
 

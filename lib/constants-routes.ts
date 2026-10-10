@@ -7,6 +7,7 @@ export const ROUTE_SETTINGS = '/settings'
 export const ROUTE_ADMIN = '/admin'
 export const ROUTE_UI_KIT = '/ui-kit'
 export const ROUTE_MOVIES = '/movies'
+export const ROUTE_PEOPLE = '/people'
 
 export const moviePath = (slug: string) => `${ROUTE_MOVIES}/${slug}`
 
@@ -17,6 +18,9 @@ export const moviesByGenrePath = (genreSlug: string) =>
 /** The movie list filtered to one person's credits. */
 export const moviesByPersonPath = (personSlug: string) =>
   `${ROUTE_MOVIES}?${new URLSearchParams({ person: personSlug })}`
+
+/** Person slugs never change, so a person's page link is stable through a rename. */
+export const personPath = (slug: string) => `${ROUTE_PEOPLE}/${slug}`
 
 // The admin dashboard (`app/(admin)`): every route under `/admin` is private, see `PUBLIC_ROUTES`.
 export const ROUTE_ADMIN_MOVIES = `${ROUTE_ADMIN}/movies`
@@ -39,6 +43,7 @@ export const PUBLIC_ROUTES = [
   ROUTE_RESET_PASSWORD,
   ROUTE_UI_KIT,
   ROUTE_MOVIES,
+  ROUTE_PEOPLE,
 ] as const
 
 export const isPublicRoute = (path: string): boolean =>

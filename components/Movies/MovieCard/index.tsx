@@ -9,14 +9,18 @@ type MovieCardProps = {
   movie: MovieSummary
   /** Above the fold: load the poster now instead of lazily. */
   priority?: boolean
+  /** Replaces the runtime and genres line (a filmography shows the person's roles there). */
+  details?: string[]
 }
 
 /** A poster card with the title over it; runtime and genres fade in on hover (always shown on touch). */
-export const MovieCard = ({ movie, priority }: MovieCardProps) => {
-  const details = [
-    movie.runtimeMinutes === null ? null : formatRuntime(movie.runtimeMinutes),
-    ...movie.genres.slice(0, 2).map((genre) => genre.name),
-  ].filter((detail) => detail !== null)
+export const MovieCard = ({ movie, priority, details: detailsOverride }: MovieCardProps) => {
+  const details =
+    detailsOverride ??
+    [
+      movie.runtimeMinutes === null ? null : formatRuntime(movie.runtimeMinutes),
+      ...movie.genres.slice(0, 2).map((genre) => genre.name),
+    ].filter((detail) => detail !== null)
 
   return (
     // The card is always dark: its text sits on a scrim over the poster, in either theme.

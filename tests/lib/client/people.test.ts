@@ -9,6 +9,7 @@ const page = {
       id: '0190d1a2-0000-7000-8000-000000000001',
       slug: 'denis-villeneuve',
       name: 'Denis Villeneuve',
+      headshotUrl: null,
       creditCount: 2,
       createdAt: '2026-01-01T00:00:00.000Z',
     },

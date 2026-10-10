@@ -8,6 +8,7 @@ const people = (prefix: string, count: number): PersonSummary[] =>
     id: `${prefix}-${index + 1}`,
     slug: `${prefix}-${index + 1}`,
     name: `${prefix} ${index + 1}`,
+    headshotUrl: null,
   }))
 
 const movieWith = (credits: MovieDetail['credits']): MovieDetail => ({

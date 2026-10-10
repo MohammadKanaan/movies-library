@@ -13,7 +13,10 @@ const OTHER_GENRE_ID = '33333333-3333-4333-8333-333333333333'
 
 vi.mock('@/components/Admin/Movies/PersonPicker', () => ({
   PersonPicker: ({ label, onPick }: PersonPickerProps) => (
-    <button type="button" onClick={() => onPick({ id: PERSON_ID, slug: 'x', name: 'Zendaya' })}>
+    <button
+      type="button"
+      onClick={() => onPick({ id: PERSON_ID, slug: 'x', name: 'Zendaya', headshotUrl: null })}
+    >
       {label}
     </button>
   ),
@@ -24,7 +27,7 @@ const genres: GenreWithCount[] = [
   { id: OTHER_GENRE_ID, name: 'Comedy', slug: 'comedy', movieCount: 1 },
 ]
 
-const person = (id: string, name: string) => ({ id, slug: id, name })
+const person = (id: string, name: string) => ({ id, slug: id, name, headshotUrl: null })
 
 const movie: MovieDetail = {
   id: '44444444-4444-4444-8444-444444444444',

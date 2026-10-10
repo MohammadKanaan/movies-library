@@ -41,6 +41,7 @@ describe('GET /api/v1/people', () => {
           id: denis.id,
           slug: 'denis-villeneuve',
           name: 'Denis Villeneuve',
+          headshotUrl: null,
           creditCount: 1,
           createdAt: expect.any(String),
         },

@@ -3,6 +3,8 @@ import {
   AVATAR_CONTENT_TYPES,
   AVATAR_MAX_SIZE,
   createUploadInput,
+  HEADSHOT_CONTENT_TYPES,
+  HEADSHOT_MAX_SIZE,
   isAllowedContentType,
   MAX_OBJECT_DELETE_DELAY_SECONDS,
   objectDeleteDelaySeconds,
@@ -33,7 +35,6 @@ describe('UPLOAD_RULES', () => {
   })
 
   it('limits posters to larger raster images that only admins may upload', () => {
-    expect(uploadPurposeSchema.options).toEqual(['avatar', 'poster'])
     expect(UPLOAD_RULES.poster).toMatchObject({
       contentTypes: POSTER_CONTENT_TYPES,
       maxSize: 5 * 1024 * 1024,
@@ -42,6 +43,21 @@ describe('UPLOAD_RULES', () => {
     })
     expect(POSTER_CONTENT_TYPES).toEqual(['image/png', 'image/jpeg', 'image/webp'])
     expect(isAllowedContentType('poster', 'image/svg+xml')).toBe(false)
+  })
+
+  it('limits headshots to small raster images that only admins may upload', () => {
+    expect(UPLOAD_RULES.headshot).toMatchObject({
+      contentTypes: HEADSHOT_CONTENT_TYPES,
+      maxSize: 2 * 1024 * 1024,
+      ticketSeconds: UPLOAD_TICKET_SECONDS,
+      adminOnly: true,
+    })
+    expect(HEADSHOT_CONTENT_TYPES).toEqual(['image/png', 'image/jpeg', 'image/webp'])
+    expect(isAllowedContentType('headshot', 'image/svg+xml')).toBe(false)
+  })
+
+  it('knows every purpose', () => {
+    expect(uploadPurposeSchema.options).toEqual(['avatar', 'poster', 'headshot'])
   })
 
   it('never allows an active-content type', () => {
@@ -58,7 +74,11 @@ describe('UPLOAD_RULES', () => {
       UPLOAD_TICKET_SECONDS + UPLOAD_OBJECT_GRACE_SECONDS,
     )
     expect(MAX_OBJECT_DELETE_DELAY_SECONDS).toBe(
-      Math.max(objectDeleteDelaySeconds('avatar'), objectDeleteDelaySeconds('poster')),
+      Math.max(
+        objectDeleteDelaySeconds('avatar'),
+        objectDeleteDelaySeconds('poster'),
+        objectDeleteDelaySeconds('headshot'),
+      ),
     )
   })
 })
@@ -89,6 +109,15 @@ describe('createUploadInput', () => {
     expect(messages({ purpose: 'poster', contentType: 'image/gif', size: 10 })).toEqual([
       'contentType: Use a PNG, JPEG, or WebP image',
     ])
+  })
+
+  it('applies the headshot rule to a headshot', () => {
+    expect(
+      messages({ purpose: 'headshot', contentType: 'image/webp', size: HEADSHOT_MAX_SIZE }),
+    ).toEqual([])
+    expect(
+      messages({ purpose: 'headshot', contentType: 'image/png', size: HEADSHOT_MAX_SIZE + 1 }),
+    ).toEqual(['size: The image must be 2 MB or smaller'])
   })
 
   it('rejects an empty file, a fractional size and an unknown purpose', () => {

@@ -1,0 +1,59 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  height: 100%;
+  padding: 1.25rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--card);
+  color: var(--card-foreground);
+  text-align: center;
+  text-decoration: none;
+  transition:
+    border-color 150ms ease-out,
+    transform 120ms ease-out;
+
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  &:active {
+    transform: scale(0.985);
+  }
+}
+
+.name {
+  margin-top: 0.75rem;
+  font-family: var(--font-display-family);
+  font-size: 1rem;
+  font-weight: var(--font-display-weight);
+  letter-spacing: var(--font-display-tracking);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.credits {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    border-color: color-mix(in oklch, var(--primary) 45%, var(--border));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition-property: border-color;
+  }
+
+  .card:active {
+    transform: none;
+  }
+}

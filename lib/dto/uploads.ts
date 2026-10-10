@@ -4,6 +4,8 @@ export const AVATAR_CONTENT_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as
 export const AVATAR_MAX_SIZE = 2 * 1024 * 1024
 export const POSTER_CONTENT_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
 export const POSTER_MAX_SIZE = 5 * 1024 * 1024
+export const HEADSHOT_CONTENT_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
+export const HEADSHOT_MAX_SIZE = 2 * 1024 * 1024
 /** Seconds an upload ticket (presigned PUT) stays valid. */
 export const UPLOAD_TICKET_SECONDS = 300
 /**
@@ -15,7 +17,7 @@ export const UPLOAD_TICKET_SECONDS = 300
 export const UPLOAD_OBJECT_GRACE_SECONDS = 600
 
 /** Every kind of file the app stores. A new kind is a value here and a row in `UPLOAD_RULES`. */
-export const uploadPurposeSchema = z.enum(['avatar', 'poster'])
+export const uploadPurposeSchema = z.enum(['avatar', 'poster', 'headshot'])
 
 export type UploadPurpose = z.infer<typeof uploadPurposeSchema>
 
@@ -53,6 +55,15 @@ export const UPLOAD_RULES: Record<UploadPurpose, UploadRule> = {
     adminOnly: true,
     typeError: 'Use a PNG, JPEG, or WebP image',
     sizeError: 'The image must be 5 MB or smaller',
+  },
+  // A person's photo; attached by `attachHeadshot` in `lib/data/people.ts`. Admin-written too.
+  headshot: {
+    contentTypes: HEADSHOT_CONTENT_TYPES,
+    maxSize: HEADSHOT_MAX_SIZE,
+    ticketSeconds: UPLOAD_TICKET_SECONDS,
+    adminOnly: true,
+    typeError: 'Use a PNG, JPEG, or WebP image',
+    sizeError: 'The image must be 2 MB or smaller',
   },
 }
 

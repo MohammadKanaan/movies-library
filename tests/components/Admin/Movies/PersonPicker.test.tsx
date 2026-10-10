@@ -15,6 +15,7 @@ const person = (id: string, name: string): PersonListItem => ({
   id,
   slug: name.toLowerCase().replace(/\s+/g, '-'),
   name,
+  headshotUrl: null,
   creditCount: 1,
   createdAt: new Date('2024-01-01T00:00:00Z'),
 })
@@ -77,7 +78,12 @@ describe('PersonPicker', () => {
     const { input, onPick } = setup()
     await userEvent.type(input, 'ada')
     await userEvent.click(await screen.findByRole('option', { name: /Adam Driver/ }))
-    expect(onPick).toHaveBeenCalledWith({ id: 'p2', slug: 'adam-driver', name: 'Adam Driver' })
+    expect(onPick).toHaveBeenCalledWith({
+      id: 'p2',
+      slug: 'adam-driver',
+      name: 'Adam Driver',
+      headshotUrl: null,
+    })
     expect(input).toHaveValue('')
   })
 

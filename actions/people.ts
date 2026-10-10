@@ -2,8 +2,19 @@
 
 import { refresh } from 'next/cache'
 import { toActionFailure } from '@/lib/data/errors'
-import { createPerson, deletePerson, updatePerson } from '@/lib/data/people'
-import type { PersonDetail, PersonInput, UpdatePersonInput } from '@/lib/dto/people'
+import {
+  attachHeadshot,
+  createPerson,
+  deletePerson,
+  removeHeadshot,
+  updatePerson,
+} from '@/lib/data/people'
+import type {
+  AttachHeadshotInput,
+  PersonDetail,
+  PersonInput,
+  UpdatePersonInput,
+} from '@/lib/dto/people'
 import type { ActionResult } from '@/types/api'
 
 export const createPersonAction = async (
@@ -35,6 +46,28 @@ export const deletePersonAction = async (id: string): Promise<ActionResult<void>
     await deletePerson(id)
     refresh()
     return { ok: true, data: undefined }
+  } catch (error) {
+    return toActionFailure(error)
+  }
+}
+
+export const attachHeadshotAction = async (
+  input: AttachHeadshotInput,
+): Promise<ActionResult<PersonDetail>> => {
+  try {
+    const person = await attachHeadshot(input)
+    refresh()
+    return { ok: true, data: person }
+  } catch (error) {
+    return toActionFailure(error)
+  }
+}
+
+export const removeHeadshotAction = async (id: string): Promise<ActionResult<PersonDetail>> => {
+  try {
+    const person = await removeHeadshot(id)
+    refresh()
+    return { ok: true, data: person }
   } catch (error) {
     return toActionFailure(error)
   }

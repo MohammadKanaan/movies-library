@@ -77,12 +77,18 @@ try {
   }
 
   const personIds = new Map<string, string>()
-  for (const name of seedPeople()) {
+  for (const { name, bio, birthDate } of seedPeople()) {
     const slug = slugify(name)
+    // The headshot is left alone, so one uploaded in development survives a re-seed.
+    const data = {
+      name,
+      bio,
+      birthDate: birthDate ? new Date(`${birthDate}T00:00:00.000Z`) : null,
+    }
     const person = await db.person.upsert({
       where: { slug },
-      create: { name, slug },
-      update: { name },
+      create: { ...data, slug },
+      update: data,
       select: { id: true },
     })
     personIds.set(name, person.id)

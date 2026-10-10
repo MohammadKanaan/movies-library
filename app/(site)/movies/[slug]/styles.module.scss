@@ -318,17 +318,8 @@
 }
 
 .avatar {
-  display: grid;
-  place-items: center;
-  width: 3rem;
-  height: 3rem;
+  display: flex;
   margin-bottom: 0.5rem;
-  border-radius: 999px;
-  background: var(--secondary);
-  color: var(--secondary-foreground);
-  font-family: var(--font-display-family);
-  font-size: 0.9375rem;
-  font-weight: 600;
 }
 
 .cardName {
