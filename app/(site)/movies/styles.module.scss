@@ -17,12 +17,19 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  transition: opacity 150ms ease-out;
+}
 
-  // A page change is in flight: dim the grid it is about to replace.
-  &[aria-busy='true'] {
-    opacity: 0.6;
-  }
+.loadMore {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.message {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
 }
 
 .grid {

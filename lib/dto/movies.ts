@@ -90,38 +90,63 @@ const isReversed = (from: number | undefined, to: number | undefined) =>
   from !== undefined && to !== undefined && from > to
 
 /**
- * The movie list's query: a title search and the filters of the advanced search (every genre named,
- * a release year range, a runtime range, a credited person), paged and sorted. A range may be open
- * at either end; given both ends, the first must not be after the last.
+ * The movie list's query: a title search and the filters of the advanced search (every genre
+ * named, a release year range, a runtime range, a credited person), paged and sorted. A range may
+ * be open at either end; given both ends, the first must not be after the last. `listMoviesQuery`
+ * is the typed form callers pass; `listMoviesUrlQuery` is the same shape as a URL carries it.
  */
-export const listMoviesQuery = pageQuerySchema
-  .extend({
-    /** Matches the title case-insensitively; at least three characters (the trigram index), bounded above. */
-    q: searchTermSchema(MOVIE_SEARCH_MAX_LENGTH).optional(),
-    /** Only movies carrying every one of these genres (by slug). */
-    genres: genreFilterSchema.optional(),
-    /** Only movies this person is credited on (by slug). */
-    person: slugSchema.optional(),
-    /** Only movies released in or after this year. */
-    yearFrom: releaseYearSchema.optional(),
-    /** Only movies released in or before this year. */
-    yearTo: releaseYearSchema.optional(),
-    /** Only movies at least this long, in minutes. */
-    runtimeMin: runtimeBoundSchema.optional(),
-    /** Only movies at most this long, in minutes. */
-    runtimeMax: runtimeBoundSchema.optional(),
-    sort: movieSortSchema,
-  })
-  .refine((query) => !isReversed(query.yearFrom, query.yearTo), {
-    path: ['yearTo'],
-    error: 'The last year is before the first',
-  })
-  .refine((query) => !isReversed(query.runtimeMin, query.runtimeMax), {
-    path: ['runtimeMax'],
-    error: 'The longest runtime is shorter than the shortest',
-  })
+const listMoviesBase = pageQuerySchema.extend({
+  /** Matches the title case-insensitively; at least three characters (the trigram index), bounded above. */
+  q: searchTermSchema(MOVIE_SEARCH_MAX_LENGTH).optional(),
+  /** Only movies carrying every one of these genres (by slug). */
+  genres: genreFilterSchema.optional(),
+  /** Only movies this person is credited on (by slug). */
+  person: slugSchema.optional(),
+  /** Only movies released in or after this year. */
+  yearFrom: releaseYearSchema.optional(),
+  /** Only movies released in or before this year. */
+  yearTo: releaseYearSchema.optional(),
+  /** Only movies at least this long, in minutes. */
+  runtimeMin: runtimeBoundSchema.optional(),
+  /** Only movies at most this long, in minutes. */
+  runtimeMax: runtimeBoundSchema.optional(),
+  sort: movieSortSchema,
+})
+
+type ListMoviesOutput = z.output<typeof listMoviesBase>
+
+/** The checks both wire forms of the list share; `.refine` keeps the schema's own output type. */
+const withRangeChecks = <S extends z.ZodType>(schema: S): S =>
+  schema
+    .refine(
+      (query) =>
+        !isReversed((query as ListMoviesOutput).yearFrom, (query as ListMoviesOutput).yearTo),
+      { path: ['yearTo'], error: 'The last year is before the first' },
+    )
+    .refine(
+      (query) =>
+        !isReversed((query as ListMoviesOutput).runtimeMin, (query as ListMoviesOutput).runtimeMax),
+      { path: ['runtimeMax'], error: 'The longest runtime is shorter than the shortest' },
+    )
+
+/** The list's query as a typed caller passes it (`lib/data/movies.ts`). */
+export const listMoviesQuery = withRangeChecks(listMoviesBase)
 
 export type ListMoviesQuery = z.input<typeof listMoviesQuery>
+
+/**
+ * `listMoviesQuery` as a URL carries it: the one field whose wire type differs is `genres`, which a
+ * query string carries comma-separated (`slugListParamSchema`) rather than as an array. Strict,
+ * unlike the page's tolerant `moviesUrlQuery`, so `GET /api/v1/movies` answers bad parameters with
+ * field errors.
+ */
+export const listMoviesUrlQuery = withRangeChecks(
+  listMoviesBase
+    .omit({ genres: true })
+    .extend({ genres: slugListParamSchema.pipe(genreFilterSchema).optional() }),
+)
+
+export type ListMoviesUrlQuery = z.output<typeof listMoviesUrlQuery>
 
 /**
  * The tolerant URL contract of the movie list: any query string parses, falling back to defaults.

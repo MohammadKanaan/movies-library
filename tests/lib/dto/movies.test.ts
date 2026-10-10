@@ -5,6 +5,7 @@ import {
   EMPTY_MOVIE_FILTERS,
   hasMovieFilters,
   listMoviesQuery,
+  listMoviesUrlQuery,
   MOVIE_CREDITS_MAX,
   MOVIE_FILTER_KEYS,
   MOVIE_GENRES_MAX,
@@ -211,6 +212,22 @@ describe('movie list', () => {
     expect(issuesOf({ runtimeMin: 120, runtimeMax: 90 })).toEqual([
       'runtimeMax: The longest runtime is shorter than the shortest',
     ])
+  })
+
+  it('decodes the URL form of the query: genres comma-separated, the same strictness', () => {
+    expect(
+      listMoviesUrlQuery.parse({
+        genres: 'drama,thriller',
+        q: ' film ',
+        page: '2',
+        perPage: '24',
+      }),
+    ).toMatchObject({ genres: ['drama', 'thriller'], q: 'film', page: 2, perPage: 24 })
+    // The typed form takes an array; a bare string is not a genre list there.
+    expect(listMoviesQuery.safeParse({ genres: 'drama,thriller' }).success).toBe(false)
+    expect(listMoviesUrlQuery.safeParse({ genres: 'Not A Slug' }).success).toBe(false)
+    expect(listMoviesUrlQuery.safeParse({ page: MAX_PAGE + 1 }).success).toBe(false)
+    expect(listMoviesUrlQuery.safeParse({ yearFrom: 2000, yearTo: 1990 }).success).toBe(false)
   })
 
   it('parses any URL by falling back per field', () => {

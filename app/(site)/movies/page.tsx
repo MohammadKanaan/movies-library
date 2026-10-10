@@ -41,9 +41,10 @@ const plural = (count: number) => `${count} ${count === 1 ? 'film' : 'films'}`
 const MoviesPage = async ({ searchParams }: PageProps<'/movies'>) => {
   // A garbled URL falls back to the defaults; empty filters are left out of the query.
   const url = moviesUrlQuery.parse(toScalarParams(await searchParams))
+  const listQuery = { ...toListMoviesQuery(url), perPage: PER_PAGE }
   const { movies, genres, person } = await loadPage(async () => {
     const [movies, genres, person] = await Promise.all([
-      listMovies({ ...toListMoviesQuery(url), perPage: PER_PAGE }),
+      listMovies(listQuery),
       listGenres(),
       url.person ? findPerson(url.person) : null,
     ])
@@ -78,8 +79,15 @@ const MoviesPage = async ({ searchParams }: PageProps<'/movies'>) => {
           ) : null
         }
       />
-      <MoviesView page={movies.page} totalPages={movies.totalPages} genres={genres} person={person}>
-        {movies.items.length === 0 ? (
+      <MoviesView
+        page={movies.page}
+        perPage={movies.perPage}
+        totalPages={movies.totalPages}
+        query={listQuery}
+        genres={genres}
+        person={person}
+        initialIds={movies.items.map((movie) => movie.id)}
+        empty={
           <Empty
             title={filtered ? 'No movies match' : 'No movies yet'}
             description={
@@ -95,15 +103,13 @@ const MoviesPage = async ({ searchParams }: PageProps<'/movies'>) => {
               ) : undefined
             }
           />
-        ) : (
-          <ul className={styles.grid}>
-            {movies.items.map((movie, index) => (
-              <li key={movie.id}>
-                <MovieCard movie={movie} priority={index < EAGER_POSTERS} />
-              </li>
-            ))}
-          </ul>
-        )}
+        }
+      >
+        {movies.items.map((movie, index) => (
+          <li key={movie.id}>
+            <MovieCard movie={movie} priority={index < EAGER_POSTERS} />
+          </li>
+        ))}
       </MoviesView>
     </div>
   )
