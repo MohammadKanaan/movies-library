@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { hashPassword } from 'better-auth/crypto'
+import Redis from 'ioredis'
 import { PrismaClient } from '../generated/prisma/client.ts'
 import { slugify } from '../lib/slug.ts'
 import { SEED_GENRES, SEED_MOVIES, seedPeople } from './catalog.ts'
@@ -102,8 +103,10 @@ try {
     return id
   }
 
+  const seededSlugs: string[] = []
   for (const seed of SEED_MOVIES) {
     const slug = `${slugify(seed.title)}-${seed.releaseDate.slice(0, 4)}`
+    seededSlugs.push(slug)
     // `createdById` is set on update too: re-seeding recreates the admin, which nulled it.
     const data = {
       title: seed.title,
@@ -142,8 +145,35 @@ try {
     })
   }
 
+  // The dev seed replaces the movie catalog. Prune only after every upsert succeeds, so a
+  // partially failed seed never deletes movies it has not finished loading.
+  const removed = await db.movie.deleteMany({ where: { slug: { notIn: seededSlugs } } })
+
+  // Like the Prisma client above, this CLI owns its Redis connection. Bump the same catalog
+  // tag used by lib/server/cache.ts so lists, details, genres and filmographies reload at once.
+  if (process.env.REDIS_URL) {
+    const redis = new Redis(process.env.REDIS_URL, {
+      lazyConnect: true,
+      connectTimeout: 1000,
+      commandTimeout: 1000,
+      maxRetriesPerRequest: 1,
+      retryStrategy: () => null,
+    })
+    // Command failures are handled below; prevent connection errors becoming unhandled events.
+    redis.on('error', () => {})
+    try {
+      await redis.incr('cache:tag:catalog')
+    } catch (error) {
+      console.warn('Catalog seeded, but cache invalidation failed:', error)
+    } finally {
+      redis.disconnect()
+    }
+  } else {
+    console.warn('REDIS_URL is unset; catalog caches were not invalidated.')
+  }
+
   console.log(
-    `Seeded ${SEED_GENRES.length} genres, ${personIds.size} people and ${SEED_MOVIES.length} movies.`,
+    `Seeded ${SEED_GENRES.length} genres, ${personIds.size} people and ${SEED_MOVIES.length} movies; removed ${removed.count} movies outside the seed catalog.`,
   )
 } finally {
   await db.$disconnect()
