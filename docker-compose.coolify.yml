@@ -1,12 +1,13 @@
 # The whole stack as one Coolify resource: PostgreSQL, Redis, the one-shot migrations, the web
 # process and the worker, all from the repository's `Dockerfile`. In Coolify: New Resource ->
 # Docker Compose (Git repository), set "Docker Compose Location" to /docker-compose.coolify.yml,
-# then give the `web` service a domain (Coolify fills in the 3000 port from the
-# SERVICE_URL_WEB_3000 variable below). `docker-compose.yml` stays the local-development file.
+# then under Domains add one for the `web` service on its internal port, e.g.
+# https://movies.example.com:3000, and enter the same origin as BETTER_AUTH_URL.
+# `docker-compose.yml` stays the local-development file.
 #
 # Coolify reads the `${NAME}` references below: `${NAME:?}` is a required value it asks for before
 # the first deploy, `${NAME:-default}` an optional one with a default, and the `SERVICE_*` names
-# are values it generates (and keeps across deployments) or fills in from the domain.
+# are values it generates and keeps across deployments.
 
 # One image for the three app services. They share a build, so the first service to build it
 # warms the cache for the other two.
@@ -24,9 +25,12 @@ x-app-env: &app-env
   # 64 generated characters; production boot refuses anything under 32 or a placeholder.
   # Rotating it signs every user out.
   BETTER_AUTH_SECRET: ${SERVICE_PASSWORD_64_AUTHSECRET}
-  # The public origin, scheme included. It follows the domain set on `web` in Coolify, and it is
-  # what the verification and reset links are built from.
-  BETTER_AUTH_URL: ${SERVICE_URL_WEB_3000}
+  # The public origin, scheme included and no trailing slash (https://movies.example.com): the
+  # same domain you give `web` in Coolify. Required, so Coolify asks for it before the deploy;
+  # verification and reset links are built from it and production boot refuses it empty. It is
+  # entered by hand because Coolify only fills a SERVICE_URL_* value in once a domain is set on the
+  # service, and an empty one stops `web` at boot.
+  BETTER_AUTH_URL: ${BETTER_AUTH_URL:?}
   # Proxies in front of the app that append to x-forwarded-for: Coolify's Traefik is one. Put 2 if
   # a CDN (Cloudflare) sits in front of it, or every per-IP rate limit keys on the wrong address.
   TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
@@ -99,9 +103,8 @@ services:
     image: movies-library-app
     restart: unless-stopped
     command: ['bun', 'run', 'start']
-    # No `ports:` entry on purpose: the domain set on this service in Coolify routes to port 3000
-    # through its proxy (the `3000` in SERVICE_URL_WEB_3000), and a published host port would
-    # bypass it.
+    # No `ports:` entry on purpose: the domain set on this service in Coolify (with `:3000`) routes
+    # to port 3000 through its proxy, and a published host port would bypass it.
     environment: *app-env
     depends_on:
       migrate:

@@ -108,10 +108,14 @@ publishes no ports, and Coolify generates the database password and the auth sec
 
 1. **New resource → Docker Compose** from this repository and branch. Under _General → Build
    pipeline_ set **Docker Compose Location** to `/docker-compose.coolify.yml`.
-2. **Domain.** Give the `web` service your domain (`https://movies.example.com`). The proxy routes
-   it to port 3000, and `BETTER_AUTH_URL` follows it, so it is the origin of verification and
-   reset links. Point the DNS record at the Coolify server first.
-3. **Environment variables** (all optional, set them before the first deploy):
+2. **Domain.** Under _Domains_ add one for the `web` service on its internal port:
+   `https://movies.example.com:3000` (the `:3000` is the container port, not part of the public
+   URL). Point the DNS record at the Coolify server first.
+3. **`BETTER_AUTH_URL`** (required). Enter the same origin without the port or a trailing slash:
+   `https://movies.example.com`. Coolify blocks the deploy until it is set. It is the origin of
+   verification and reset links, and production boot refuses to start `web` without an absolute
+   URL, so change it together with the domain.
+4. **Environment variables** (all optional, set them before the first deploy):
 
    | Variable                                           | When                                                                                                 |
    | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -121,7 +125,7 @@ publishes no ports, and Coolify generates the database password and the auth sec
    | `TRUSTED_PROXY_HOPS`                               | `1` behind Coolify's proxy (the default); `2` with Cloudflare in front of it.                        |
    | `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_API_BASE_URL` | Baked into the bundle at build time, so a change needs a redeploy.                                   |
 
-4. **Deploy.** `migrate` runs first (Prisma migrations, then the `pgboss` schema); `web` and
+5. **Deploy.** `migrate` runs first (Prisma migrations, then the `pgboss` schema); `web` and
    `worker` start after it succeeds, and `web` reports healthy once `/api/health` answers 200.
    Every later deploy runs the new migrations the same way.
 
