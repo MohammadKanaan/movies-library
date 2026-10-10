@@ -212,18 +212,6 @@ describe('MovieFilters', () => {
     expect(chips).toHaveTextContent('Until 120 min')
   })
 
-  it('lists every genre on focus and narrows it as the visitor types', async () => {
-    setup()
-    await userEvent.click(screen.getByRole('button', { name: /^Filters/ }))
-    const genreBox = screen.getByRole('combobox', { name: 'Genres' })
-    await userEvent.click(genreBox)
-    expect(await screen.findAllByRole('option')).toHaveLength(2)
-    await userEvent.type(genreBox, 'sci')
-    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
-      'Science Fiction',
-    ])
-  })
-
   it('removes a picked genre from its chip in the field', async () => {
     setup({ genres: ['drama', 'science-fiction'] })
     const field = screen

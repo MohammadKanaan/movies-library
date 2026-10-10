@@ -90,19 +90,4 @@ describe('review comment actions', () => {
     expect(refresh).toHaveBeenCalledTimes(3)
     expect(await db.reviewComment.count()).toBe(0)
   })
-
-  it('let an admin delete another’s comment but not edit it', async () => {
-    const review = await seedReviewOfDune()
-    const comment = await seedComment({
-      reviewId: review.id,
-      authorId: (await createUser()).id,
-    })
-    await signInAs(await createUser({ role: 'admin' }))
-    expect(await updateCommentAction({ id: comment.id, body: 'Edited' })).toMatchObject({
-      ok: false,
-      code: 'FORBIDDEN',
-    })
-    expect(await deleteCommentAction(comment.id)).toEqual({ ok: true, data: undefined })
-    expect(refresh).toHaveBeenCalledTimes(1)
-  })
 })

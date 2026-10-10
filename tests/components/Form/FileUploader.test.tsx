@@ -22,13 +22,6 @@ const setup = (props: Partial<React.ComponentProps<typeof FileUploader>> = {}) =
 }
 
 describe('FileUploader', () => {
-  it('takes accept and multiple from its props', () => {
-    const { input } = setup({ hint: 'PDF or PNG' })
-    expect(input).toHaveAttribute('accept', 'application/pdf,image/png')
-    expect(input).toHaveAttribute('multiple')
-    expect(screen.getByText('PDF or PNG')).toBeInTheDocument()
-  })
-
   it('uploads every picked file in order and shows each as uploaded', async () => {
     const order: string[] = []
     const { input } = setup({

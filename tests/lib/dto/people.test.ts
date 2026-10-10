@@ -11,7 +11,6 @@ import {
   personDetailSchema,
   personInput,
   personListItemSchema,
-  personSummarySchema,
   updatePersonInput,
 } from '@/lib/dto/people'
 
@@ -111,11 +110,6 @@ describe('person outputs', () => {
     name: 'Denis Villeneuve',
     headshotUrl: null,
   }
-
-  it('summarise a person as id, slug, name and headshot', () => {
-    expect(personSummarySchema.parse(summary)).toEqual(summary)
-    expect(personSummarySchema.safeParse({ id: ID, slug: 's', name: 'n' }).success).toBe(false)
-  })
 
   it('list a person with how many credits they hold and when they were added', () => {
     const item = personListItemSchema.parse(

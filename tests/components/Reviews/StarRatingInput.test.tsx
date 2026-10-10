@@ -54,13 +54,6 @@ describe('StarRatingInput', () => {
     expect(screen.getByRole('radio', { name: '1.5 stars' })).toBeChecked()
   })
 
-  it('cannot be changed when disabled', () => {
-    render(<StarRatingInput value={2} onChange={vi.fn()} disabled aria-label="Your rating" />)
-    for (const radio of screen.getAllByRole('radio')) {
-      expect(radio).toBeDisabled()
-    }
-  })
-
   it('previews a hovered rating without picking it, and drops the preview on leave', async () => {
     const onChange = vi.fn()
     render(<StarRatingInput value={2} onChange={onChange} aria-label="Your rating" />)

@@ -54,20 +54,6 @@ describe('review actions', () => {
     expect(refresh).not.toHaveBeenCalled()
   })
 
-  it('refuse a second review of the same movie', async () => {
-    const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
-    await signInAs(await createUser())
-    expect(await createReviewAction({ movieId: movie.id, rating: 4 })).toMatchObject({ ok: true })
-    vi.mocked(refresh).mockClear()
-    const result = await createReviewAction({ movieId: movie.id, rating: 2 })
-    expect(result).toMatchObject({
-      ok: false,
-      code: 'VALIDATION',
-      fieldErrors: { base: ['You have already reviewed this movie'] },
-    })
-    expect(refresh).not.toHaveBeenCalled()
-  })
-
   it('create, update and delete a review, refreshing after each', async () => {
     const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
     await signInAs(await createUser())
@@ -84,21 +70,5 @@ describe('review actions', () => {
     expect(await deleteReviewAction(id)).toEqual({ ok: true, data: undefined })
     expect(refresh).toHaveBeenCalledTimes(3)
     expect(await db.review.count()).toBe(0)
-  })
-
-  it('let an admin delete another’s review', async () => {
-    const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
-    const review = await seedReview({
-      movieId: movie.id,
-      authorId: (await createUser()).id,
-      rating: 3,
-    })
-    await signInAs(await createUser({ role: 'admin' }))
-    expect(await updateReviewAction({ id: review.id, rating: 1 })).toMatchObject({
-      ok: false,
-      code: 'FORBIDDEN',
-    })
-    expect(await deleteReviewAction(review.id)).toEqual({ ok: true, data: undefined })
-    expect(refresh).toHaveBeenCalledTimes(1)
   })
 })

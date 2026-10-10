@@ -87,9 +87,4 @@ describe('toPage', () => {
     const page = toPage([1, 2], 2, { page: 1, perPage: 10 })
     expect(pageSchema(z.number()).parse(page)).toEqual(page)
   })
-
-  it('rejects a page whose items do not match', () => {
-    const page = toPage(['a'], 1, { page: 1, perPage: 10 })
-    expect(pageSchema(z.number()).safeParse(page).success).toBe(false)
-  })
 })

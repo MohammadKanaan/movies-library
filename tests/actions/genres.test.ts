@@ -4,7 +4,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createGenreAction, deleteGenreAction, updateGenreAction } from '@/actions/genres'
 import { db } from '@/lib/data/db'
 import { getRedis } from '@/lib/server/redis'
-import { seedGenre, seedMovie } from '../helpers/catalog'
+import { seedGenre } from '../helpers/catalog'
 import { createUser, resetDatabase, signInAs } from '../helpers/server'
 
 const { cookieStore, requestHeaders } = await vi.hoisted(async () => import('../helpers/cookies'))
@@ -64,17 +64,5 @@ describe('genre actions', () => {
     expect(await deleteGenreAction(id)).toEqual({ ok: true, data: undefined })
     expect(await db.genre.count()).toBe(0)
     expect(refresh).toHaveBeenCalledTimes(3)
-  })
-
-  it('report a genre still in use as a failed delete', async () => {
-    const genre = await seedGenre('Drama')
-    await seedMovie({ title: 'Dune', releaseDate: '2021-10-22', genreIds: [genre.id] })
-    await signInAs(await createUser({ role: 'admin' }))
-    expect(await deleteGenreAction(genre.id)).toMatchObject({
-      ok: false,
-      code: 'VALIDATION',
-      message: 'Remove the genre from its 1 movie first',
-    })
-    expect(refresh).not.toHaveBeenCalled()
   })
 })

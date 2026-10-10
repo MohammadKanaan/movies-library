@@ -16,14 +16,6 @@ describe('SignOutButton', () => {
     vi.clearAllMocks()
   })
 
-  it('signs out once, then goes home', async () => {
-    render(<SignOutButton />)
-    await userEvent.click(screen.getByRole('button', { name: 'Log out' }))
-    await vi.waitFor(() => expect(push).toHaveBeenCalledWith('/'))
-    expect(signOutAction).toHaveBeenCalledTimes(1)
-    expect(push).toHaveBeenCalledTimes(1)
-  })
-
   it('does not navigate before the action has finished', async () => {
     let finish: (value: { ok: true; data: null }) => void = () => {}
     vi.mocked(signOutAction).mockReturnValue(

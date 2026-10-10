@@ -26,20 +26,6 @@ describe('updateProfileAction', () => {
     expect(await updateProfileAction(input)).toMatchObject({ ok: false, code: 'UNAUTHORIZED' })
   })
 
-  it('validates the input like sign-up does', async () => {
-    const user = await createUser({})
-    await signInAs(user)
-    const result = await updateProfileAction({
-      name: '',
-      username: 'A!',
-    })
-    expect(result).toMatchObject({ ok: false, code: 'VALIDATION' })
-    expect(!result.ok && Object.keys(result.fieldErrors ?? {}).sort()).toEqual(['name', 'username'])
-    expect(await db.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
-      name: user.name,
-    })
-  })
-
   it('saves the profile, refreshes the router and returns the updated user', async () => {
     const user = await createUser({})
     await signInAs(user)

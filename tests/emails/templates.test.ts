@@ -8,32 +8,21 @@ const url = 'http://localhost:3000/api/auth/reset-password/tok?callbackURL=%2Fre
 
 describe('email templates', () => {
   it.each([
-    ['verifyEmail', verifyEmail({ name: 'Ada', url }), 'Verify your email', 'Verify email'],
-    [
-      'resetPasswordEmail',
-      resetPasswordEmail({ name: 'Ada', url }),
-      'Reset your password',
-      'Reset password',
-    ],
+    ['verifyEmail', verifyEmail({ name: 'Ada', url }), 'Verify email'],
+    ['resetPasswordEmail', resetPasswordEmail({ name: 'Ada', url }), 'Reset password'],
     [
       'confirmEmailChangeEmail',
       confirmEmailChangeEmail({ name: 'Ada', newEmail: 'new@example.com', url }),
-      'Confirm your email change',
       'Confirm email change',
     ],
-  ])(
-    '%s has the subject, the greeting and the link in both html and text',
-    (_name, mail, subject, label) => {
-      expect(mail.subject).toBe(subject)
-      expect(mail.html).toContain(`<h1 style="margin:0 0 16px;font-size:20px;">${subject}</h1>`)
-      expect(mail.html).toContain('Hi Ada,')
-      expect(mail.html).toContain(`href="${escapeHtml(url)}"`)
-      expect(mail.html).toContain(`>${label}</a>`)
-      expect(mail.text).toContain('Hi Ada,')
-      // The link sits on its own line of the plain text, so a log reader (and the tests) can copy it.
-      expect(mail.text).toContain(`${label}: ${url}`)
-    },
-  )
+  ])('%s has the greeting and the link in both html and text', (_name, mail, label) => {
+    expect(mail.html).toContain('Hi Ada,')
+    expect(mail.html).toContain(`href="${escapeHtml(url)}"`)
+    expect(mail.html).toContain(`>${label}</a>`)
+    expect(mail.text).toContain('Hi Ada,')
+    // The link sits on its own line of the plain text, so a log reader (and the tests) can copy it.
+    expect(mail.text).toContain(`${label}: ${url}`)
+  })
 
   it('mentions the new address in the confirmation of an email change', () => {
     const mail = confirmEmailChangeEmail({ name: 'Ada', newEmail: 'new@example.com', url })

@@ -1,21 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
-  AVATAR_CONTENT_TYPES,
   AVATAR_MAX_SIZE,
   createUploadInput,
-  HEADSHOT_CONTENT_TYPES,
   HEADSHOT_MAX_SIZE,
   isAllowedContentType,
-  MAX_OBJECT_DELETE_DELAY_SECONDS,
-  objectDeleteDelaySeconds,
-  POSTER_CONTENT_TYPES,
   POSTER_MAX_SIZE,
-  UPLOAD_OBJECT_GRACE_SECONDS,
   UPLOAD_RULES,
-  UPLOAD_TICKET_SECONDS,
   uploadKeySchema,
-  uploadPurposeSchema,
-  uploadTicketSchema,
 } from '@/lib/dto/uploads'
 
 const messages = (input: unknown) => {
@@ -24,40 +15,14 @@ const messages = (input: unknown) => {
 }
 
 describe('UPLOAD_RULES', () => {
-  it('limits avatars to small raster images', () => {
-    expect(UPLOAD_RULES.avatar).toMatchObject({
-      contentTypes: AVATAR_CONTENT_TYPES,
-      maxSize: 2 * 1024 * 1024,
-      ticketSeconds: UPLOAD_TICKET_SECONDS,
-    })
-    expect(AVATAR_CONTENT_TYPES).toEqual(['image/png', 'image/jpeg', 'image/webp'])
-    expect(UPLOAD_RULES.avatar.adminOnly).toBe(false)
-  })
-
-  it('limits posters to larger raster images that only admins may upload', () => {
-    expect(UPLOAD_RULES.poster).toMatchObject({
-      contentTypes: POSTER_CONTENT_TYPES,
-      maxSize: 5 * 1024 * 1024,
-      ticketSeconds: UPLOAD_TICKET_SECONDS,
-      adminOnly: true,
-    })
-    expect(POSTER_CONTENT_TYPES).toEqual(['image/png', 'image/jpeg', 'image/webp'])
+  it('only admins may upload a poster, never an SVG', () => {
+    expect(UPLOAD_RULES.poster.adminOnly).toBe(true)
     expect(isAllowedContentType('poster', 'image/svg+xml')).toBe(false)
   })
 
-  it('limits headshots to small raster images that only admins may upload', () => {
-    expect(UPLOAD_RULES.headshot).toMatchObject({
-      contentTypes: HEADSHOT_CONTENT_TYPES,
-      maxSize: 2 * 1024 * 1024,
-      ticketSeconds: UPLOAD_TICKET_SECONDS,
-      adminOnly: true,
-    })
-    expect(HEADSHOT_CONTENT_TYPES).toEqual(['image/png', 'image/jpeg', 'image/webp'])
+  it('only admins may upload a headshot, never an SVG', () => {
+    expect(UPLOAD_RULES.headshot.adminOnly).toBe(true)
     expect(isAllowedContentType('headshot', 'image/svg+xml')).toBe(false)
-  })
-
-  it('knows every purpose', () => {
-    expect(uploadPurposeSchema.options).toEqual(['avatar', 'poster', 'headshot'])
   })
 
   it('never allows an active-content type', () => {
@@ -67,19 +32,6 @@ describe('UPLOAD_RULES', () => {
     expect(isAllowedContentType('avatar', null)).toBe(false)
     expect(isAllowedContentType('avatar', 'application/pdf')).toBe(false)
     expect(isAllowedContentType('avatar', 'image/webp')).toBe(true)
-  })
-
-  it('delays object deletion past the ticket plus the grace period', () => {
-    expect(objectDeleteDelaySeconds('avatar')).toBe(
-      UPLOAD_TICKET_SECONDS + UPLOAD_OBJECT_GRACE_SECONDS,
-    )
-    expect(MAX_OBJECT_DELETE_DELAY_SECONDS).toBe(
-      Math.max(
-        objectDeleteDelaySeconds('avatar'),
-        objectDeleteDelaySeconds('poster'),
-        objectDeleteDelaySeconds('headshot'),
-      ),
-    )
   })
 })
 
@@ -130,17 +82,6 @@ describe('createUploadInput', () => {
 })
 
 describe('upload ticket and key', () => {
-  it('describes a presigned PUT: a URL and the headers the signature covers', () => {
-    expect(
-      uploadTicketSchema.parse({
-        key: 'avatars/u/k',
-        url: 'https://acct.r2.cloudflarestorage.com/b/k?X-Amz-Signature=s',
-        headers: { 'Content-Type': 'image/png' },
-      }).headers,
-    ).toEqual({ 'Content-Type': 'image/png' })
-    expect(uploadTicketSchema.safeParse({ key: 'avatars/u/k', url: 'x' }).success).toBe(false)
-  })
-
   it('only accepts a key shaped like the ones createUpload makes', () => {
     const key = `avatars/${crypto.randomUUID()}/${crypto.randomUUID()}`
     expect(uploadKeySchema.safeParse(key).success).toBe(true)

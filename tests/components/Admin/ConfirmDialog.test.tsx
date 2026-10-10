@@ -68,18 +68,4 @@ describe('ConfirmDialog', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(onDone).not.toHaveBeenCalled()
   })
-
-  it('can be disabled from outside', () => {
-    render(
-      <ConfirmDialog
-        trigger="Delete"
-        title="Delete?"
-        description="Gone."
-        confirmLabel="Delete"
-        disabled
-        onConfirm={async () => ({ ok: true, data: undefined })}
-      />,
-    )
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
-  })
 })

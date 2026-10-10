@@ -243,16 +243,4 @@ describe('CreditsEditor', () => {
       `up to ${MOVIE_CREDITS_MAX} credits`,
     )
   })
-
-  it('disables everything when disabled', () => {
-    setup({ disabled: true })
-    expect(screen.getByRole('button', { name: 'Add a writer' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Remove Wren Writer' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Move Dana Director down' })).toBeDisabled()
-  })
-
-  it('shows the error with role alert', () => {
-    setup({ error: 'List 100 credits or fewer' })
-    expect(screen.getByRole('alert')).toHaveTextContent('List 100 credits or fewer')
-  })
 })

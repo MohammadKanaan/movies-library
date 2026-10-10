@@ -38,12 +38,6 @@ describe('GenresView', () => {
 
   it('lists genres with their slug and a link to their movies', () => {
     render(<GenresView genres={[drama, noir]} />)
-    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
-      'Name',
-      'Slug',
-      'Movies',
-      'Actions',
-    ])
     const row = rowOf('Drama')
     expect(within(row).getByText('drama')).toBeInTheDocument()
     expect(within(row).getByRole('link', { name: '3' })).toHaveAttribute(

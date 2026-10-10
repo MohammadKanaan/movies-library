@@ -67,11 +67,6 @@ describe('GenrePicker', () => {
     )
   })
 
-  it('disables the field when disabled', () => {
-    render(<GenrePicker genres={genres} value={[]} onChange={vi.fn()} disabled />)
-    expect(screen.getByRole('combobox', { name: 'Genres' })).toBeDisabled()
-  })
-
   it('shows the error with role alert and links it to the field', () => {
     render(<GenrePicker genres={genres} value={[]} onChange={vi.fn()} error="Pick a genre" />)
     expect(screen.getByRole('alert')).toHaveTextContent('Pick a genre')

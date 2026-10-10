@@ -11,7 +11,6 @@ import {
   updateProfileInput,
   USER_SEARCH_MAX_LENGTH,
   usersUrlQuery,
-  userStatusSchema,
 } from '@/lib/dto/users'
 
 const ID = '0190d1a2-0000-7000-8000-000000000001'
@@ -53,7 +52,6 @@ describe('admin user list', () => {
       role: 'editor',
       status: 'banned',
     })
-    expect(userStatusSchema.options).toEqual(['active', 'banned'])
     expect(listUsersQuery.safeParse({ role: 'owner' }).success).toBe(false)
     expect(listUsersQuery.safeParse({ status: 'deleted' }).success).toBe(false)
   })

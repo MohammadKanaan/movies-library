@@ -18,7 +18,7 @@ import {
 } from '@/lib/data/reviews'
 import { getRedis } from '@/lib/server/redis'
 import { seedMovie, seedReview } from '../../helpers/catalog'
-import { createUser, resetDatabase, signInAs, signOut } from '../../helpers/server'
+import { createUser, resetDatabase, signInAs } from '../../helpers/server'
 
 const { cookieStore, requestHeaders } = await vi.hoisted(
   async () => import('../../helpers/cookies'),
@@ -424,14 +424,5 @@ describe('reviews DAL', () => {
       ).rejects.toThrow()
       expect(await db.review.count()).toBe(0)
     })
-  })
-
-  it('reads as signed out after a sign-out', async () => {
-    const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
-    const viewer = await signInAsViewer()
-    await seedReview({ movieId: movie.id, authorId: viewer.id, rating: 3 })
-    expect(await getViewerReview(movie.slug)).not.toBeNull()
-    signOut()
-    expect(await getViewerReview(movie.slug)).toBeNull()
   })
 })

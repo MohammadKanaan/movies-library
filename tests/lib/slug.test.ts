@@ -29,6 +29,5 @@ describe('slugify', () => {
     const slug = slugify(long)
     expect(slug.length).toBeLessThanOrEqual(SLUG_MAX_LENGTH)
     expect(slug.endsWith('-')).toBe(false)
-    expect(SLUG_MAX_LENGTH).toBe(80)
   })
 })

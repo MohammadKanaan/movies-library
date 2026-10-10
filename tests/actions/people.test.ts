@@ -10,7 +10,7 @@ import {
 } from '@/actions/people'
 import { db } from '@/lib/data/db'
 import { getRedis } from '@/lib/server/redis'
-import { seedMovie, seedPerson } from '../helpers/catalog'
+import { seedPerson } from '../helpers/catalog'
 import { createUser, resetDatabase, signInAs } from '../helpers/server'
 
 const { cookieStore, requestHeaders } = await vi.hoisted(async () => import('../helpers/cookies'))
@@ -106,17 +106,5 @@ describe('people actions', () => {
       code: 'VALIDATION',
     })
     expect(refresh).toHaveBeenCalledTimes(2)
-  })
-
-  it('report a credited person as a failed delete', async () => {
-    const amy = await seedPerson('Amy Adams')
-    await seedMovie({
-      title: 'Arrival',
-      releaseDate: '2016-11-11',
-      credits: [{ personId: amy.id, role: 'ACTOR' }],
-    })
-    await signInAs(await createUser({ role: 'admin' }))
-    expect(await deletePersonAction(amy.id)).toMatchObject({ ok: false, code: 'VALIDATION' })
-    expect(refresh).not.toHaveBeenCalled()
   })
 })

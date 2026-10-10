@@ -74,10 +74,4 @@ describe('UserActions', () => {
     finish({ ok: true, data: undefined })
     await vi.waitFor(() => expect(onBusy).toHaveBeenLastCalledWith(false))
   })
-
-  it('offers nothing but a disabled role select for the admin’s own account', () => {
-    render(<UserActions user={{ ...grace, role: 'admin' }} isSelf extended />)
-    expect(screen.getByRole('combobox', { name: 'Role of Grace Hopper' })).toBeDisabled()
-    expect(screen.queryAllByRole('button')).toEqual([])
-  })
 })

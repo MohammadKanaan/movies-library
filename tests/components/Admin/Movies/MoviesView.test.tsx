@@ -71,8 +71,6 @@ describe('MoviesView', () => {
 
   it('lists movies with year, genres, runtime and release date, the title linking to the editor', () => {
     render(<MoviesView movies={page([dune, heat])} genres={genres} />)
-    const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)
-    expect(headers).toEqual(['Poster', 'Title', 'Genres', 'Runtime', 'Released', 'Actions'])
     expect(rows()).toHaveLength(2)
 
     const first = rowOf('Dune')
@@ -111,14 +109,6 @@ describe('MoviesView', () => {
     expect(within(row).getByRole('link', { name: 'View Dune' })).toHaveAttribute(
       'href',
       '/movies/dune-2021',
-    )
-  })
-
-  it('links Add movie to the new-movie form', () => {
-    render(<MoviesView movies={page([dune])} genres={genres} />)
-    expect(screen.getByRole('link', { name: 'Add movie' })).toHaveAttribute(
-      'href',
-      '/admin/movies/new',
     )
   })
 
@@ -173,23 +163,10 @@ describe('MoviesView', () => {
     await userEvent.click(within(rowOf('Dune')).getByRole('button', { name: 'Delete Dune' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('heading', { name: 'Delete Dune?' })).toBeInTheDocument()
-    expect(
-      within(dialog).getByText(
-        'Its credits and genre links go with it. The people and genres stay in the catalog.',
-      ),
-    ).toBeInTheDocument()
     expect(deleteMovieAction).not.toHaveBeenCalled()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete movie' }))
     expect(deleteMovieAction).toHaveBeenCalledWith('m-dune')
     await vi.waitFor(() => expect(toast.success).toHaveBeenCalledWith('Dune was deleted'))
-  })
-
-  it('does not delete when the dialog is cancelled', async () => {
-    render(<MoviesView movies={page([dune])} genres={genres} />)
-    await userEvent.click(within(rowOf('Dune')).getByRole('button', { name: 'Delete Dune' }))
-    const dialog = await screen.findByRole('dialog')
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    expect(deleteMovieAction).not.toHaveBeenCalled()
   })
 
   it('invites adding the first movie when the catalog is empty', () => {

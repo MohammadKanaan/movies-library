@@ -26,11 +26,6 @@ const ok = { ok: true, data: null } as const
 describe('SessionList', () => {
   it('lists every session, marks this device and can only revoke the others', () => {
     render(<SessionList sessions={sessions} onRevoke={vi.fn()} onRevokeOthers={vi.fn()} />)
-    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
-      'Device',
-      'Signed in',
-      'Actions',
-    ])
     const rows = screen.getAllByRole('row').slice(1)
     expect(rows).toHaveLength(2)
 

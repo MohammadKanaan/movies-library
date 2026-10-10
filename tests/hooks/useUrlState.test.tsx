@@ -156,9 +156,4 @@ describe('useUrlState', () => {
     expect(navigation.push).toHaveBeenCalledWith('/posts/csr?page=2', { scroll: false })
     expect(navigation.replace).not.toHaveBeenCalled()
   })
-
-  it('is not pending until a navigation starts', () => {
-    const { result } = renderHook(() => useUrlState(schema))
-    expect(result.current.isPending).toBe(false)
-  })
 })

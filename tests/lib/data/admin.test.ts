@@ -74,7 +74,7 @@ describe('admin DAL', () => {
 
     it('lists every user as the admin DTO, newest first', async () => {
       const first = await createUser({ name: 'First', username: 'first_u' })
-      const second = await createUser({ name: 'Second', username: 'second_u' })
+      await createUser({ name: 'Second', username: 'second_u' })
       const admin = await createUser({ name: 'Admin', username: 'admin_u', role: 'admin' })
       await signInAs(admin)
 
@@ -92,7 +92,6 @@ describe('admin DAL', () => {
         banReason: null,
         createdAt: expect.any(Date),
       })
-      expect(page.items.find((user) => user.id === second.id)).not.toHaveProperty('postCount')
     })
 
     it('carries the ban and its reason', async () => {

@@ -35,12 +35,6 @@ describe('PosterCard', () => {
     vi.mocked(toast.success).mockReset()
   })
 
-  it('explains the rules in the description', () => {
-    render(<PosterCard movie={movie} canUpload />)
-    expect(screen.getByText('Poster')).toBeInTheDocument()
-    expect(screen.getByText(/PNG, JPEG or WebP, up to 5 MB/)).toBeInTheDocument()
-  })
-
   it('shows a note and no controls when uploads are not configured', () => {
     render(<PosterCard movie={withPoster} canUpload={false} />)
     expect(

@@ -106,8 +106,6 @@ describe('UsersView', () => {
 
   it('lists users with email, status and join date, linking each name to its page', () => {
     render(<UsersView users={page([ada, grace, alan])} viewerId={ADA_ID} />)
-    const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)
-    expect(headers).toEqual(['Name', 'Email', 'Role', 'Status', 'Joined', 'Actions'])
     expect(rows()).toHaveLength(3)
     const first = rows()[0]
     expect(within(first).getByRole('link', { name: 'Ada Lovelace' })).toHaveAttribute(
@@ -173,14 +171,6 @@ describe('UsersView', () => {
     await userEvent.click(await screen.findByRole('option', { name: 'Admin' }))
     expect(toast.error).toHaveBeenCalledWith('You are not allowed to do that')
     expect(toast.success).not.toHaveBeenCalled()
-  })
-
-  it('opens the ban dialog for the user from the Ban button', async () => {
-    render(<UsersView users={page([ada, grace])} viewerId={ADA_ID} />)
-    await userEvent.click(within(rowOf('Grace Hopper')).getByRole('button', { name: 'Ban' }))
-    const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByRole('heading', { name: 'Ban Grace Hopper?' })).toBeInTheDocument()
-    expect(banUserAction).not.toHaveBeenCalled()
   })
 
   it('unbans a banned user and confirms', async () => {

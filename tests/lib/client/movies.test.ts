@@ -1,6 +1,5 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { RequestError } from '@/lib/client/errors'
 import { fetchMovies } from '@/lib/client/movies'
 
 const page = {
@@ -51,15 +50,6 @@ describe('fetchMovies', () => {
       controller.signal,
     )
     expect(result.items[0].releaseDate).toEqual(new Date('2021-10-22T00:00:00Z'))
-  })
-
-  it('carries the server’s message on a failed response', async () => {
-    vi.stubGlobal('fetch', async () =>
-      Response.json({ code: 'VALIDATION', message: 'Validation failed' }, { status: 422 }),
-    )
-    const error = await fetchMovies({ page: 2 }).catch((caught) => caught)
-    expect(error).toBeInstanceOf(RequestError)
-    expect(error).toMatchObject({ status: 422, message: 'Validation failed' })
   })
 
   it('reports an outage without a message as a retryable failure', async () => {

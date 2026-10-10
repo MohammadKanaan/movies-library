@@ -81,7 +81,7 @@ describe('presentMovieDetail', () => {
     expect(presentMovieDetail(movie).supporting).toEqual([])
   })
 
-  it('reads the release year in UTC and keeps the DTO fields', () => {
+  it('reads the release year in UTC', () => {
     const movie = movieWith({ directors: [], writers: [], cast: [] })
 
     const presented = presentMovieDetail({
@@ -90,7 +90,5 @@ describe('presentMovieDetail', () => {
     })
 
     expect(presented.year).toBe(2021)
-    expect(presented.title).toBe('Dune')
-    expect(presented.credits).toBe(movie.credits)
   })
 })

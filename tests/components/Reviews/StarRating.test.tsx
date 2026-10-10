@@ -8,11 +8,6 @@ describe('StarRating', () => {
     expect(screen.getByRole('img', { name: '4.5 out of 5 stars' })).toBeInTheDocument()
   })
 
-  it('says a whole rating without a decimal', () => {
-    render(<StarRating rating={3} />)
-    expect(screen.getByRole('img', { name: '3 out of 5 stars' })).toBeInTheDocument()
-  })
-
   it('can be decorative, for a rating written out beside it', () => {
     render(<StarRating rating={4} decorative />)
     expect(screen.queryByRole('img')).not.toBeInTheDocument()

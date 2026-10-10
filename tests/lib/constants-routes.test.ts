@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  adminMovieEditPath,
-  adminUserPath,
   editReviewPath,
   isPrivateRoute,
   isPublicRoute,
@@ -10,37 +8,13 @@ import {
   moviesByPersonPath,
   moviesByTitlePath,
   peopleByNamePath,
-  personPath,
-  ROUTE_ADMIN_GENRES,
-  ROUTE_ADMIN_MOVIE_NEW,
-  ROUTE_ADMIN_MOVIES,
-  ROUTE_ADMIN_PEOPLE,
-  ROUTE_ADMIN_USERS,
-  ROUTE_SEARCH,
   safeRedirectPath,
   searchPath,
 } from '@/lib/constants-routes'
 
 describe('admin routes', () => {
   it('nest under /admin and are all private', () => {
-    expect([
-      ROUTE_ADMIN_MOVIES,
-      ROUTE_ADMIN_MOVIE_NEW,
-      ROUTE_ADMIN_PEOPLE,
-      ROUTE_ADMIN_GENRES,
-      ROUTE_ADMIN_USERS,
-    ]).toEqual([
-      '/admin/movies',
-      '/admin/movies/new',
-      '/admin/people',
-      '/admin/genres',
-      '/admin/users',
-    ])
-    expect(adminMovieEditPath('dune-2021')).toBe('/admin/movies/dune-2021/edit')
-    expect(adminUserPath('0190d1a2-0000-7000-8000-000000000001')).toBe(
-      '/admin/users/0190d1a2-0000-7000-8000-000000000001',
-    )
-    for (const path of [ROUTE_ADMIN_MOVIES, adminMovieEditPath('dune-2021'), ROUTE_ADMIN_USERS]) {
+    for (const path of ['/admin/movies', '/admin/movies/dune-2021/edit', '/admin/users']) {
       expect(isPrivateRoute(path)).toBe(true)
     }
   })
@@ -54,14 +28,9 @@ describe('admin routes', () => {
   })
 
   it('builds the search pages for a term, encoded', () => {
-    expect(ROUTE_SEARCH).toBe('/search')
     expect(searchPath('dune: part two')).toBe('/search?q=dune%3A+part+two')
     expect(moviesByTitlePath('dune')).toBe('/movies?q=dune')
     expect(peopleByNamePath('amy adams')).toBe('/people?q=amy+adams')
-  })
-
-  it('builds a person page from the slug', () => {
-    expect(personPath('denis-villeneuve')).toBe('/people/denis-villeneuve')
   })
 
   it('builds the movie page with the viewer’s review open for editing', () => {

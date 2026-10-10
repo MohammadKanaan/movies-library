@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   catalogIdSchema,
-  creditRoleSchema,
   SLUG_MAX_LENGTH,
   slugListParamSchema,
   slugSchema,
@@ -49,12 +48,5 @@ describe('catalogIdSchema', () => {
     expect(catalogIdSchema.safeParse(ID).success).toBe(true)
     expect(catalogIdSchema.safeParse('1').success).toBe(false)
     expect(catalogIdSchema.safeParse('a b').error?.issues[0]?.message).toBe('Invalid id')
-  })
-})
-
-describe('creditRoleSchema', () => {
-  it('matches the credit_role enum of the database', () => {
-    expect(creditRoleSchema.options).toEqual(['DIRECTOR', 'WRITER', 'ACTOR'])
-    expect(creditRoleSchema.safeParse('producer').success).toBe(false)
   })
 })

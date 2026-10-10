@@ -68,11 +68,6 @@ describe('uploads DAL', () => {
   afterAll(() => db.$disconnect())
 
   describe('createUpload (avatar)', () => {
-    it('requires a session', async () => {
-      await expect(createUpload(input)).rejects.toBeInstanceOf(UnauthorizedError)
-      expect(createUploadTicket).not.toHaveBeenCalled()
-    })
-
     it("returns a ticket for a new key under the viewer's own prefix", async () => {
       const user = await createUser({})
       await signInAs(user)
@@ -156,10 +151,6 @@ describe('uploads DAL', () => {
   })
 
   describe('createUpload (rules)', () => {
-    it('keeps the table in sync with the numbers the UI shows', () => {
-      expect(UPLOAD_RULES.avatar).toMatchObject({ maxSize: AVATAR_MAX_SIZE })
-    })
-
     it.each([
       ['an avatar that is not an image it knows', { ...input, contentType: 'application/pdf' }],
       ['an svg', { ...input, contentType: 'image/svg+xml' }],

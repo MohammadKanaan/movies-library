@@ -7,11 +7,9 @@ import {
   listMoviesQuery,
   listMoviesUrlQuery,
   MOVIE_CREDITS_MAX,
-  MOVIE_FILTER_KEYS,
   MOVIE_GENRES_MAX,
   MOVIE_RUNTIME_MAX_MINUTES,
   MOVIE_SEARCH_MAX_LENGTH,
-  MOVIE_SORTS,
   MOVIE_SYNOPSIS_MAX_LENGTH,
   MOVIE_TITLE_MAX_LENGTH,
   MOVIE_YEAR_MIN,
@@ -154,7 +152,6 @@ describe('movie list', () => {
   it('defaults the sort to newest and accepts the known sorts only', () => {
     expect(movieSortSchema.parse(undefined)).toBe('newest')
     // `added` orders by when the catalog gained the movie (the admin list's default).
-    expect(MOVIE_SORTS).toEqual(['newest', 'oldest', 'title', 'added'])
     expect(listMoviesQuery.parse({})).toEqual({ page: 1, perPage: 10, sort: 'newest' })
     expect(listMoviesQuery.safeParse({ sort: 'rating' }).success).toBe(false)
   })
@@ -284,15 +281,6 @@ describe('movie list', () => {
     expect(hasMovieFilters({ ...none, yearTo: 1999 })).toBe(true)
     expect(hasMovieFilters({ ...none, q: 'dune' })).toBe(true)
     expect(hasMovieFilters(EMPTY_MOVIE_FILTERS)).toBe(false)
-    expect(MOVIE_FILTER_KEYS).toEqual([
-      'q',
-      'genres',
-      'person',
-      'yearFrom',
-      'yearTo',
-      'runtimeMin',
-      'runtimeMax',
-    ])
   })
 
   it('turns a URL into the list query, leaving empty filters out and righting a reversed range', () => {

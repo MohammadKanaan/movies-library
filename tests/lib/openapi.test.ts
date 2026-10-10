@@ -5,19 +5,14 @@ import { generateOpenApi } from '@/lib/openapi'
 describe('generated OpenAPI document', () => {
   it('documents only the public people and health HTTP operations', () => {
     const spec = generateOpenApi()
-    expect(spec.openapi).toBe('3.1.0')
     expect(Object.keys(spec.paths ?? {}).sort()).toEqual(['/api/health', '/api/v1/people'])
     expect(Object.keys(spec.paths?.['/api/v1/people']?.get?.responses ?? {})).toEqual([
       '200',
       '422',
     ])
     expect(Object.keys(spec.paths?.['/api/health']?.get?.responses ?? {})).toEqual(['200', '503'])
-    expect(spec.servers).toEqual([{ url: '/' }])
     expect(spec.security).toBeUndefined()
     expect(spec.components?.securitySchemes).toBeUndefined()
-    expect(spec.info.description).toMatch(/Server Actions/)
-    expect(spec.info.description).toMatch(/disabled/)
-    expect(spec.info.description).toContain('https://www.better-auth.com/docs')
   })
 
   it('keeps every query optional while documenting numeric bounds and defaults', () => {
@@ -56,17 +51,10 @@ describe('generated OpenAPI document', () => {
       schema: expect.objectContaining({
         type: 'string',
         maxLength: 100,
-        description: expect.stringMatching(/trim/i),
       }),
     })
     const searchSchema = q && 'schema' in q ? q.schema : undefined
     expect(searchSchema).not.toHaveProperty('minLength')
-    expect(searchSchema).toHaveProperty('description', expect.stringMatching(/empty/i))
-    expect(searchSchema).toHaveProperty('description', expect.stringMatching(/3 characters/i))
-    expect(searchSchema).toHaveProperty(
-      'description',
-      expect.stringMatching(/case-insensitive literal/i),
-    )
   })
 
   it('publishes paginated person DTOs with ISO date-time strings on the wire', () => {

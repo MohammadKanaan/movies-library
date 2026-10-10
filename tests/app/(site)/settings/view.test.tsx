@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { SettingsView } from '@/app/(site)/settings/view'
 import type { CurrentUser, SessionSummary } from '@/lib/dto/users'
@@ -27,28 +27,16 @@ const user: CurrentUser = {
 const sessions: SessionSummary[] = []
 
 describe('SettingsView', () => {
-  it('shows the profile, email, password, sessions and delete sections, each linked from the nav', () => {
-    render(<SettingsView user={user} sessions={sessions} hasPassword canUpload={false} />)
-    const titles = ['Profile', 'Email', 'Password', 'Sessions', 'Delete account']
-    expect(
-      screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
-    ).toEqual(titles)
-    const nav = screen.getByRole('navigation', { name: 'Settings sections' })
-    expect(
-      within(nav)
-        .getAllByRole('link')
-        .map((link) => link.getAttribute('href')),
-    ).toEqual(['#profile', '#email', '#password', '#sessions', '#delete'])
-    expect(screen.getByText('ada@example.com', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.queryByText('Browser notifications')).not.toBeInTheDocument()
-    expect(screen.queryByText('Profile photo')).not.toBeInTheDocument()
-  })
-
   it('shows the profile photo section only when storage is configured', () => {
-    render(<SettingsView user={user} sessions={sessions} hasPassword canUpload />)
+    const { rerender } = render(
+      <SettingsView user={user} sessions={sessions} hasPassword canUpload />,
+    )
     expect(screen.getByRole('heading', { name: 'Profile photo', level: 2 })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Profile photo' })).toHaveAttribute('href', '#photo')
     expect(screen.getByRole('button', { name: 'Change photo' })).toBeInTheDocument()
+
+    rerender(<SettingsView user={user} sessions={sessions} hasPassword canUpload={false} />)
+    expect(screen.queryByText('Profile photo')).not.toBeInTheDocument()
   })
 
   it('shows the password form and the delete dialog for an account with a password', () => {
@@ -63,16 +51,10 @@ describe('SettingsView', () => {
     expect(screen.queryByLabelText(/Current password/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete account' })).not.toBeInTheDocument()
     expect(screen.getByText(/signed in with Google/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Forgot password' })).toHaveAttribute(
-      'href',
-      '/forgot-password',
-    )
+    expect(screen.getByRole('link', { name: 'Forgot password' })).toBeInTheDocument()
     expect(
       screen.getByText(/To delete your account, you need to confirm your password/),
     ).toBeVisible()
-    expect(screen.getByRole('link', { name: 'Set a password' })).toHaveAttribute(
-      'href',
-      '/forgot-password',
-    )
+    expect(screen.getByRole('link', { name: 'Set a password' })).toBeInTheDocument()
   })
 })

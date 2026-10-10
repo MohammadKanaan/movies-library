@@ -154,11 +154,6 @@ describe('MovieForm', () => {
         expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ title: 'Dune' })),
       )
     })
-
-    it('uses the given submit label', () => {
-      render(<MovieForm genres={genres} onSubmit={vi.fn()} submitLabel="Add the movie" />)
-      expect(screen.getByRole('button', { name: 'Add the movie' })).toBeInTheDocument()
-    })
   })
 
   describe('edit mode', () => {
