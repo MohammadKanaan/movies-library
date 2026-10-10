@@ -2,9 +2,7 @@
   --star-size: 2rem;
 
   display: inline-flex;
-  align-items: center;
   align-self: flex-start;
-  gap: 0.875rem;
 }
 
 .stars {
@@ -79,18 +77,6 @@
   35% {
     transform: scale(1.35) rotate(-8deg);
   }
-}
-
-.readout {
-  min-width: 3.5rem;
-  color: var(--foreground);
-  font-family: var(--font-mono);
-  font-size: 0.9375rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.outOf {
-  color: var(--muted-foreground);
 }
 
 .group[aria-invalid='true'] .stars {
