@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MovieFilters } from '@/components/Movies/MovieFilters'
@@ -34,11 +34,20 @@ const setup = (filters: Partial<Filters> = {}, person: typeof amy | null = null)
       person={person}
       onChange={onChange}
       onSortChange={onSortChange}
-    />,
+    >
+      <p>the results</p>
+    </MovieFilters>,
   )
   return { onChange, onSortChange }
 }
 
+/** A range field's two thumbs (its label also names the slider's root group). */
+const thumbsOf = (label: string) =>
+  screen.getAllByLabelText(label).filter((element) => element instanceof HTMLInputElement)
+
+// Base UI keeps a slider's thumbs `visibility: hidden` until it can measure the track, which jsdom
+// never does, so role queries skip them and keys do not move them: the tests find the thumbs by
+// their label and set their value, as assistive tech does with a range input.
 describe('MovieFilters', () => {
   beforeEach(() => {
     vi.mocked(searchPeople)
@@ -48,7 +57,7 @@ describe('MovieFilters', () => {
 
   it('keeps the panel closed without advanced filters and shows no chips', () => {
     setup()
-    expect(screen.getByRole('button', { name: 'Filters' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^Filters/ })).toHaveAttribute(
       'aria-expanded',
       'false',
     )
@@ -56,52 +65,96 @@ describe('MovieFilters', () => {
     expect(screen.queryByRole('list', { name: 'Active filters' })).not.toBeInTheDocument()
   })
 
+  it('keeps the panel tucked beside the results until it is opened', async () => {
+    setup()
+    expect(screen.getByText('the results')).toBeInTheDocument()
+    const toggle = screen.getByRole('button', { name: /^Filters/ })
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('form', { name: 'Filters' })).toBeInTheDocument()
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('form', { name: 'Filters' })).not.toBeInTheDocument()
+  })
+
   it('opens the panel when an advanced filter is in force, with the fields filled in', () => {
     setup({ genres: ['drama'], yearFrom: 1990, runtimeMax: 120, person: 'amy-adams' }, amy)
-    expect(screen.getByRole('button', { name: 'Filters' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: /^Filters/ })).toHaveAccessibleName(
+      'Filters 4 active',
+    )
     const genres = screen
       .getByRole('combobox', { name: 'Genres' })
       .closest('[data-slot="combobox-chips"]')
     expect(genres).toHaveTextContent('Drama')
     expect(genres).not.toHaveTextContent('Science Fiction')
-    expect(screen.getByRole('spinbutton', { name: 'From' })).toHaveValue(1990)
-    expect(screen.getByRole('spinbutton', { name: 'To' })).toHaveValue(null)
-    expect(screen.getByRole('spinbutton', { name: 'At most' })).toHaveValue(120)
+    const [yearFrom, yearTo] = thumbsOf('Release year')
+    expect(yearFrom).toHaveAttribute('aria-valuenow', '1990')
+    expect(yearTo).toHaveAttribute('aria-valuenow', String(new Date().getUTCFullYear()))
+    const [, runtimeMax] = thumbsOf('Runtime')
+    expect(runtimeMax).toHaveAttribute('aria-valuenow', '120')
+    const panel = within(screen.getByRole('form', { name: 'Filters' }))
+    expect(panel.getByText('From 1990')).toBeInTheDocument()
+    expect(panel.getByText('Until 120 min')).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Person' })).toHaveValue('Amy Adams')
-  })
-
-  it('submits a title search alone while the panel is closed', async () => {
-    const { onChange } = setup({ genres: ['drama'], yearTo: 1999 })
-    // Opened by the filters in force; close it to search by title only.
-    await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
-    await userEvent.type(screen.getByRole('searchbox', { name: 'Search movies' }), '  dune ')
-    await userEvent.click(screen.getByRole('button', { name: 'Search' }))
-    expect(onChange).toHaveBeenCalledWith({ q: 'dune' })
   })
 
   it('applies every panel field together, genres in catalog order', async () => {
     const { onChange } = setup()
-    await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Filters/ }))
     const genreBox = screen.getByRole('combobox', { name: 'Genres' })
     await userEvent.click(genreBox)
     await userEvent.click(await screen.findByRole('option', { name: 'Science Fiction' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Drama' }))
     await userEvent.keyboard('{Escape}')
-    await userEvent.type(screen.getByRole('spinbutton', { name: 'From' }), '1990')
-    await userEvent.type(screen.getByRole('spinbutton', { name: 'To' }), '1999')
-    await userEvent.type(screen.getByRole('spinbutton', { name: 'At least' }), '90')
+    const [yearFrom] = thumbsOf('Release year')
+    fireEvent.change(yearFrom!, { target: { value: '1990' } })
+    const [runtimeMin] = thumbsOf('Runtime')
+    fireEvent.change(runtimeMin!, { target: { value: '90' } })
     await userEvent.type(screen.getByRole('combobox', { name: 'Person' }), 'amy')
     await userEvent.click(await screen.findByRole('option', { name: 'Amy Adams' }))
     await userEvent.click(screen.getByRole('button', { name: 'Apply filters' }))
     expect(onChange).toHaveBeenCalledWith({
-      q: '',
       genres: ['drama', 'science-fiction'],
       person: 'amy-adams',
       yearFrom: 1990,
-      yearTo: 1999,
+      yearTo: null,
       runtimeMin: 90,
       runtimeMax: null,
     })
+  })
+
+  it('searches by title alone, leaving the panel filters as they are', async () => {
+    const { onChange } = setup({ genres: ['drama'] })
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search movies' }), ' dune ')
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }))
+    expect(onChange).toHaveBeenCalledWith({ q: 'dune' })
+  })
+
+  it('resets the drafts without applying them', async () => {
+    const { onChange } = setup({ genres: ['drama'], runtimeMin: 90 })
+    await userEvent.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled()
+    expect(screen.getByText('Any length')).toBeInTheDocument()
+    expect(onChange).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Apply filters' }))
+    expect(onChange).toHaveBeenCalledWith({
+      genres: [],
+      person: '',
+      yearFrom: null,
+      yearTo: null,
+      runtimeMin: null,
+      runtimeMax: null,
+    })
+  })
+
+  it('keeps a bound past the slider until its thumb moves', async () => {
+    const { onChange } = setup({ runtimeMax: 500 })
+    const [runtimeMin] = thumbsOf('Runtime')
+    fireEvent.change(runtimeMin!, { target: { value: '30' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Apply filters' }))
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ runtimeMin: 30, runtimeMax: 500 }),
+    )
   })
 
   it('shows a chip per filter and lifts one at a time', async () => {
@@ -150,7 +203,7 @@ describe('MovieFilters', () => {
 
   it('lists every genre on focus and narrows it as the visitor types', async () => {
     setup()
-    await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Filters/ }))
     const genreBox = screen.getByRole('combobox', { name: 'Genres' })
     await userEvent.click(genreBox)
     expect(await screen.findAllByRole('option')).toHaveLength(2)

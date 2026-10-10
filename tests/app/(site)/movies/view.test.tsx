@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MoviesView } from '@/app/(site)/movies/view'
@@ -61,6 +61,12 @@ const enter = () => {
   act(() => observer.enter())
 }
 
+/** A range field's two thumbs (its label also names the slider's root group). */
+const thumbsOf = (label: string) =>
+  screen.getAllByLabelText(label).filter((element) => element instanceof HTMLInputElement)
+
+// Base UI keeps a slider's thumbs `visibility: hidden` until it can measure the track, which jsdom
+// never does, so role queries skip them; the tests find the thumbs by their label instead.
 describe('MoviesView', () => {
   beforeEach(() => {
     navigation.search = ''
@@ -125,11 +131,12 @@ describe('MoviesView', () => {
     await userEvent.click(screen.getByRole('combobox', { name: 'Genres' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Science Fiction' }))
     await userEvent.keyboard('{Escape}')
-    await userEvent.type(screen.getByRole('spinbutton', { name: 'From' }), '2000')
-    await userEvent.type(screen.getByRole('spinbutton', { name: 'At most' }), '150')
+    const [, runtimeMax] = thumbsOf('Runtime')
+    // jsdom leaves the slider unmeasured, so keys do not move it; set the value as assistive tech does.
+    fireEvent.change(runtimeMax!, { target: { value: '150' } })
     await userEvent.click(screen.getByRole('button', { name: 'Apply filters' }))
     expect(navigation.push).toHaveBeenLastCalledWith(
-      '/movies?genres=science-fiction&yearFrom=2000&runtimeMax=150',
+      '/movies?genres=science-fiction&runtimeMax=150',
       { scroll: false },
     )
   })

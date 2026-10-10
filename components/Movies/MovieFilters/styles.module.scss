@@ -1,5 +1,9 @@
-.filters,
-.form {
+// A strong ease-out: the panel covers most of its distance at once, then settles.
+$ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+$rail-width: 3rem;
+$panel-width: 18rem;
+
+.filters {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -10,6 +14,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
+  justify-content: space-between;
   gap: 1rem;
 }
 
@@ -26,57 +31,142 @@
   flex: 1;
 }
 
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
+/* ── Layout: the panel beside the results ───────────── */
+.layout {
+  display: grid;
+  grid-template-columns: $rail-width minmax(0, 1fr);
+  align-items: start;
+  gap: 1.5rem;
+  transition: grid-template-columns 380ms $ease-out-expo;
+
+  &[data-open] {
+    grid-template-columns: $panel-width minmax(0, 1fr);
+  }
+}
+
+.results {
+  min-width: 0;
 }
 
 /* ── Panel ──────────────────────────────────────────── */
+// Sticks below the fixed NavBar while the results scroll.
 .panel {
+  position: sticky;
+  top: 5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 1.25rem;
+  max-height: calc(100dvh - 6rem);
+  min-width: 0;
+  overflow: hidden auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--card);
+  overscroll-behavior: contain;
 }
 
-.fieldset {
+// Tucked, a vertical rail; open, the panel's header.
+.toggle {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.875rem 0;
   border: 0;
-}
-
-.legend {
-  padding: 0;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
   font-size: 0.875rem;
   font-weight: 500;
+  cursor: pointer;
+
+  &:focus-visible {
+    border-radius: var(--radius-xl);
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
 }
 
-.ranges {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+.toggleLabel {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.collapseIcon {
+  display: none;
+  color: var(--muted-foreground);
+}
+
+.layout[data-open] {
+  .toggle {
+    flex-direction: row;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toggleLabel {
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
+
+  .collapseIcon {
+    display: block;
+    margin-left: auto;
+  }
+}
+
+.panelForm {
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
-  align-items: start;
+  // Laid out at the open panel's inner width from the start, so nothing reflows as it grows.
+  width: calc(#{$panel-width} - 2px);
+  padding: 1.25rem 1rem;
+  animation: panel-in 380ms $ease-out-expo;
 }
 
-.range {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(-0.75rem);
+  }
 }
 
 .panelActions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* ── Chips ──────────────────────────────────────────── */
@@ -136,13 +226,74 @@
   }
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .toggle:hover {
+    background: var(--muted);
+  }
+}
+
+/* ── Narrow screens: the panel stacks above the results ── */
 @media (width < $breakpoint-md) {
   .search {
     min-width: 0;
     max-width: none;
   }
 
+  .layout,
+  .layout[data-open] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .panel {
-    padding: 1rem;
+    position: static;
+    max-height: none;
+  }
+
+  .toggle,
+  .layout[data-open] .toggle {
+    flex-direction: row;
+    padding: 0.75rem 1rem;
+  }
+
+  .toggleLabel {
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
+
+  .layout:not([data-open]) .toggle {
+    border-bottom: 0;
+  }
+
+  // The panel folds up, not to the side.
+  .collapseIcon {
+    transform: rotate(90deg);
+  }
+
+  .panelForm {
+    width: auto;
+    animation-name: panel-down;
+  }
+
+  @keyframes panel-down {
+    from {
+      opacity: 0;
+      transform: translateY(-0.5rem);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layout {
+    transition: none;
+  }
+
+  .panelForm {
+    animation-name: panel-fade;
+  }
+
+  @keyframes panel-fade {
+    from {
+      opacity: 0;
+    }
   }
 }

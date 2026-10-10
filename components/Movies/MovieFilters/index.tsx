@@ -1,10 +1,11 @@
 'use client'
 
-import { SlidersHorizontal, X } from 'lucide-react'
-import { useId, useState, type FormEvent } from 'react'
+import { ChevronLeft, SlidersHorizontal, X } from 'lucide-react'
+import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Input } from '@/components/Form/Input'
 import { GenreFilter } from '@/components/Movies/GenreFilter'
 import { PersonFilter } from '@/components/Movies/PersonFilter'
+import { RangeFilter, type Range } from '@/components/Movies/RangeFilter'
 import { Button } from '@/components/SCN/button'
 import {
   Select,
@@ -17,7 +18,6 @@ import type { Genre } from '@/lib/dto/genres'
 import {
   EMPTY_MOVIE_FILTERS,
   hasMovieFilters,
-  MOVIE_RUNTIME_MAX_MINUTES,
   MOVIE_SEARCH_MAX_LENGTH,
   MOVIE_YEAR_MIN,
   movieSortSchema,
@@ -34,6 +34,9 @@ export const SORT_LABELS: Record<MovieSort, string> = {
   added: 'Recently added',
 }
 
+/** The runtime slider's top end, in minutes; at it the filter has no upper bound ("240+ min"). */
+const RUNTIME_SLIDER_MAX = 240
+
 type MovieFiltersProps = {
   /** The filters in the URL. */
   filters: Filters
@@ -47,6 +50,8 @@ type MovieFiltersProps = {
   /** Writes the given filters to the URL, back on page 1. */
   onChange: (patch: Partial<Filters>) => void
   onSortChange: (sort: MovieSort) => void
+  /** The results, laid out beside the filter panel. */
+  children: ReactNode
 }
 
 type Chip = { key: string; label: string; remove: Partial<Filters> }
@@ -56,7 +61,14 @@ const toSort = (value: string | null): MovieSort => {
   return sort.success ? sort.data : 'newest'
 }
 
-/** The filters the panel holds, as opposed to the title search that is always shown. */
+/** How many of the panel's filters are in force (each genre counts), for the panel's badge. */
+const countPanelFilters = (filters: Filters) =>
+  filters.genres.length +
+  (filters.yearFrom !== null || filters.yearTo !== null ? 1 : 0) +
+  (filters.runtimeMin !== null || filters.runtimeMax !== null ? 1 : 0) +
+  (filters.person ? 1 : 0)
+
+/** The filters the panel holds, as opposed to the title search in the toolbar. */
 const hasPanelFilters = (filters: Filters) => hasMovieFilters({ ...filters, q: '' })
 
 const rangeLabel = (from: number | null, to: number | null, unit = '') =>
@@ -99,188 +111,172 @@ const chipsOf = (filters: Filters, genres: Genre[], person: PersonSummary | null
   return chips
 }
 
-/** A number field's value, or null when it is blank (the URL schema drops anything invalid). */
-const numberOf = (data: FormData, name: string) => {
-  const value = data.get(name)
-  return typeof value === 'string' && value.trim() !== '' ? Number(value) : null
-}
+type TitleSearchProps = Pick<MovieFiltersProps, 'filters' | 'disabled' | 'onChange'>
 
-type FilterFormProps = Omit<MovieFiltersProps, 'onSortChange' | 'sort'> & {
-  sortControl: React.ReactNode
-}
-
-/**
- * The form: the title search, the filters panel and its apply button. Remounted by its parent
- * whenever the URL's filters change, so the fields follow the URL (back/forward, a removed chip).
- */
-const FilterForm = ({
-  filters,
-  genres,
-  person,
-  disabled,
-  onChange,
-  sortControl,
-}: FilterFormProps) => {
-  const baseId = useId()
-  const panelId = `${baseId}-panel`
-  const [open, setOpen] = useState(() => hasPanelFilters(filters))
-  const [draftGenres, setDraftGenres] = useState(filters.genres)
-  const [draftPerson, setDraftPerson] = useState(person)
+/** The title search, always shown. Remounted by its parent when the URL's `q` changes. */
+const TitleSearch = ({ filters, disabled, onChange }: TitleSearchProps) => {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const data = new FormData(event.currentTarget)
-    const q = data.get('q')
-    const patch: Partial<Filters> = { q: typeof q === 'string' ? q.trim() : '' }
-    // A closed panel keeps its filters: a title search alone must not clear them.
-    if (open) {
-      patch.genres = draftGenres
-      patch.person = draftPerson?.slug ?? ''
-      patch.yearFrom = numberOf(data, 'yearFrom')
-      patch.yearTo = numberOf(data, 'yearTo')
-      patch.runtimeMin = numberOf(data, 'runtimeMin')
-      patch.runtimeMax = numberOf(data, 'runtimeMax')
-    }
-    onChange(patch)
+    const q = new FormData(event.currentTarget).get('q')
+    onChange({ q: typeof q === 'string' ? q.trim() : '' })
   }
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit} role="search">
-      <div className={styles.toolbar}>
-        <div className={styles.search}>
-          <div className={styles.searchField}>
-            <Input
-              name="q"
-              type="search"
-              label="Search movies"
-              placeholder="Title"
-              defaultValue={filters.q}
-              maxLength={MOVIE_SEARCH_MAX_LENGTH}
-              autoComplete="off"
-            />
-          </div>
-          <Button type="submit" variant="secondary" disabled={disabled}>
-            Search
-          </Button>
-        </div>
-        <div className={styles.controls}>
-          <Button
-            type="button"
-            variant="outline"
-            aria-expanded={open}
-            aria-controls={panelId}
-            onClick={() => setOpen((value) => !value)}
-          >
-            <SlidersHorizontal aria-hidden="true" />
-            Filters
-          </Button>
-          {sortControl}
-        </div>
+    <form className={styles.search} onSubmit={handleSubmit} role="search">
+      <div className={styles.searchField}>
+        <Input
+          name="q"
+          type="search"
+          label="Search movies"
+          placeholder="Title"
+          defaultValue={filters.q}
+          maxLength={MOVIE_SEARCH_MAX_LENGTH}
+          autoComplete="off"
+        />
       </div>
+      <Button type="submit" variant="secondary" disabled={disabled}>
+        Search
+      </Button>
+    </form>
+  )
+}
 
-      {open ? (
-        <div id={panelId} className={styles.panel}>
-          <GenreFilter genres={genres} value={draftGenres} onChange={setDraftGenres} />
+type PanelFormProps = Pick<
+  MovieFiltersProps,
+  'filters' | 'genres' | 'person' | 'disabled' | 'onChange'
+> & { id: string }
 
-          <div className={styles.ranges}>
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>Release year</legend>
-              <div className={styles.range}>
-                <Input
-                  name="yearFrom"
-                  type="number"
-                  label="From"
-                  inputMode="numeric"
-                  min={MOVIE_YEAR_MIN}
-                  max={new Date().getUTCFullYear()}
-                  placeholder={String(MOVIE_YEAR_MIN)}
-                  defaultValue={filters.yearFrom ?? ''}
-                />
-                <Input
-                  name="yearTo"
-                  type="number"
-                  label="To"
-                  inputMode="numeric"
-                  min={MOVIE_YEAR_MIN}
-                  max={new Date().getUTCFullYear()}
-                  placeholder={String(new Date().getUTCFullYear())}
-                  defaultValue={filters.yearTo ?? ''}
-                />
-              </div>
-            </fieldset>
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>Runtime (minutes)</legend>
-              <div className={styles.range}>
-                <Input
-                  name="runtimeMin"
-                  type="number"
-                  label="At least"
-                  inputMode="numeric"
-                  min={1}
-                  max={MOVIE_RUNTIME_MAX_MINUTES}
-                  placeholder="60"
-                  defaultValue={filters.runtimeMin ?? ''}
-                />
-                <Input
-                  name="runtimeMax"
-                  type="number"
-                  label="At most"
-                  inputMode="numeric"
-                  min={1}
-                  max={MOVIE_RUNTIME_MAX_MINUTES}
-                  placeholder="180"
-                  defaultValue={filters.runtimeMax ?? ''}
-                />
-              </div>
-            </fieldset>
-            <PersonFilter value={draftPerson} onChange={setDraftPerson} />
-          </div>
+/**
+ * The panel's fields and their apply button. Remounted by its parent whenever the URL's filters
+ * change, so the drafts follow the URL (back/forward, a removed chip).
+ */
+const PanelForm = ({ id, filters, genres, person, disabled, onChange }: PanelFormProps) => {
+  const currentYear = new Date().getUTCFullYear()
+  const [draftGenres, setDraftGenres] = useState(filters.genres)
+  const [draftPerson, setDraftPerson] = useState(person)
+  const [years, setYears] = useState<Range>({ from: filters.yearFrom, to: filters.yearTo })
+  const [runtime, setRuntime] = useState<Range>({
+    from: filters.runtimeMin,
+    to: filters.runtimeMax,
+  })
+  const isEmpty =
+    draftGenres.length === 0 &&
+    draftPerson === null &&
+    years.from === null &&
+    years.to === null &&
+    runtime.from === null &&
+    runtime.to === null
 
-          <div className={styles.panelActions}>
-            <Button type="submit" disabled={disabled}>
-              Apply filters
-            </Button>
-          </div>
-        </div>
-      ) : null}
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    onChange({
+      genres: draftGenres,
+      person: draftPerson?.slug ?? '',
+      yearFrom: years.from,
+      yearTo: years.to,
+      runtimeMin: runtime.from,
+      runtimeMax: runtime.to,
+    })
+  }
+
+  const reset = () => {
+    setDraftGenres([])
+    setDraftPerson(null)
+    setYears({ from: null, to: null })
+    setRuntime({ from: null, to: null })
+  }
+
+  return (
+    <form id={id} className={styles.panelForm} onSubmit={handleSubmit} aria-label="Filters">
+      <GenreFilter genres={genres} value={draftGenres} onChange={setDraftGenres} />
+      <RangeFilter
+        label="Release year"
+        min={MOVIE_YEAR_MIN}
+        max={currentYear}
+        step={1}
+        largeStep={10}
+        value={years}
+        onChange={setYears}
+        readout={
+          years.from === null && years.to === null ? 'Any year' : rangeLabel(years.from, years.to)
+        }
+        minLabel={String(MOVIE_YEAR_MIN)}
+        maxLabel={String(currentYear)}
+      />
+      <RangeFilter
+        label="Runtime"
+        min={0}
+        max={RUNTIME_SLIDER_MAX}
+        step={5}
+        largeStep={30}
+        value={runtime}
+        onChange={setRuntime}
+        readout={
+          runtime.from === null && runtime.to === null
+            ? 'Any length'
+            : rangeLabel(runtime.from, runtime.to, ' min')
+        }
+        minLabel="0 min"
+        maxLabel={`${RUNTIME_SLIDER_MAX}+ min`}
+      />
+      <PersonFilter value={draftPerson} onChange={setDraftPerson} />
+      <div className={styles.panelActions}>
+        <Button type="submit" disabled={disabled}>
+          Apply filters
+        </Button>
+        <Button type="button" variant="ghost" disabled={isEmpty} onClick={reset}>
+          Reset
+        </Button>
+      </div>
     </form>
   )
 }
 
 /**
- * The movie list's search and filters, IMDb's advanced search in one bar: the title search and
- * sort always shown, a panel for genres, release year, runtime and person, and a chip per filter in
- * force. Everything lives in the URL through `onChange` / `onSortChange`.
+ * The movie list's search and filters, IMDb's advanced search beside the results: the title search
+ * and sort in a toolbar, a chip per filter in force, and a filter panel for genres, release year,
+ * runtime and person that waits tucked into a rail at the side and slides out to full width when
+ * opened. Everything lives in the URL through `onChange` / `onSortChange`.
  */
-export const MovieFilters = ({ sort, onSortChange, ...props }: MovieFiltersProps) => {
-  const { filters, genres, person, disabled, onChange } = props
+export const MovieFilters = ({
+  filters,
+  sort,
+  genres,
+  person,
+  disabled,
+  onChange,
+  onSortChange,
+  children,
+}: MovieFiltersProps) => {
+  const panelId = useId()
+  const [open, setOpen] = useState(() => hasPanelFilters(filters))
   const chips = chipsOf(filters, genres, person)
-  // The form follows the URL: a new set of filters is a new form with fresh defaults.
-  const formKey = JSON.stringify([filters, person?.slug ?? null])
+  const panelCount = countPanelFilters(filters)
+  // The forms follow the URL: a new set of filters is a new form with fresh defaults.
+  const panelKey = JSON.stringify([filters, person?.slug ?? null])
 
   return (
     <div className={styles.filters}>
-      <FilterForm
-        key={formKey}
-        {...props}
-        sortControl={
-          <Select
-            items={SORT_LABELS}
-            value={sort}
-            onValueChange={(value) => onSortChange(toSort(value))}
-          >
-            <SelectTrigger aria-label="Sort" disabled={disabled}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(SORT_LABELS) as MovieSort[]).map((option) => (
-                <SelectItem key={option} value={option}>
-                  {SORT_LABELS[option]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
-      />
+      <div className={styles.toolbar}>
+        <TitleSearch key={filters.q} filters={filters} disabled={disabled} onChange={onChange} />
+        <Select
+          items={SORT_LABELS}
+          value={sort}
+          onValueChange={(value) => onSortChange(toSort(value))}
+        >
+          <SelectTrigger aria-label="Sort" disabled={disabled}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(SORT_LABELS) as MovieSort[]).map((option) => (
+              <SelectItem key={option} value={option}>
+                {SORT_LABELS[option]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {chips.length > 0 ? (
         <ul className={styles.chips} aria-label="Active filters">
           {chips.map((chip) => (
@@ -310,6 +306,39 @@ export const MovieFilters = ({ sort, onSortChange, ...props }: MovieFiltersProps
           </li>
         </ul>
       ) : null}
+
+      <div className={styles.layout} data-open={open || undefined}>
+        <aside className={styles.panel}>
+          <button
+            type="button"
+            className={styles.toggle}
+            aria-expanded={open}
+            aria-controls={open ? panelId : undefined}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <SlidersHorizontal className={styles.toggleIcon} aria-hidden="true" />
+            <span className={styles.toggleLabel}>Filters</span>{' '}
+            {panelCount > 0 ? (
+              <span className={styles.count}>
+                {panelCount} <span className={styles.srOnly}>active</span>
+              </span>
+            ) : null}
+            <ChevronLeft className={styles.collapseIcon} aria-hidden="true" />
+          </button>
+          {open ? (
+            <PanelForm
+              key={panelKey}
+              id={panelId}
+              filters={filters}
+              genres={genres}
+              person={person}
+              disabled={disabled}
+              onChange={onChange}
+            />
+          ) : null}
+        </aside>
+        <div className={styles.results}>{children}</div>
+      </div>
     </div>
   )
 }
