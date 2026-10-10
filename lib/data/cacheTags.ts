@@ -10,3 +10,9 @@ export const userTag = (id: string) => `user:${id}`
  * one tag is correct by construction.
  */
 export const CATALOG_TAG = 'catalog'
+
+/**
+ * A movie's review reads (its rating summary) carry this tag and every review write on that movie
+ * invalidates it. It is not `CATALOG_TAG`: a review must not flush every cached movie list.
+ */
+export const reviewsTag = (movieId: string) => `reviews:${movieId}`

@@ -1,0 +1,57 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  align-self: flex-start;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: color 150ms ease-out;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  &:focus-visible {
+    border-radius: 2px;
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .back:hover {
+    color: var(--foreground);
+  }
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  transition: opacity 150ms ease-out;
+
+  // A page change is in flight: dim the list it is about to replace.
+  &[aria-busy='true'] {
+    opacity: 0.6;
+  }
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

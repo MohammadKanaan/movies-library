@@ -1,0 +1,55 @@
+.stars {
+  display: inline-flex;
+  gap: 0.125rem;
+  vertical-align: middle;
+  color: var(--primary);
+}
+
+.sm {
+  --star-size: 1rem;
+}
+
+.md {
+  --star-size: 1.25rem;
+}
+
+.lg {
+  --star-size: 2rem;
+}
+
+.star {
+  position: relative;
+  display: inline-block;
+  width: var(--star-size);
+  height: var(--star-size);
+}
+
+.outline,
+.filled {
+  display: block;
+  width: var(--star-size);
+  height: var(--star-size);
+}
+
+.outline {
+  color: color-mix(in oklch, var(--muted-foreground) 65%, transparent);
+}
+
+// A half star clips the filled star at its middle; the outline underneath shows the rest.
+.fill {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.full .fill {
+  width: 100%;
+}
+
+.half .fill {
+  width: 50%;
+}
+
+.filled {
+  fill: currentColor;
+}

@@ -51,3 +51,17 @@ export const seedMovie = ({
     },
   })
 }
+
+export type SeedReview = {
+  movieId: string
+  authorId: string
+  /** In stars, ½ to 5. */
+  rating: number
+  body?: string | null
+  spoiler?: boolean
+  createdAt?: Date
+}
+
+export const seedReview = ({ rating, body = null, spoiler = false, ...rest }: SeedReview) => {
+  return db.review.create({ data: { ...rest, halfStars: rating * 2, body, spoiler } })
+}

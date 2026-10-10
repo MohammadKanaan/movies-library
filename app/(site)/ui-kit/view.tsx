@@ -17,6 +17,8 @@ import { PageHeader } from '@/components/PageHeader'
 import { MoviePoster } from '@/components/Movies/MoviePoster'
 import { Headshot } from '@/components/People/Headshot'
 import { PersonCard } from '@/components/People/PersonCard'
+import { StarRating } from '@/components/Reviews/StarRating'
+import { StarRatingInput } from '@/components/Reviews/StarRatingInput'
 import { Pagination } from '@/components/Pagination'
 import { ResultRow } from '@/components/Search/ResultRow'
 import { AvatarUploader } from '@/components/Settings/AvatarUploader'
@@ -176,6 +178,7 @@ const Section = ({ id, eyebrow, title, description, children }: SectionProps) =>
 
 export const UiKitView = () => {
   const [page, setPage] = useState(2)
+  const [rating, setRating] = useState(3.5)
 
   return (
     <div className={styles.page}>
@@ -549,6 +552,43 @@ export const UiKitView = () => {
         description="Previous and next controls driven by local state."
       >
         <Pagination page={page} totalPages={5} onPageChange={setPage} />
+      </Section>
+
+      <Section
+        id="star-rating"
+        eyebrow="Application components"
+        title="StarRating"
+        description="A read-only rating in half stars, from ½ to 5, in three sizes. It is announced as one image."
+      >
+        <div className={styles.stack}>
+          <div className={styles.row}>
+            <StarRating rating={0} />
+            <StarRating rating={0.5} />
+            <StarRating rating={3.5} />
+            <StarRating rating={5} />
+          </div>
+          <div className={styles.row}>
+            <StarRating rating={4.5} size="sm" />
+            <StarRating rating={4.5} size="md" />
+            <StarRating rating={4.5} size="lg" />
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        id="star-rating-input"
+        eyebrow="Application components"
+        title="StarRatingInput"
+        description="Picks a rating in half stars. Ten native radios sit over the stars, so the arrow keys work; hovering previews."
+      >
+        <div className={styles.stack}>
+          <StarRatingInput value={rating} onChange={setRating} aria-label="Example rating" />
+          <p className={styles.sectionDescription}>
+            Rating: {rating === 0 ? 'none' : `${rating} stars`}
+          </p>
+          <StarRatingInput value={2} onChange={setRating} aria-label="Disabled rating" disabled />
+          <StarRatingInput value={0} onChange={setRating} aria-label="Invalid rating" invalid />
+        </div>
       </Section>
 
       <Section

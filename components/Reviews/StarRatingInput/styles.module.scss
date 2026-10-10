@@ -1,0 +1,47 @@
+.group {
+  position: relative;
+  display: inline-block;
+  align-self: flex-start;
+}
+
+// One cell per half star, laid over the stars.
+.halves {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+}
+
+.half {
+  position: relative;
+  cursor: pointer;
+
+  &:has(.radio:focus-visible) {
+    border-radius: 2px;
+    outline: 2px solid var(--ring);
+    outline-offset: 1px;
+  }
+}
+
+.disabled {
+  cursor: not-allowed;
+}
+
+.radio,
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.group[aria-invalid='true'] {
+  border-radius: 2px;
+  outline: 1px solid var(--destructive);
+  outline-offset: 4px;
+}

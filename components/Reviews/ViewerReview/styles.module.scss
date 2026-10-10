@@ -1,0 +1,31 @@
+.box {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--card);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.title {
+  margin: 0;
+  color: var(--foreground);
+  font-family: var(--font-display-family);
+  font-size: 1.0625rem;
+  font-weight: var(--font-display-weight);
+  letter-spacing: var(--font-display-tracking);
+}

@@ -1,0 +1,123 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--card);
+  color: var(--card-foreground);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.author {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+
+.date {
+  color: inherit;
+  text-decoration: none;
+
+  &:focus-visible {
+    border-radius: 2px;
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+.body {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  text-wrap: pretty;
+}
+
+// A list shows the first lines and links to the rest.
+.clamped {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+}
+
+.spoiler {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  // Closed, the summary is the only thing the details element shows.
+  &[open] > .summary {
+    margin-bottom: 0.75rem;
+  }
+}
+
+.summary {
+  width: fit-content;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  cursor: pointer;
+
+  &:focus-visible {
+    border-radius: 2px;
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.more {
+  margin-right: auto;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in oklch, var(--foreground) 35%, transparent);
+  text-underline-offset: 0.3em;
+
+  &:focus-visible {
+    border-radius: 2px;
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .date:hover {
+    color: var(--foreground);
+  }
+
+  .more:hover {
+    text-decoration-color: var(--primary);
+  }
+}

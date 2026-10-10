@@ -2,15 +2,28 @@ import { ArrowLeft } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { cache, Fragment } from 'react'
+import { ButtonLink } from '@/components/ButtonLink'
 import { DeleteMovieDialog } from '@/components/Movies/DeleteMovieDialog'
 import { GenreTags } from '@/components/Movies/GenreTags'
 import { MoviePoster } from '@/components/Movies/MoviePoster'
 import { Headshot } from '@/components/People/Headshot'
+import { ReviewCard } from '@/components/Reviews/ReviewCard'
+import { StarRating } from '@/components/Reviews/StarRating'
+import { ViewerReview } from '@/components/Reviews/ViewerReview'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/SCN/tooltip'
-import { moviePath, personPath, ROUTE_MOVIES } from '@/lib/constants-routes'
+import {
+  loginPath,
+  moviePath,
+  movieReviewsPath,
+  personPath,
+  ROUTE_MOVIES,
+} from '@/lib/constants-routes'
 import { getMovieBySlug } from '@/lib/data/movies'
 import { loadPage } from '@/lib/data/page'
+import { getReviewSummary, getViewerReview, listReviews } from '@/lib/data/reviews'
+import { getViewer } from '@/lib/data/users'
 import type { PersonSummary } from '@/lib/dto/people'
+import type { RatingSummary } from '@/lib/dto/reviews'
 import { formatDate } from '@/lib/formatDate'
 import { formatRuntime } from '@/lib/formatRuntime'
 import { presentMovieDetail, type SupportingCredit } from '@/presenters/movieDetail'
@@ -40,6 +53,14 @@ const NameList = ({ people }: { people: PersonSummary[] }) =>
     </Fragment>
   ))
 
+/** How many of the newest reviews the page shows; the rest are on the reviews page. */
+const LATEST_REVIEWS = 3
+
+const ratingText = ({ average, count }: RatingSummary) =>
+  average === null
+    ? 'No ratings yet'
+    : `${average} · ${count} ${count === 1 ? 'rating' : 'ratings'}`
+
 const supportingTitle = (supporting: SupportingCredit[]) => {
   const hasCast = supporting.some((credit) => credit.role === 'cast')
   const hasWriters = supporting.some((credit) => credit.role === 'writer')
@@ -63,6 +84,18 @@ const MoviePage = async ({ params }: PageProps<'/movies/[slug]'>) => {
   const { directors, writers, cast } = movie.credits
   const releaseDay = movie.releaseDate.toISOString().slice(0, 10)
   const hasCredits = directors.length + writers.length + cast.length > 0
+  const [viewer, summary, latest, viewerReview] = await loadPage(
+    () =>
+      Promise.all([
+        getViewer(),
+        getReviewSummary(movie.id),
+        listReviews({ movieId: movie.id, perPage: LATEST_REVIEWS }),
+        getViewerReview(movie.id),
+      ]),
+    moviePath(slug),
+  )
+  // The viewer's own review has its box above the list.
+  const otherReviews = latest.items.filter((review) => review.id !== viewerReview?.id)
 
   return (
     <article className={styles.page}>
@@ -100,6 +133,10 @@ const MoviePage = async ({ params }: PageProps<'/movies/[slug]'>) => {
                 {movie.runtimeMinutes === null ? null : ` · ${formatRuntime(movie.runtimeMinutes)}`}
               </p>
               <h1 className={styles.title}>{movie.title}</h1>
+              <p className={styles.rating}>
+                <StarRating rating={Math.round((summary.average ?? 0) * 2) / 2} decorative />
+                <span>{ratingText(summary)}</span>
+              </p>
               {movie.synopsis ? (
                 <p className={styles.synopsis}>{movie.synopsis}</p>
               ) : (
@@ -176,6 +213,44 @@ const MoviePage = async ({ params }: PageProps<'/movies/[slug]'>) => {
             </ol>
           </section>
         ) : null}
+
+        <section className={styles.section} aria-labelledby="reviews-heading">
+          <div className={styles.sectionHead}>
+            <h2 id="reviews-heading" className={styles.sectionTitle}>
+              Reviews
+            </h2>
+            {latest.totalItems > 0 ? (
+              <Link href={movieReviewsPath(slug)} className={styles.more}>
+                All {latest.totalItems} {latest.totalItems === 1 ? 'review' : 'reviews'}
+              </Link>
+            ) : null}
+          </div>
+
+          <div id="your-review" className={styles.yourReview}>
+            {viewer ? (
+              <ViewerReview movieId={movie.id} review={viewerReview}>
+                {viewerReview ? <ReviewCard review={viewerReview} movieSlug={slug} /> : null}
+              </ViewerReview>
+            ) : (
+              <div className={styles.signIn}>
+                <p className={styles.signInText}>Sign in to rate and review this movie.</p>
+                <ButtonLink href={loginPath(moviePath(slug))}>Sign in to review</ButtonLink>
+              </div>
+            )}
+          </div>
+
+          {otherReviews.length > 0 ? (
+            <ul className={styles.reviews}>
+              {otherReviews.map((review) => (
+                <li key={review.id}>
+                  <ReviewCard review={review} movieSlug={slug} preview />
+                </li>
+              ))}
+            </ul>
+          ) : latest.totalItems === 0 ? (
+            <p className={styles.empty}>No reviews yet.</p>
+          ) : null}
+        </section>
 
         {/* The small print: release, runtime and provenance. */}
         <p className={styles.colophon}>

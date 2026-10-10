@@ -12,6 +12,12 @@ export const ROUTE_SEARCH = '/search'
 
 export const moviePath = (slug: string) => `${ROUTE_MOVIES}/${slug}`
 
+/** A movie's reviews, newest first. */
+export const movieReviewsPath = (slug: string) => `${moviePath(slug)}/reviews`
+
+/** One review; the slug is the movie's, and the page answers 404 for any other movie's. */
+export const reviewPath = (slug: string, id: string) => `${movieReviewsPath(slug)}/${id}`
+
 /** The search page for a term: movies and people together. */
 export const searchPath = (q: string) => `${ROUTE_SEARCH}?${new URLSearchParams({ q })}`
 
