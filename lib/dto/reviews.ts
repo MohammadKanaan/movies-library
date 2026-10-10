@@ -70,6 +70,8 @@ export const reviewSchema = z.object({
   spoiler: z.boolean(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
+  /** How many comments the review has. */
+  commentCount: z.number().int().nonnegative(),
   author: userProfileSchema,
   permissions: permissionsSchema,
 })

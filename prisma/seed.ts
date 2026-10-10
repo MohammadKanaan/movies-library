@@ -49,6 +49,31 @@ const SEED_REVIEWS: {
   },
 ]
 
+/**
+ * Comments on the reviews above, found by the movie and the review's author. They are written in
+ * order, so the conversation reads as listed.
+ */
+const SEED_COMMENTS: { movieIndex: number; reviewer: string; author: string; body: string }[] = [
+  {
+    movieIndex: 0,
+    reviewer: 'leanne@example.com',
+    author: 'ervin@example.com',
+    body: 'Agreed, the second watch is where it clicks.',
+  },
+  {
+    movieIndex: 0,
+    reviewer: 'leanne@example.com',
+    author: 'leanne@example.com',
+    body: 'Glad it is not only me.',
+  },
+  {
+    movieIndex: 1,
+    reviewer: 'ervin@example.com',
+    author: 'leanne@example.com',
+    body: 'That ending, though. I did not see it coming either.',
+  },
+]
+
 /** One account per role (`users_role_valid`). */
 const SEED_USERS: {
   name: string
@@ -217,6 +242,24 @@ try {
       update: data,
     })
     reviewedNow.add(movieId)
+  }
+
+  // Comments hang off those reviews. Re-seeding replaces the users, and their comments go with
+  // them, so these never double.
+  for (const { movieIndex, reviewer, author, body } of SEED_COMMENTS) {
+    const movieId = reviewMovieBySlug.get(seededSlugs[movieIndex])
+    const reviewerId = reviewAuthors.get(reviewer)
+    const authorId = reviewAuthors.get(author)
+    if (!movieId || !reviewerId || !authorId) {
+      continue
+    }
+    const review = await db.review.findUnique({
+      where: { movieId_authorId: { movieId, authorId: reviewerId } },
+      select: { id: true },
+    })
+    if (review) {
+      await db.reviewComment.create({ data: { reviewId: review.id, authorId, body } })
+    }
   }
 
   // The dev seed replaces the movie catalog. Prune only after every upsert succeeds, so a

@@ -44,6 +44,7 @@ const reviewSelect = {
   createdAt: true,
   updatedAt: true,
   author: { select: userProfileSelect },
+  _count: { select: { comments: true } },
 } satisfies Prisma.ReviewSelect
 
 const reviewDetailSelect = {
@@ -61,9 +62,13 @@ const recordOf = ({ author }: Pick<ReviewRow, 'author'>): ReviewRecord => ({
   authorId: author.id,
 })
 
-const toReview = ({ halfStars, ...row }: ReviewRow, viewer: SessionUser | null): Review => ({
+const toReview = (
+  { halfStars, _count, ...row }: ReviewRow,
+  viewer: SessionUser | null,
+): Review => ({
   ...row,
   rating: halfStars / 2,
+  commentCount: _count.comments,
   permissions: permissionsFor(reviewPolicy, PERMISSION_ACTIONS, viewer, recordOf(row)),
 })
 

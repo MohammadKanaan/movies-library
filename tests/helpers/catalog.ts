@@ -65,3 +65,14 @@ export type SeedReview = {
 export const seedReview = ({ rating, body = null, spoiler = false, ...rest }: SeedReview) => {
   return db.review.create({ data: { ...rest, halfStars: rating * 2, body, spoiler } })
 }
+
+export type SeedComment = {
+  reviewId: string
+  authorId: string
+  body?: string
+  createdAt?: Date
+}
+
+export const seedComment = ({ body = 'Agreed.', ...rest }: SeedComment) => {
+  return db.reviewComment.create({ data: { ...rest, body } })
+}

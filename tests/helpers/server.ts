@@ -29,7 +29,7 @@ export const resetDatabase = async () => {
   assertTestDatabase()
   await resetRedis()
   cookieJar.clear()
-  await db.$executeRaw`TRUNCATE TABLE reviews, credits, movie_genres, movies, genres, people, sessions, accounts, verifications, users CASCADE`
+  await db.$executeRaw`TRUNCATE TABLE review_comments, reviews, credits, movie_genres, movies, genres, people, sessions, accounts, verifications, users CASCADE`
 }
 
 /** Signs a user up through Better Auth (real password hash and account row), then signs out locally. */

@@ -86,6 +86,7 @@ describe('reviews DAL', () => {
         spoiler: false,
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
+        commentCount: 0,
         author: { id: viewer.id, name: viewer.name, username: viewer.username },
         permissions: { update: true, delete: true },
       })

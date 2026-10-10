@@ -97,8 +97,14 @@
   gap: 0.5rem;
 }
 
-.more {
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
   margin-right: auto;
+}
+
+.more {
   color: var(--foreground);
   font-size: 0.875rem;
   text-decoration-line: underline;

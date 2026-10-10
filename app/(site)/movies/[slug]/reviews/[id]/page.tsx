@@ -3,12 +3,22 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
+import { ButtonLink } from '@/components/ButtonLink'
 import { MoviePoster } from '@/components/Movies/MoviePoster'
+import { CommentList } from '@/components/Reviews/CommentList'
+import { NewComment } from '@/components/Reviews/NewComment'
 import { ReviewCard } from '@/components/Reviews/ReviewCard'
-import { moviePath, movieReviewsPath, reviewPath } from '@/lib/constants-routes'
+import { loginPath, moviePath, movieReviewsPath, reviewPath } from '@/lib/constants-routes'
 import { loadPage } from '@/lib/data/page'
+import { listComments } from '@/lib/data/reviewComments'
 import { getReview } from '@/lib/data/reviews'
+import { getViewer } from '@/lib/data/users'
+import { commentsUrlQuery } from '@/lib/dto/reviewComments'
+import { toScalarParams } from '@/lib/searchParams'
+import { CommentsView } from './view'
 import styles from './styles.module.scss'
+
+const COMMENTS_PER_PAGE = 20
 
 // `generateMetadata` and the page read the same review: one DAL call per request.
 const loadReview = cache((slug: string, id: string) =>
@@ -32,10 +42,21 @@ export const generateMetadata = async ({
   return { title: `${review.author.name}’s review of ${review.movie.title}` }
 }
 
-const ReviewPage = async ({ params }: PageProps<'/movies/[slug]/reviews/[id]'>) => {
+const ReviewPage = async ({ params, searchParams }: PageProps<'/movies/[slug]/reviews/[id]'>) => {
   const { slug, id } = await params
+  // A garbled URL falls back to the first page.
+  const { page } = commentsUrlQuery.parse(toScalarParams(await searchParams))
   const review = await loadReviewOf(slug, id)
   const { movie } = review
+  const path = reviewPath(slug, id)
+  const [viewer, comments] = await loadPage(
+    () =>
+      Promise.all([
+        getViewer(),
+        listComments({ reviewId: review.id, page, perPage: COMMENTS_PER_PAGE }),
+      ]),
+    path,
+  )
 
   return (
     <div className={styles.page}>
@@ -59,7 +80,28 @@ const ReviewPage = async ({ params }: PageProps<'/movies/[slug]/reviews/[id]'>) 
         movieSlug={slug}
         editHref={`${moviePath(slug)}#your-review`}
         deleteRedirect={moviePath(slug)}
-      />
+      >
+        {/* Inside the card, so the comments of a spoiler review are as hidden as its text. */}
+        <section id="comments" className={styles.comments} aria-labelledby="comments-heading">
+          <h2 id="comments-heading" className={styles.commentsTitle}>
+            Comments
+            <span className={styles.commentCount}>{comments.totalItems}</span>
+          </h2>
+          {viewer ? (
+            <NewComment reviewId={review.id} />
+          ) : (
+            <p className={styles.signIn}>
+              <span>Sign in to join the conversation.</span>
+              <ButtonLink href={loginPath(path)} variant="outline" size="sm">
+                Sign in
+              </ButtonLink>
+            </p>
+          )}
+          <CommentsView page={comments.page} totalPages={comments.totalPages}>
+            <CommentList comments={comments.items} />
+          </CommentsView>
+        </section>
+      </ReviewCard>
     </div>
   )
 }
