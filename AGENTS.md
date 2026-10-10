@@ -343,7 +343,7 @@ author lists are never cached. Redis is an optimization, never a dependency. Ful
 
 | Route group | Use case                                               |
 | ----------- | ------------------------------------------------------ |
-| `(site)`    | Main pages (NavBar, content container, footer)         |
+| `(site)`    | Main pages (NavBar, padded content container)          |
 | `(minimal)` | Auth pages (`/login`, `/signup`; no navigation chrome) |
 
 - The root `app/layout.tsx` owns fonts, global styles, and `Providers` (theme, tooltips, toaster).

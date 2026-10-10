@@ -1,6 +1,5 @@
 import { ImpersonationBanner } from '@/components/Auth/ImpersonationBanner'
 import { VerifyEmailBanner } from '@/components/Auth/VerifyEmailBanner'
-import { BottomFooter } from '@/components/Layout/BottomFooter'
 import { NavBar } from '@/components/Layout/NavBar'
 import { getSessionUser } from '@/lib/data/auth'
 import { getViewer } from '@/lib/data/users'
@@ -18,7 +17,6 @@ const SiteLayout = async ({ children }: LayoutProps<'/'>) => {
       <main className={styles.main}>
         <div className={styles.container}>{children}</div>
       </main>
-      <BottomFooter />
     </div>
   )
 }

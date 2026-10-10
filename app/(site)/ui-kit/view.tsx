@@ -143,7 +143,7 @@ export const UiKitView = () => {
     <div className={styles.page}>
       <PageHeader
         title="UI Kit"
-        description="Official shadcn primitives and application compositions, using the neutral theme."
+        description="Official shadcn primitives and application compositions, using the zippystarter theme."
         actions={<Badge variant="secondary">Next template</Badge>}
       />
 

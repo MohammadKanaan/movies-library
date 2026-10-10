@@ -8,9 +8,21 @@
 
 .main {
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
+// Every (site) page gets the same gutter; pages only set their own max-width.
 .container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  height: 100%;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+@media (width < $breakpoint-md) {
+  .container {
+    padding: 1.5rem 1rem 3rem;
+  }
 }
