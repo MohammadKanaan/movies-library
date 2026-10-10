@@ -87,7 +87,7 @@ describe('review comments DAL', () => {
         body: 'Agreed.',
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
-        author: { id: viewer.id, name: viewer.name, username: viewer.username },
+        author: { id: viewer.id, name: viewer.name, username: viewer.username, image: null },
         permissions: { update: true, delete: true },
       })
       expect(comment.updatedAt).toEqual(comment.createdAt)

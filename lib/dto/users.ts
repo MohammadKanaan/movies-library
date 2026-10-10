@@ -17,11 +17,12 @@ export type Role = z.infer<typeof roleSchema>
  */
 export const userIdSchema = z.uuid('Invalid user id')
 
-/** What anyone may see about a user (e.g. a post's author). */
+/** What anyone may see about a user (e.g. a post's author, with their avatar). */
 export const userProfileSchema = z.object({
   id: z.string(),
   name: z.string(),
   username: z.string(),
+  image: z.string().nullable(),
 })
 
 export type UserProfile = z.infer<typeof userProfileSchema>

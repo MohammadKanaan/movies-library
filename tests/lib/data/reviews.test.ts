@@ -87,7 +87,7 @@ describe('reviews DAL', () => {
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
         commentCount: 0,
-        author: { id: viewer.id, name: viewer.name, username: viewer.username },
+        author: { id: viewer.id, name: viewer.name, username: viewer.username, image: null },
         permissions: { update: true, delete: true },
       })
       expect(review.updatedAt).toEqual(review.createdAt)
@@ -261,6 +261,17 @@ describe('reviews DAL', () => {
 
       const next = await listReviews({ movieSlug: movie.slug, perPage: 2, page: 2 })
       expect(next.items.map((review) => review.id)).toEqual([first.id])
+    })
+
+    it('shows each author’s avatar', async () => {
+      const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
+      const author = await createUser({ name: 'Ada', username: 'ada' })
+      const image = 'https://cdn.example.com/avatars/ada.webp'
+      await db.user.update({ where: { id: author.id }, data: { image } })
+      await seedReview({ movieId: movie.id, authorId: author.id, rating: 4 })
+
+      const page = await listReviews({ movieSlug: movie.slug })
+      expect(page.items[0].author).toEqual({ id: author.id, name: 'Ada', username: 'ada', image })
     })
 
     it('computes permissions for each viewer', async () => {

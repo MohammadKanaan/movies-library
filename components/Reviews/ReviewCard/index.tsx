@@ -89,7 +89,7 @@ export const ReviewCard = ({
   return (
     <article className={styles.card}>
       <header className={styles.header}>
-        <UserAvatar name={review.author.name} image={null} />
+        <UserAvatar name={review.author.name} image={review.author.image} />
         <div className={styles.author}>
           <p className={styles.name}>{review.author.name}</p>
           <p className={styles.meta}>

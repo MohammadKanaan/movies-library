@@ -22,7 +22,7 @@ export const CommentItem = ({ comment }: CommentItemProps) => {
 
   return (
     <article className={styles.comment}>
-      <UserAvatar name={comment.author.name} image={null} size="sm" />
+      <UserAvatar name={comment.author.name} image={comment.author.image} size="sm" />
       <div className={styles.main}>
         {comment.permissions.update || comment.permissions.delete ? (
           <CommentActions

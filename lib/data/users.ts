@@ -19,6 +19,7 @@ export const userProfileSelect = {
   id: true,
   name: true,
   username: true,
+  image: true,
 } satisfies Prisma.UserSelect
 
 export const currentUserSelect = {

@@ -310,7 +310,7 @@ describe('movies DAL', () => {
           { id: adventure.id, name: 'Adventure', slug: 'adventure' },
           { id: scifi.id, name: 'Science Fiction', slug: 'science-fiction' },
         ],
-        createdBy: { id: admin.id, name: 'Ada Admin', username: 'ada' },
+        createdBy: { id: admin.id, name: 'Ada Admin', username: 'ada', image: null },
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
         credits: {

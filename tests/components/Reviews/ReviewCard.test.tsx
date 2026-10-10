@@ -17,7 +17,7 @@ const review = (overrides: Partial<Review> = {}): Review => ({
   createdAt: new Date('2026-01-01T00:00:00Z'),
   updatedAt: new Date('2026-01-01T00:00:00Z'),
   commentCount: 2,
-  author: { id: 'u1', name: 'Leanne Graham', username: 'leanne' },
+  author: { id: 'u1', name: 'Leanne Graham', username: 'leanne', image: null },
   permissions: { update: false, delete: false },
   ...overrides,
 })
