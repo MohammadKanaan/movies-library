@@ -31,7 +31,9 @@ const RootLayout = ({ children }: LayoutProps<'/'>) => {
       className={cn(geist.variable, spaceGrotesk.variable, jetbrainsMono.variable)}
       suppressHydrationWarning
     >
-      <body>
+      {/* `suppressHydrationWarning` also covers attributes browser extensions inject
+          into <body> (e.g. `cz-shortcut-listen`) before React hydrates. */}
+      <body suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>
