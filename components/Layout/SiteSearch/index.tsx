@@ -16,7 +16,7 @@ import {
   ComboboxList,
 } from '@/components/SCN/combobox'
 import { useDebouncedSearch } from '@/hooks/useDebouncedSearch'
-import { searchCatalog } from '@/lib/client/search'
+import { suggestCatalog } from '@/lib/client/search'
 import { moviePath, personPath, ROUTE_SEARCH, searchPath } from '@/lib/constants-routes'
 import { SEARCH_MIN_LENGTH } from '@/lib/dto/common'
 import type { MovieSummary } from '@/lib/dto/movies'
@@ -64,16 +64,16 @@ const suggestionHref = (suggestion: Suggestion) =>
 export const SiteSearch = ({ onNavigate, autoFocus }: SiteSearchProps) => {
   const router = useRouter()
   const [inputValue, setInputValue] = useState('')
-  const search = useDebouncedSearch(searchCatalog)
+  const search = useDebouncedSearch(suggestCatalog)
 
   const term = inputValue.trim()
   const searching = term.length >= SEARCH_MIN_LENGTH
   const results = searching ? search.result : null
-  const found = results ? results.movies.totalItems + results.people.totalItems : 0
+  const found = results ? results.movies.length + results.people.length : 0
   const suggestions: Suggestion[] = results
     ? [
-        ...results.movies.items.map((movie): Suggestion => ({ kind: 'movie', movie })),
-        ...results.people.items.map((person): Suggestion => ({ kind: 'person', person })),
+        ...results.movies.map((movie): Suggestion => ({ kind: 'movie', movie })),
+        ...results.people.map((person): Suggestion => ({ kind: 'person', person })),
         ...(found > 0 ? [{ kind: 'all', q: results.q } satisfies Suggestion] : []),
       ]
     : []

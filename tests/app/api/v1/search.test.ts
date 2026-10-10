@@ -24,7 +24,7 @@ describe('GET /api/v1/search', () => {
     await db.$disconnect()
   })
 
-  it('is public and returns the best movies and people for the term as JSON', async () => {
+  it('is public and returns the best movies and people for the term as JSON, no totals', async () => {
     const dune = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
     await seedMovie({ title: 'Dune: Part Two', releaseDate: '2024-03-01' })
     const dunia = await seedPerson('Dunia Ayaso')
@@ -34,24 +34,21 @@ describe('GET /api/v1/search', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({
       q: 'dune',
-      movies: {
-        items: [
-          {
-            id: dune.id,
-            slug: 'dune-2021',
-            title: 'Dune',
-            releaseDate: '2021-10-22T00:00:00.000Z',
-            runtimeMinutes: null,
-            posterUrl: null,
-            genres: [],
-          },
-        ],
-        totalItems: 2,
-      },
-      people: { items: [], totalItems: 0 },
+      movies: [
+        {
+          id: dune.id,
+          slug: 'dune-2021',
+          title: 'Dune',
+          releaseDate: '2021-10-22T00:00:00.000Z',
+          runtimeMinutes: null,
+          posterUrl: null,
+          genres: [],
+        },
+      ],
+      people: [],
     })
     const people = (await (await get('?q=dun')).json()).people
-    expect(people.items.map((person: { id: string }) => person.id)).toEqual([dunia.id])
+    expect(people.map((person: { id: string }) => person.id)).toEqual([dunia.id])
   })
 
   it('answers 422 with field errors for a bad query', async () => {

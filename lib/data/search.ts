@@ -1,6 +1,11 @@
 import 'server-only'
 import { z } from 'zod'
-import { searchCatalogQuery, type SearchCatalogQuery, type SearchResults } from '@/lib/dto/search'
+import {
+  searchCatalogQuery,
+  type SearchCatalogQuery,
+  type SearchResults,
+  type SearchSuggestions,
+} from '@/lib/dto/search'
 import { db } from './db'
 import { parseInput } from './errors'
 import { escapeLike } from './escapeLike'
@@ -52,28 +57,64 @@ const rankedPersonIds = async (term: string, contains: string, prefix: string, l
   return idRowsSchema.parse(rows).map((row) => row.id)
 }
 
+const rankedMovies = async (term: string, contains: string, prefix: string, limit: number) => {
+  const ids = await rankedMovieIds(term, contains, prefix, limit)
+  const rows = await db.movie.findMany({ where: { id: { in: ids } }, select: movieSummarySelect })
+  return inOrder(ids, rows.map(toMovieSummary))
+}
+
+const rankedPeople = async (term: string, contains: string, prefix: string, limit: number) => {
+  const ids = await rankedPersonIds(term, contains, prefix, limit)
+  const rows = await db.person.findMany({
+    where: { id: { in: ids } },
+    select: {
+      ...personListItemSelect,
+      // The list's plain `_count` groups the whole credits table before joining the few people
+      // asked for; bounding the count to those people keeps the aggregate to their credits.
+      _count: { select: { credits: { where: { personId: { in: ids } } } } },
+    },
+  })
+  return inOrder(ids, rows.map(toPersonListItem))
+}
+
+/** The parsed query's LIKE patterns: the term with wildcards literal, anywhere and as a prefix. */
+const patterns = (q: string) => {
+  const escaped = escapeLike(q)
+  return { escaped, contains: `%${escaped}%`, prefix: `${escaped}%` }
+}
+
 /**
  * Public: the best `limit` movies (by title) and people (by name) for `q`, case-insensitive with
- * wildcards literal, plus how many of each match in all. See the ranking above.
+ * wildcards literal, plus how many of each match in all. See the ranking above. For the search page;
+ * the NavBar's suggestions use `suggestCatalog`, which skips the totals.
  */
 export const searchCatalog = async (query: SearchCatalogQuery): Promise<SearchResults> => {
   const { q, limit } = parseInput(searchCatalogQuery, query)
-  const escaped = escapeLike(q)
-  const contains = `%${escaped}%`
-  const prefix = `${escaped}%`
-  const [movieIds, personIds, movieTotal, peopleTotal] = await Promise.all([
-    rankedMovieIds(q, contains, prefix, limit),
-    rankedPersonIds(q, contains, prefix, limit),
+  const { escaped, contains, prefix } = patterns(q)
+  const [movies, people, movieTotal, peopleTotal] = await Promise.all([
+    rankedMovies(q, contains, prefix, limit),
+    rankedPeople(q, contains, prefix, limit),
     db.movie.count({ where: { title: { contains: escaped, mode: 'insensitive' } } }),
     db.person.count({ where: { name: { contains: escaped, mode: 'insensitive' } } }),
   ])
-  const [movies, people] = await Promise.all([
-    db.movie.findMany({ where: { id: { in: movieIds } }, select: movieSummarySelect }),
-    db.person.findMany({ where: { id: { in: personIds } }, select: personListItemSelect }),
-  ])
   return {
     q,
-    movies: { items: inOrder(movieIds, movies.map(toMovieSummary)), totalItems: movieTotal },
-    people: { items: inOrder(personIds, people.map(toPersonListItem)), totalItems: peopleTotal },
+    movies: { items: movies, totalItems: movieTotal },
+    people: { items: people, totalItems: peopleTotal },
   }
+}
+
+/**
+ * Public: `searchCatalog` without the totals, for suggestions as the visitor types. The typeahead
+ * only needs to know whether anything matched, which the items say, so the two count scans are
+ * spared on a path that runs on every pause in typing.
+ */
+export const suggestCatalog = async (query: SearchCatalogQuery): Promise<SearchSuggestions> => {
+  const { q, limit } = parseInput(searchCatalogQuery, query)
+  const { contains, prefix } = patterns(q)
+  const [movies, people] = await Promise.all([
+    rankedMovies(q, contains, prefix, limit),
+    rankedPeople(q, contains, prefix, limit),
+  ])
+  return { q, movies, people }
 }

@@ -139,6 +139,9 @@ model Movie {
   // so a row cannot move between pages.
   @@index([releaseDate, id])
   @@index([title, id])
+  // The list's runtime range filter (`runtimeMin` / `runtimeMax`); the release year range reads the
+  // `releaseDate` index above.
+  @@index([runtimeMinutes])
   @@index([createdById])
   @@map("movies")
 }

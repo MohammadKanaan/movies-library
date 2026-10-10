@@ -8,6 +8,7 @@ import {
   personDetailSchema,
   personInput,
   personListItemSchema,
+  personSummarySchema,
   updatePersonInput,
   type AttachHeadshotInput,
   type ListPeopleQuery,
@@ -15,6 +16,7 @@ import {
   type PersonDetail,
   type PersonInput,
   type PersonListItem,
+  type PersonSummary,
   type UpdatePersonInput,
 } from '@/lib/dto/people'
 import { slugify } from '@/lib/slug'
@@ -204,6 +206,32 @@ export const getPersonBySlug = async (slug: string): Promise<PersonDetail> => {
     },
   )
   return withPermissions(record, viewer)
+}
+
+/**
+ * Public: the summary of one person, for a page that names them without showing their filmography
+ * (the movie list's `person` filter). The detail would load every credit for four fields. A malformed
+ * slug is not found, like an unknown one; the summary is cached like the detail, viewer-independent.
+ */
+export const getPersonSummaryBySlug = async (slug: string): Promise<PersonSummary> => {
+  const parsed = slugSchema.safeParse(slug)
+  if (!parsed.success) {
+    throw new NotFoundError('Person not found')
+  }
+  return remember(
+    `person:summary:${parsed.data}`,
+    { ttl: PEOPLE_CACHE_TTL, tags: [CATALOG_TAG], schema: personSummarySchema },
+    async () => {
+      const row = await db.person.findUnique({
+        where: { slug: parsed.data },
+        select: personSummarySelect,
+      })
+      if (!row) {
+        throw new NotFoundError('Person not found')
+      }
+      return row
+    },
+  )
 }
 
 /** `YYYY-MM-DD` into the `date` column: midnight UTC, which the UTC session stores as that day. */

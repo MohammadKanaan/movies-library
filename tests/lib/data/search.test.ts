@@ -2,7 +2,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '@/lib/data/db'
 import { ValidationError } from '@/lib/data/errors'
-import { searchCatalog } from '@/lib/data/search'
+import { searchCatalog, suggestCatalog } from '@/lib/data/search'
 import { getRedis } from '@/lib/server/redis'
 import { seedGenre, seedMovie, seedPerson } from '../../helpers/catalog'
 import { resetDatabase } from '../../helpers/server'
@@ -22,13 +22,13 @@ const movieTitles = async (q: string, limit?: number) =>
 const peopleNames = async (q: string, limit?: number) =>
   (await searchCatalog({ q, limit })).people.items.map((person) => person.name)
 
-describe('searchCatalog', () => {
-  beforeEach(resetDatabase)
-  afterAll(async () => {
-    await getRedis().quit()
-    await db.$disconnect()
-  })
+beforeEach(resetDatabase)
+afterAll(async () => {
+  await getRedis().quit()
+  await db.$disconnect()
+})
 
+describe('searchCatalog', () => {
   it('is public and returns the summaries and list items the lists use, with totals', async () => {
     const scifi = await seedGenre('Science Fiction')
     const denis = await seedPerson('Denis Villeneuve')
@@ -137,5 +137,54 @@ describe('searchCatalog', () => {
       movies: { items: [], totalItems: 0 },
       people: { items: [], totalItems: 0 },
     })
+  })
+})
+
+describe('suggestCatalog', () => {
+  it('returns the same ranked items as the search, without totals', async () => {
+    for (const year of [2010, 2011, 2012]) {
+      await seedMovie({ title: `Film ${year}`, releaseDate: `${year}-01-01` })
+    }
+    const one = await seedPerson('Filmmaker One')
+    await seedPerson('Filmmaker Two')
+    const suggestions = await suggestCatalog({ q: 'film', limit: 2 })
+    const results = await searchCatalog({ q: 'film', limit: 2 })
+    expect(suggestions).toEqual({
+      q: 'film',
+      movies: results.movies.items,
+      people: results.people.items,
+    })
+    expect(suggestions.movies.map((movie) => movie.title)).toEqual(['Film 2012', 'Film 2011'])
+    expect(suggestions.people.map((person) => person.id)).toContain(one.id)
+  })
+
+  it('counts every credit of a suggested person, and only theirs', async () => {
+    const denis = await seedPerson('Denis Villeneuve')
+    const other = await seedPerson('Denis Lavant')
+    const uncredited = await seedPerson('Denise Richards')
+    await seedMovie({
+      title: 'Dune',
+      releaseDate: '2021-10-22',
+      credits: [
+        { personId: denis.id, role: 'DIRECTOR' },
+        { personId: denis.id, role: 'WRITER' },
+        { personId: other.id, role: 'ACTOR' },
+      ],
+    })
+    await seedMovie({
+      title: 'Arrival',
+      releaseDate: '2016-11-11',
+      credits: [{ personId: denis.id, role: 'DIRECTOR' }],
+    })
+    const counts = Object.fromEntries(
+      (await suggestCatalog({ q: 'denis', limit: 2 })).people.map((p) => [p.id, p.creditCount]),
+    )
+    expect(counts).toEqual({ [other.id]: 1, [denis.id]: 3 })
+    expect(counts[uncredited.id]).toBeUndefined()
+  })
+
+  it('validates the query', async () => {
+    await expect(suggestCatalog({ q: 'du' })).rejects.toBeInstanceOf(ValidationError)
+    await expect(suggestCatalog({ q: 'dune', limit: 0 })).rejects.toBeInstanceOf(ValidationError)
   })
 })

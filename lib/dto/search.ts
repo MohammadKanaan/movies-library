@@ -39,6 +39,18 @@ export const searchResultsSchema = z.object({
 export type SearchResults = z.infer<typeof searchResultsSchema>
 
 /**
+ * What the typeahead shows: the best-ranked movies and people for the term, without the totals the
+ * search page displays (`GET /api/v1/search`, `suggestCatalog`).
+ */
+export const searchSuggestionsSchema = z.object({
+  q: z.string(),
+  movies: z.array(movieSummarySchema),
+  people: z.array(personListItemSchema),
+})
+
+export type SearchSuggestions = z.infer<typeof searchSuggestionsSchema>
+
+/**
  * The tolerant URL contract of the search page: the term as typed (trimmed and bounded), so a term
  * that is too short is shown back with the hint instead of being dropped.
  */

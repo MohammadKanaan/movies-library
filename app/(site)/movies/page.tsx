@@ -8,7 +8,7 @@ import { NotFoundError } from '@/lib/data/errors'
 import { listGenres } from '@/lib/data/genres'
 import { listMovies } from '@/lib/data/movies'
 import { loadPage } from '@/lib/data/page'
-import { getPersonBySlug } from '@/lib/data/people'
+import { getPersonSummaryBySlug } from '@/lib/data/people'
 import { hasMovieFilters, moviesUrlQuery, toListMoviesQuery } from '@/lib/dto/movies'
 import type { PersonSummary } from '@/lib/dto/people'
 import { toScalarParams } from '@/lib/searchParams'
@@ -27,8 +27,7 @@ export const metadata: Metadata = {
 /** The person a `person` filter names, for the header and the chip; an unknown slug is no one. */
 const findPerson = async (slug: string): Promise<PersonSummary | null> => {
   try {
-    const { id, name, headshotUrl } = await getPersonBySlug(slug)
-    return { id, slug, name, headshotUrl }
+    return await getPersonSummaryBySlug(slug)
   } catch (error) {
     if (error instanceof NotFoundError) {
       return null

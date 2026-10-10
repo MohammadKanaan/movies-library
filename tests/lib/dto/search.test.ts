@@ -5,6 +5,7 @@ import {
   SEARCH_LIMIT_MAX,
   SEARCH_MAX_LENGTH,
   searchCatalogQuery,
+  searchSuggestionsSchema,
   searchResultsSchema,
   searchUrlQuery,
 } from '@/lib/dto/search'
@@ -76,6 +77,32 @@ describe('searchResultsSchema', () => {
     expect(searchResultsSchema.parse(JSON.parse(JSON.stringify(results)))).toEqual(results)
     expect(
       searchResultsSchema.safeParse({ ...results, movies: { items: [], totalItems: -1 } }).success,
+    ).toBe(false)
+  })
+})
+
+describe('searchSuggestionsSchema', () => {
+  it('is the results without totals, dates revived', () => {
+    const suggestions = {
+      q: 'dune',
+      movies: [
+        {
+          id: '0190d1a2-0000-7000-8000-000000000001',
+          slug: 'dune-2021',
+          title: 'Dune',
+          releaseDate: new Date('2021-10-22T00:00:00.000Z'),
+          runtimeMinutes: 155,
+          posterUrl: null,
+          genres: [],
+        },
+      ],
+      people: [],
+    }
+    expect(searchSuggestionsSchema.parse(JSON.parse(JSON.stringify(suggestions)))).toEqual(
+      suggestions,
+    )
+    expect(
+      searchSuggestionsSchema.safeParse({ ...suggestions, people: { items: [] } }).success,
     ).toBe(false)
   })
 })

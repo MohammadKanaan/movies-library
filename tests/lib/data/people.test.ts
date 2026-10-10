@@ -12,6 +12,7 @@ import {
   createPerson,
   deletePerson,
   getPersonBySlug,
+  getPersonSummaryBySlug,
   listPeople,
   removeHeadshot,
   updatePerson,
@@ -256,6 +257,37 @@ describe('people DAL', () => {
       await updatePerson({ id: amy.id, name: 'Amy Lou Adams' })
       signOut()
       expect((await getPersonBySlug('amy-adams')).name).toBe('Amy Lou Adams')
+    })
+  })
+
+  describe('getPersonSummaryBySlug', () => {
+    it('is public and returns the summary alone, not found for an unknown or malformed slug', async () => {
+      const amy = await seedPerson('Amy Adams')
+      await seedMovie({
+        title: 'Arrival',
+        releaseDate: '2016-11-11',
+        credits: [{ personId: amy.id, role: 'ACTOR' }],
+      })
+      expect(await getPersonSummaryBySlug('amy-adams')).toEqual({
+        id: amy.id,
+        slug: 'amy-adams',
+        name: 'Amy Adams',
+        headshotUrl: null,
+      })
+      await expect(getPersonSummaryBySlug('nobody')).rejects.toBeInstanceOf(NotFoundError)
+      await expect(getPersonSummaryBySlug('Not A Slug')).rejects.toBeInstanceOf(NotFoundError)
+    })
+
+    it('is cached until a catalog write invalidates it', async () => {
+      const amy = await seedPerson('Amy Adams')
+      expect((await getPersonSummaryBySlug('amy-adams')).name).toBe('Amy Adams')
+      await db.person.update({ where: { id: amy.id }, data: { name: 'Amy Lou Adams' } })
+      expect((await getPersonSummaryBySlug('amy-adams')).name).toBe('Amy Adams')
+
+      await signInAsAdmin()
+      await updatePerson({ id: amy.id, name: 'Amy Lou Adams' })
+      signOut()
+      expect((await getPersonSummaryBySlug('amy-adams')).name).toBe('Amy Lou Adams')
     })
   })
 
