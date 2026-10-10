@@ -6,8 +6,10 @@ writes, shared Zod DTOs, schema-first forms, and shadcn/ui with SCSS everywhere 
 
 It started from a template, so the infrastructure is in place (auth, accounts, admin, cache, rate
 limits, background jobs, email, uploads to R2, logging, tooling) and the catalog schema is migrated
-(`movies`, `genres`, `people`, `credits`; see `prisma/schema.prisma`). The catalog features
-themselves are not built yet: follow **Adding a resource** below.
+(`movies`, `genres`, `people`, `credits`; see `prisma/schema.prisma`). The catalog backend is built
+(DTOs, DAL, policies, Server Actions, posters on R2, seed; see
+[`docs/guides/catalog.md`](docs/guides/catalog.md)): reads are public, writes are admin-only. Its
+pages are the next step of **Adding a resource** below.
 
 ## Stack
 
@@ -153,20 +155,22 @@ email, uploads, caching) in [`docs/guides/`](docs/guides/).
 
 Where to look to see each pattern done once, properly.
 
-| Pattern                               | Where it is shown                                                                                                                                                                        |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Server-rendered list with URL filters | `app/(site)/admin/page.tsx` + `view.tsx`; `hooks/useUrlState.ts`; `usersUrlQuery` in `lib/dto/users.ts`                                                                                  |
-| Form with field errors                | `components/Settings/ProfileForm/index.tsx` (+ `utils.ts`); `lib/formErrors.ts` (`applyActionErrors`); `actions/users.ts`                                                                |
-| Record-level authorization policies   | `lib/data/policy.ts` (`authorize`, `permissionsFor`); no resource policy yet                                                                                                             |
-| Redis caching and invalidation        | `remember` / `invalidateTags` in `lib/server/cache.ts`; tags in `lib/data/cacheTags.ts`; `getViewer` in `lib/data/users.ts`                                                              |
-| Rate limiting                         | `consumeRateLimit` / `getClientIp` in `lib/data/rateLimit.ts`; per IP and per account in `actions/auth.ts`, per user in `createUpload`                                                   |
-| Wrapping a Better Auth plugin         | `lib/data/admin.ts` (`setUserRole`, `banUser`, `impersonateUser` over `auth.api.*`); `actions/admin.ts`; page `app/(site)/admin`                                                         |
-| Admin-only page                       | `app/(site)/admin/page.tsx` + `view.tsx`; `listUsers` with `requireAdmin()` in `lib/data/admin.ts`; `loadPage` turns 403 into the not-found page                                         |
-| Account settings on Better Auth       | `actions/auth.ts` (`changePasswordAction`, `changeEmailAction`, `deleteAccountAction`); `lib/data/sessions.ts`; `app/(site)/settings`                                                    |
-| Background job and email              | `jobs/definitions.ts`, `jobs/sendEmail.ts`, `jobs/cleanup.ts`; `lib/server/queue.ts`; `worker/index.ts`; `lib/server/mailer.ts`; `emails/`                                               |
-| OAuth (Google)                        | `lib/data/auth.ts` (`socialProviders`, `isGoogleAuthEnabled`); `signInWithGoogleAction` in `actions/auth.ts`; `lib/username.ts`; `components/Auth/GoogleButton`                          |
-| Direct-to-storage upload (R2)         | `lib/server/storage.ts` (presigned PUT); `createUpload` / `attachAvatar` in `lib/data/uploads.ts`; `lib/client/uploads.ts`; `components/Settings/AvatarUploader`; `jobs/deleteObject.ts` |
-| Health check                          | `lib/data/health.ts`; `app/api/health/route.ts`                                                                                                                                          |
+| Pattern                                 | Where it is shown                                                                                                                                                                                                                |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Server-rendered list with URL filters   | `app/(site)/admin/page.tsx` + `view.tsx`; `hooks/useUrlState.ts`; `usersUrlQuery` in `lib/dto/users.ts`                                                                                                                          |
+| Form with field errors                  | `components/Settings/ProfileForm/index.tsx` (+ `utils.ts`); `lib/formErrors.ts` (`applyActionErrors`); `actions/users.ts`                                                                                                        |
+| Record-level authorization policies     | `lib/data/policy.ts` (`authorize`, `permissionsFor`); `lib/data/policies/movie.ts` used by `updateMovie` / `getMovieBySlug` in `lib/data/movies.ts`                                                                              |
+| Public read with per-viewer permissions | `getMovieBySlug` in `lib/data/movies.ts`: `getSessionUser()` may be null, the record is cached, `permissions` is computed after                                                                                                  |
+| Derived, stable slugs                   | `lib/slug.ts` (`slugify`), `uniqueSlug` in `lib/data/slugs.ts`, `createMovie` / `createPerson`                                                                                                                                   |
+| Redis caching and invalidation          | `remember` / `invalidateTags` in `lib/server/cache.ts`; tags in `lib/data/cacheTags.ts`; `getViewer` in `lib/data/users.ts`                                                                                                      |
+| Rate limiting                           | `consumeRateLimit` / `getClientIp` in `lib/data/rateLimit.ts`; per IP and per account in `actions/auth.ts`, per user in `createUpload`                                                                                           |
+| Wrapping a Better Auth plugin           | `lib/data/admin.ts` (`setUserRole`, `banUser`, `impersonateUser` over `auth.api.*`); `actions/admin.ts`; page `app/(site)/admin`                                                                                                 |
+| Admin-only page                         | `app/(site)/admin/page.tsx` + `view.tsx`; `listUsers` with `requireAdmin()` in `lib/data/admin.ts`; `loadPage` turns 403 into the not-found page                                                                                 |
+| Account settings on Better Auth         | `actions/auth.ts` (`changePasswordAction`, `changeEmailAction`, `deleteAccountAction`); `lib/data/sessions.ts`; `app/(site)/settings`                                                                                            |
+| Background job and email                | `jobs/definitions.ts`, `jobs/sendEmail.ts`, `jobs/cleanup.ts`; `lib/server/queue.ts`; `worker/index.ts`; `lib/server/mailer.ts`; `emails/`                                                                                       |
+| OAuth (Google)                          | `lib/data/auth.ts` (`socialProviders`, `isGoogleAuthEnabled`); `signInWithGoogleAction` in `actions/auth.ts`; `lib/username.ts`; `components/Auth/GoogleButton`                                                                  |
+| Direct-to-storage upload (R2)           | `lib/server/storage.ts` (presigned PUT); `createUpload` / `attachAvatar` in `lib/data/uploads.ts`; `attachPoster` in `lib/data/movies.ts`; `lib/client/uploads.ts`; `components/Settings/AvatarUploader`; `jobs/deleteObject.ts` |
+| Health check                            | `lib/data/health.ts`; `app/api/health/route.ts`                                                                                                                                                                                  |
 
 ## Adding a resource
 

@@ -6,10 +6,13 @@ import {
   isAllowedContentType,
   MAX_OBJECT_DELETE_DELAY_SECONDS,
   objectDeleteDelaySeconds,
+  POSTER_CONTENT_TYPES,
+  POSTER_MAX_SIZE,
   UPLOAD_OBJECT_GRACE_SECONDS,
   UPLOAD_RULES,
   UPLOAD_TICKET_SECONDS,
   uploadKeySchema,
+  uploadPurposeSchema,
   uploadTicketSchema,
 } from '@/lib/dto/uploads'
 
@@ -26,6 +29,19 @@ describe('UPLOAD_RULES', () => {
       ticketSeconds: UPLOAD_TICKET_SECONDS,
     })
     expect(AVATAR_CONTENT_TYPES).toEqual(['image/png', 'image/jpeg', 'image/webp'])
+    expect(UPLOAD_RULES.avatar.adminOnly).toBe(false)
+  })
+
+  it('limits posters to larger raster images that only admins may upload', () => {
+    expect(uploadPurposeSchema.options).toEqual(['avatar', 'poster'])
+    expect(UPLOAD_RULES.poster).toMatchObject({
+      contentTypes: POSTER_CONTENT_TYPES,
+      maxSize: 5 * 1024 * 1024,
+      ticketSeconds: UPLOAD_TICKET_SECONDS,
+      adminOnly: true,
+    })
+    expect(POSTER_CONTENT_TYPES).toEqual(['image/png', 'image/jpeg', 'image/webp'])
+    expect(isAllowedContentType('poster', 'image/svg+xml')).toBe(false)
   })
 
   it('never allows an active-content type', () => {
@@ -41,7 +57,9 @@ describe('UPLOAD_RULES', () => {
     expect(objectDeleteDelaySeconds('avatar')).toBe(
       UPLOAD_TICKET_SECONDS + UPLOAD_OBJECT_GRACE_SECONDS,
     )
-    expect(MAX_OBJECT_DELETE_DELAY_SECONDS).toBe(objectDeleteDelaySeconds('avatar'))
+    expect(MAX_OBJECT_DELETE_DELAY_SECONDS).toBe(
+      Math.max(objectDeleteDelaySeconds('avatar'), objectDeleteDelaySeconds('poster')),
+    )
   })
 })
 
@@ -59,6 +77,18 @@ describe('createUploadInput', () => {
     expect(
       messages({ purpose: 'avatar', contentType: 'image/png', size: AVATAR_MAX_SIZE + 1 }),
     ).toEqual(['size: The image must be 2 MB or smaller'])
+  })
+
+  it('applies the poster rule to a poster', () => {
+    expect(
+      messages({ purpose: 'poster', contentType: 'image/jpeg', size: POSTER_MAX_SIZE }),
+    ).toEqual([])
+    expect(
+      messages({ purpose: 'poster', contentType: 'image/jpeg', size: POSTER_MAX_SIZE + 1 }),
+    ).toEqual(['size: The image must be 5 MB or smaller'])
+    expect(messages({ purpose: 'poster', contentType: 'image/gif', size: 10 })).toEqual([
+      'contentType: Use a PNG, JPEG, or WebP image',
+    ])
   })
 
   it('rejects an empty file, a fractional size and an unknown purpose', () => {

@@ -2,6 +2,8 @@ import 'dotenv/config'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { hashPassword } from 'better-auth/crypto'
 import { PrismaClient } from '../generated/prisma/client.ts'
+import { slugify } from '../lib/slug.ts'
+import { SEED_GENRES, SEED_MOVIES, seedPeople } from './catalog.ts'
 
 /** Dev-only password shared by every seeded account. */
 const SEED_PASSWORD = 'password123'
@@ -53,6 +55,82 @@ try {
   console.log(
     `Seeded ${SEED_USERS.length} users (${SEED_USERS.map((user) => user.role).join(', ')}; ` +
       `password "${SEED_PASSWORD}").`,
+  )
+
+  // The catalog upserts by slug (derived like the DAL derives it), so re-seeding keeps ids and
+  // replaces each movie's genre links and credits. The seeded admin is every movie's creator.
+  const admin = await db.user.findUniqueOrThrow({
+    where: { email: 'admin@example.com' },
+    select: { id: true },
+  })
+
+  const genreIds = new Map<string, string>()
+  for (const name of SEED_GENRES) {
+    const slug = slugify(name)
+    const genre = await db.genre.upsert({
+      where: { slug },
+      create: { name, slug },
+      update: { name },
+      select: { id: true },
+    })
+    genreIds.set(name, genre.id)
+  }
+
+  const personIds = new Map<string, string>()
+  for (const name of seedPeople()) {
+    const slug = slugify(name)
+    const person = await db.person.upsert({
+      where: { slug },
+      create: { name, slug },
+      update: { name },
+      select: { id: true },
+    })
+    personIds.set(name, person.id)
+  }
+
+  const idOf = (map: Map<string, string>, name: string) => {
+    const id = map.get(name)
+    if (!id) {
+      throw new Error(`Seed data references an unknown name: ${name}`)
+    }
+    return id
+  }
+
+  for (const seed of SEED_MOVIES) {
+    const slug = `${slugify(seed.title)}-${seed.releaseDate.slice(0, 4)}`
+    // `createdById` is set on update too: re-seeding recreates the admin, which nulled it.
+    const data = {
+      title: seed.title,
+      synopsis: seed.synopsis,
+      releaseDate: new Date(`${seed.releaseDate}T00:00:00.000Z`),
+      runtimeMinutes: seed.runtimeMinutes,
+      createdById: admin.id,
+    }
+    const credits = (['DIRECTOR', 'WRITER', 'ACTOR'] as const).flatMap((role) => {
+      const names =
+        role === 'DIRECTOR' ? seed.directors : role === 'WRITER' ? seed.writers : seed.cast
+      return names.map((name, position) => ({ personId: idOf(personIds, name), role, position }))
+    })
+    await db.$transaction(async (tx) => {
+      const movie = await tx.movie.upsert({
+        where: { slug },
+        create: { ...data, slug },
+        update: data,
+        select: { id: true },
+      })
+      await tx.movieGenre.deleteMany({ where: { movieId: movie.id } })
+      await tx.movieGenre.createMany({
+        data: seed.genres.map((name) => ({ movieId: movie.id, genreId: idOf(genreIds, name) })),
+      })
+      await tx.credit.deleteMany({ where: { movieId: movie.id } })
+      await tx.credit.createMany({
+        data: credits.map((credit) => ({ movieId: movie.id, ...credit })),
+      })
+    })
+  }
+
+  console.log(
+    `Seeded ${SEED_GENRES.length} genres, ${personIds.size} people and ${SEED_MOVIES.length} movies.`,
   )
 } finally {
   await db.$disconnect()

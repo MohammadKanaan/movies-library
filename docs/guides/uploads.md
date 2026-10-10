@@ -3,7 +3,8 @@
 Files go straight from the browser to the bucket; the app only issues tickets and stores the
 result's public URL on the record that uses it. There is **no uploads table**: an object's key is
 `<purpose>s/<userId>/<uuid>`, so the key alone says whose it is and what it is for. The one
-implemented purpose is the profile photo on `/settings` (`avatar`); movie images are next. Storage is
+implemented purposes are the profile photo on `/settings` (`avatar`) and the movie poster (`poster`,
+admins only; `attachPoster` in `lib/data/movies.ts`, see `docs/guides/catalog.md`). Storage is
 Cloudflare R2 through its S3 API, so the client is `@aws-sdk/client-s3`; nothing here is R2-specific
 except the endpoint and the absence of presigned POST.
 
@@ -52,10 +53,17 @@ refines against it, the DAL reads `maxSize` and `ticketSeconds` from it, and `Av
 `accept` and the size hint from it. Avatars: PNG, JPEG or WebP, 2 MB, 300 s tickets. **No SVG or
 HTML, ever:** the bucket serves files from a public origin, and those execute in the browser.
 
-Adding a purpose (a movie poster): a value in `uploadPurposeSchema` (its keys become
-`<purpose>s/<userId>/<uuid>`), a row in `UPLOAD_RULES`, an `attachXxx` DAL function modelled on
-`attachAvatar` that checks the key's prefix, locks the record it writes (the movie), stores
-`publicUrl(key)` on it and queues the replaced object, its action, and a wrapper component around
+Posters: PNG, JPEG or WebP, 5 MB, 300 s tickets, and `adminOnly`: `createUpload` calls
+`requireAdmin()` after the input is valid for such a purpose, so only an admin can leave poster
+objects behind. `attachPoster` in `lib/data/movies.ts` is `attachAvatar` for a movie (own key, stored
+object re-checked, the movie row locked, the replaced object queued) and `deleteMovie` /
+`removePoster` queue the current object; `docs/guides/catalog.md` has the flow.
+
+Adding a purpose: a value in `uploadPurposeSchema` (its keys become `<purpose>s/<userId>/<uuid>`), a
+row in `UPLOAD_RULES` (with `adminOnly`), an `attachXxx` DAL function modelled on `attachAvatar` /
+`attachPoster` that checks the key's prefix (`requireOwnKey`), verifies the object
+(`verifyStoredObject`), locks the record it writes, stores `publicUrl(key)` on it and queues the
+replaced object (`deleteObjectAfterTicket`), its action, and a wrapper component around
 `components/Form/FileUploader`. Deleting the record should queue its object the way `beforeDelete`
 does for avatars.
 

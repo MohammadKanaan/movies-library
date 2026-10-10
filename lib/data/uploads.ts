@@ -22,7 +22,7 @@ import {
   keyFromPublicUrl,
   publicUrl,
 } from '@/lib/server/storage'
-import { requireUser, toRole } from './auth'
+import { requireAdmin, requireUser, toRole, type SessionUser } from './auth'
 import { userTag } from './cacheTags'
 import { db } from './db'
 import { ForbiddenError, parseInput, ValidationError } from './errors'
@@ -46,20 +46,24 @@ export const canUpload = (): boolean => isStorageConfigured()
  * Queues the deletion of an uploaded object only once its ticket can no longer be used (the
  * ticket's lifetime plus `UPLOAD_OBJECT_GRACE_SECONDS`): until then the browser could still upload
  * to the key again, and that object would never be deleted. pg-boss reads a numeric `startAfter` as
- * seconds.
+ * seconds. Shared with the other `attachXxx` functions (`lib/data/movies.ts`).
  */
-const deleteObjectAfterTicket = (key: string, purpose: UploadPurpose) => {
+export const deleteObjectAfterTicket = (key: string, purpose: UploadPurpose) => {
   return enqueue('delete-object', { key }, { startAfter: objectDeleteDelaySeconds(purpose) })
 }
 
 /**
- * Signed in → within the ticket rate limit → input valid for its purpose → returns a presigned PUT
- * for a new object under the viewer's own prefix, and its key.
+ * Signed in → within the ticket rate limit → input valid for its purpose → allowed for that purpose
+ * (an `adminOnly` purpose answers 403 to anyone else) → returns a presigned PUT for a new object
+ * under the viewer's own prefix, and its key.
  */
 export const createUpload = async (input: CreateUploadInput): Promise<UploadTicket> => {
   const viewer = await requireUser()
   await consumeRateLimit(`upload:user:${viewer.id}`, UPLOAD_TICKET_LIMIT)
   const { purpose, contentType, size } = parseInput(createUploadInput, input)
+  if (UPLOAD_RULES[purpose].adminOnly) {
+    await requireAdmin()
+  }
   if (!isStorageConfigured()) {
     throw new ValidationError({ base: ['Uploads are not available'] }, 'Uploads are not available')
   }
@@ -74,23 +78,23 @@ export const createUpload = async (input: CreateUploadInput): Promise<UploadTick
 }
 
 /**
- * Signed in, key valid, and the key is the viewer's own and of `purpose`, in that order. Not even
- * an admin may attach someone else's object.
+ * Key valid (422), and the key is the viewer's own and of `purpose` (403), in that order. Not even
+ * an admin may attach someone else's object. The caller has already checked the session, so the
+ * 401 comes before the 422 whatever the key looks like.
  */
-const requireOwnKey = async (key: string, purpose: UploadPurpose) => {
-  const viewer = await requireUser()
+export const requireOwnKey = (viewer: SessionUser, key: string, purpose: UploadPurpose) => {
   const parsed = parseInput(uploadKeySchema, key)
   if (!parsed.startsWith(`${purpose}s/${viewer.id}/`)) {
     throw new ForbiddenError('You cannot use this upload')
   }
-  return { viewer, key: parsed }
+  return parsed
 }
 
 /**
  * Reads the stored object and checks it against the purpose's rule. An object that broke the rules
  * is deleted at once (its ticket may still be valid for another upload to this key).
  */
-const verifyStoredObject = async (key: string, purpose: UploadPurpose) => {
+export const verifyStoredObject = async (key: string, purpose: UploadPurpose) => {
   const rule = UPLOAD_RULES[purpose]
   const head = await headObject(key)
   if (!head) {
@@ -113,7 +117,8 @@ const verifyStoredObject = async (key: string, purpose: UploadPurpose) => {
  * independently. A Google profile picture is not ours, so replacing it deletes nothing.
  */
 export const attachAvatar = async (key: string): Promise<CurrentUser> => {
-  const { viewer, key: ownKey } = await requireOwnKey(key, 'avatar')
+  const viewer = await requireUser()
+  const ownKey = requireOwnKey(viewer, key, 'avatar')
   await verifyStoredObject(ownKey, 'avatar')
 
   const [replacedKey, user] = await db.$transaction(async (tx) => {

@@ -28,6 +28,7 @@ that forgets a check cannot bypass it.
 
 Long area narratives live in `docs/guides/`. Read the one for the area you touch before editing it.
 
+- `docs/guides/catalog.md`: the movie catalog (movies, genres, people, credits, posters): DTOs, DAL check order, slugs, the one cache tag, admin-only writes, the seed.
 - `docs/guides/authentication.md`: Better Auth, the admin plugin (roles, bans, impersonation), email flows, account settings, Google, rate limits.
 - `docs/guides/route-handlers.md`: Route Handlers, the REST API, health.
 - `docs/guides/caching.md`: the Redis data cache (`remember`, tags, what is never cached).

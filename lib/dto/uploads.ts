@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 export const AVATAR_CONTENT_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
 export const AVATAR_MAX_SIZE = 2 * 1024 * 1024
+export const POSTER_CONTENT_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
+export const POSTER_MAX_SIZE = 5 * 1024 * 1024
 /** Seconds an upload ticket (presigned PUT) stays valid. */
 export const UPLOAD_TICKET_SECONDS = 300
 /**
@@ -13,7 +15,7 @@ export const UPLOAD_TICKET_SECONDS = 300
 export const UPLOAD_OBJECT_GRACE_SECONDS = 600
 
 /** Every kind of file the app stores. A new kind is a value here and a row in `UPLOAD_RULES`. */
-export const uploadPurposeSchema = z.enum(['avatar'])
+export const uploadPurposeSchema = z.enum(['avatar', 'poster'])
 
 export type UploadPurpose = z.infer<typeof uploadPurposeSchema>
 
@@ -22,6 +24,8 @@ export type UploadRule = {
   contentTypes: readonly string[]
   maxSize: number
   ticketSeconds: number
+  /** Whether only an admin may ask for a ticket (the DAL checks it after the input). */
+  adminOnly: boolean
   /** Shown when the file's type or size is not allowed (and as the hint beside the picker). */
   typeError: string
   sizeError: string
@@ -37,8 +41,18 @@ export const UPLOAD_RULES: Record<UploadPurpose, UploadRule> = {
     contentTypes: AVATAR_CONTENT_TYPES,
     maxSize: AVATAR_MAX_SIZE,
     ticketSeconds: UPLOAD_TICKET_SECONDS,
+    adminOnly: false,
     typeError: 'Use a PNG, JPEG, or WebP image',
     sizeError: 'The image must be 2 MB or smaller',
+  },
+  // A movie poster; attached by `attachPoster` in `lib/data/movies.ts`. The catalog is admin-written.
+  poster: {
+    contentTypes: POSTER_CONTENT_TYPES,
+    maxSize: POSTER_MAX_SIZE,
+    ticketSeconds: UPLOAD_TICKET_SECONDS,
+    adminOnly: true,
+    typeError: 'Use a PNG, JPEG, or WebP image',
+    sizeError: 'The image must be 5 MB or smaller',
   },
 }
 

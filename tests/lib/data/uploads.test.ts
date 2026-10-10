@@ -129,6 +129,32 @@ describe('uploads DAL', () => {
     })
   })
 
+  describe('createUpload (poster)', () => {
+    const poster = { purpose: 'poster', contentType: 'image/jpeg', size: 4096 } as const
+
+    it('hands a poster ticket to an admin only, after the session and input checks', async () => {
+      await expect(createUpload(poster)).rejects.toBeInstanceOf(UnauthorizedError)
+
+      for (const role of ['viewer', 'editor'] as const) {
+        await signInAs(await createUser({ role }))
+        await expect(createUpload({ ...poster, size: 0 })).rejects.toBeInstanceOf(ValidationError)
+        await expect(createUpload(poster)).rejects.toBeInstanceOf(ForbiddenError)
+      }
+      expect(createUploadTicket).not.toHaveBeenCalled()
+
+      const admin = await createUser({ role: 'admin' })
+      await signInAs(admin)
+      const ticket = await createUpload(poster)
+      expect(ticket.key).toMatch(new RegExp(`^posters/${admin.id}/[0-9a-f-]{36}$`))
+      expect(createUploadTicket).toHaveBeenCalledWith({
+        key: ticket.key,
+        contentType: 'image/jpeg',
+        size: 4096,
+        expiresIn: UPLOAD_RULES.poster.ticketSeconds,
+      })
+    })
+  })
+
   describe('createUpload (rules)', () => {
     it('keeps the table in sync with the numbers the UI shows', () => {
       expect(UPLOAD_RULES.avatar).toMatchObject({ maxSize: AVATAR_MAX_SIZE })
