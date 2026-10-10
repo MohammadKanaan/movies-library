@@ -10,6 +10,7 @@ import { ActionGroup } from '@/components/ActionGroup'
 import { ConfirmDialog } from '@/components/Admin/ConfirmDialog'
 import { NameDialog } from '@/components/Admin/NameDialog'
 import { HeadshotDialog } from '@/components/Admin/People/HeadshotDialog'
+import { SortableTableHead } from '@/components/Admin/SortableTableHead'
 import { Empty } from '@/components/Empty'
 import { Input } from '@/components/Form/Input'
 import { Pagination } from '@/components/Pagination'
@@ -98,10 +99,32 @@ export const PeopleView = ({ people, canUpload }: PeopleViewProps) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className={styles.secondary}>Slug</TableHead>
-                <TableHead>Credits</TableHead>
-                <TableHead className={styles.secondary}>Added</TableHead>
+                <SortableTableHead
+                  direction={state.sortBy === 'name' ? state.direction : undefined}
+                  onSort={(direction) => setState({ sortBy: 'name', direction, page: 1 })}
+                >
+                  Name
+                </SortableTableHead>
+                <SortableTableHead
+                  className={styles.secondary}
+                  direction={state.sortBy === 'slug' ? state.direction : undefined}
+                  onSort={(direction) => setState({ sortBy: 'slug', direction, page: 1 })}
+                >
+                  Slug
+                </SortableTableHead>
+                <SortableTableHead
+                  direction={state.sortBy === 'creditCount' ? state.direction : undefined}
+                  onSort={(direction) => setState({ sortBy: 'creditCount', direction, page: 1 })}
+                >
+                  Credits
+                </SortableTableHead>
+                <SortableTableHead
+                  className={styles.secondary}
+                  direction={state.sortBy === 'createdAt' ? state.direction : undefined}
+                  onSort={(direction) => setState({ sortBy: 'createdAt', direction, page: 1 })}
+                >
+                  Added
+                </SortableTableHead>
                 <TableHead className={styles.actionsHead}>Actions</TableHead>
               </TableRow>
             </TableHeader>

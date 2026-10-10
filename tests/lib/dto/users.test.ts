@@ -57,12 +57,26 @@ describe('admin user list', () => {
   })
 
   it('parses any URL by falling back per field', () => {
-    expect(usersUrlQuery.parse({})).toEqual({ page: 1, q: '', role: '', status: '' })
+    expect(usersUrlQuery.parse({})).toEqual({
+      page: 1,
+      q: '',
+      role: '',
+      status: '',
+      sortBy: 'createdAt',
+      direction: 'desc',
+    })
     expect(
       usersUrlQuery.parse({ page: 'abc', q: 'a'.repeat(101), role: 'owner', status: 'x' }),
-    ).toEqual({ page: 1, q: '', role: '', status: '' })
+    ).toEqual({ page: 1, q: '', role: '', status: '', sortBy: 'createdAt', direction: 'desc' })
     expect(usersUrlQuery.parse({ page: '2', q: ' ada ', role: 'admin', status: 'active' })).toEqual(
-      { page: 2, q: 'ada', role: 'admin', status: 'active' },
+      {
+        page: 2,
+        q: 'ada',
+        role: 'admin',
+        status: 'active',
+        sortBy: 'createdAt',
+        direction: 'desc',
+      },
     )
   })
 

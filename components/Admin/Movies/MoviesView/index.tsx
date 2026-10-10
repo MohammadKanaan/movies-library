@@ -9,6 +9,7 @@ import { deleteMovieAction } from '@/actions/movies'
 import { ActionGroup } from '@/components/ActionGroup'
 import { ActionLink } from '@/components/ActionLink'
 import { ConfirmDialog } from '@/components/Admin/ConfirmDialog'
+import { SortableTableHead } from '@/components/Admin/SortableTableHead'
 import { ButtonLink } from '@/components/ButtonLink'
 import { Empty } from '@/components/Empty'
 import { Input } from '@/components/Form/Input'
@@ -34,12 +35,13 @@ import { adminMovieEditPath, moviePath, ROUTE_ADMIN_MOVIE_NEW } from '@/lib/cons
 import type { Page } from '@/lib/dto/common'
 import type { GenreWithCount } from '@/lib/dto/genres'
 import {
+  adminMoviesUrlQuery,
   EMPTY_MOVIE_FILTERS,
   hasMovieFilters,
   MOVIE_SEARCH_MAX_LENGTH,
-  moviesUrlQuery,
   movieSortSchema,
   type MovieSort,
+  type MovieSortBy,
   type MovieSummary,
 } from '@/lib/dto/movies'
 import { formatDate } from '@/lib/formatDate'
@@ -65,9 +67,22 @@ const toSort = (value: string | null): MovieSort => {
   return sort.success ? sort.data : 'newest'
 }
 
+/** The column header a preset sort lights up; "added" and "rating" order by no sortable column. */
+const PRESET_COLUMNS: Partial<Record<MovieSort, MovieSortBy>> = {
+  newest: 'releaseDate',
+  oldest: 'releaseDate',
+  title: 'title',
+}
+
 /** The movie list: search, genre filter and sort in the URL, edit / view / delete per row. */
 export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
-  const { state, setState, isPending } = useUrlState(moviesUrlQuery)
+  const { state, setState, isPending } = useUrlState(adminMoviesUrlQuery)
+  const sortBy = state.sortBy || PRESET_COLUMNS[state.sort] || ''
+  const direction = state.sortBy
+    ? state.direction
+    : state.sort === 'title' || state.sort === 'oldest'
+      ? 'asc'
+      : 'desc'
   const isFiltered = hasMovieFilters(state)
   // The admin list filters by one genre at a time; the public list's URL can name several.
   const genre = state.genres[0] ?? ''
@@ -120,11 +135,13 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
           </Select>
           <Select
             items={SORT_LABELS}
-            value={state.sort}
-            onValueChange={(value) => setState({ sort: toSort(value), page: 1 })}
+            value={state.sortBy ? null : state.sort}
+            onValueChange={(value) =>
+              setState({ sort: toSort(value), sortBy: '', direction: 'asc', page: 1 })
+            }
           >
             <SelectTrigger aria-label="Sort">
-              <SelectValue />
+              <SelectValue placeholder="Column sort" />
             </SelectTrigger>
             <SelectContent>
               {(Object.keys(SORT_LABELS) as MovieSort[]).map((sort) => (
@@ -169,11 +186,28 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
             <TableHeader>
               <TableRow>
                 <TableHead>Poster</TableHead>
-                <TableHead>Title</TableHead>
+                <SortableTableHead
+                  direction={sortBy === 'title' ? direction : undefined}
+                  onSort={(direction) => setState({ sortBy: 'title', direction, page: 1 })}
+                >
+                  Title
+                </SortableTableHead>
                 <TableHead className={styles.secondary}>Genres</TableHead>
-                <TableHead className={styles.secondary}>Runtime</TableHead>
+                <SortableTableHead
+                  className={styles.secondary}
+                  direction={sortBy === 'runtimeMinutes' ? direction : undefined}
+                  onSort={(direction) => setState({ sortBy: 'runtimeMinutes', direction, page: 1 })}
+                >
+                  Runtime
+                </SortableTableHead>
                 <TableHead>Rating</TableHead>
-                <TableHead className={styles.secondary}>Released</TableHead>
+                <SortableTableHead
+                  className={styles.secondary}
+                  direction={sortBy === 'releaseDate' ? direction : undefined}
+                  onSort={(direction) => setState({ sortBy: 'releaseDate', direction, page: 1 })}
+                >
+                  Released
+                </SortableTableHead>
                 <TableHead className={styles.actionsHead}>Actions</TableHead>
               </TableRow>
             </TableHeader>

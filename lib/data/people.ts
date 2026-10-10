@@ -139,7 +139,7 @@ const readPersonDetail = async (id: string, viewer: SessionUser): Promise<Person
  * the database.
  */
 export const listPeople = async (query: ListPeopleQuery): Promise<Page<PersonListItem>> => {
-  const { page, perPage, q } = parseInput(listPeopleQuery, query)
+  const { page, perPage, q, sortBy, direction } = parseInput(listPeopleQuery, query)
   const load = async () => {
     const where: Prisma.PersonWhereInput = q
       ? { name: { contains: escapeLike(q), mode: 'insensitive' } }
@@ -148,7 +148,10 @@ export const listPeople = async (query: ListPeopleQuery): Promise<Page<PersonLis
       db.person.findMany({
         where,
         select: personListItemSelect,
-        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          sortBy === 'creditCount' ? { credits: { _count: direction } } : { [sortBy]: direction },
+          { id: 'asc' },
+        ],
         skip: (page - 1) * perPage,
         take: perPage,
       }),
@@ -160,7 +163,7 @@ export const listPeople = async (query: ListPeopleQuery): Promise<Page<PersonLis
     return load()
   }
   return remember(
-    `people:list:${JSON.stringify([page, perPage])}`,
+    `people:list:${JSON.stringify([page, perPage, sortBy, direction])}`,
     { ttl: PEOPLE_CACHE_TTL, tags: [CATALOG_TAG], schema: pageSchema(personListItemSchema) },
     load,
   )

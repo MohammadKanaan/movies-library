@@ -71,6 +71,41 @@ describe('MoviesView', () => {
     vi.mocked(toast.success).mockReset()
   })
 
+  it('sorts runtime from a column while preserving movie filters', async () => {
+    navigation.search = 'page=3&q=dune&genres=drama&sort=added'
+    render(<MoviesView movies={page([dune])} genres={genres} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Runtime' }))
+    const params = new URLSearchParams(navigation.replace.mock.lastCall?.[0].split('?')[1])
+    expect(Object.fromEntries(params)).toEqual({
+      q: 'dune',
+      genres: 'drama',
+      sort: 'added',
+      sortBy: 'runtimeMinutes',
+    })
+  })
+
+  it('reflects the release sort and switches back from column sorting to the sort menu', async () => {
+    navigation.search = 'sortBy=runtimeMinutes&direction=desc'
+    render(<MoviesView movies={page([dune])} genres={genres} />)
+    expect(screen.getByRole('columnheader', { name: 'Runtime' })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    )
+    await userEvent.click(screen.getByRole('combobox', { name: 'Sort' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Title A–Z' }))
+    expect(navigation.replace).toHaveBeenLastCalledWith('/admin/movies?sort=title', {
+      scroll: false,
+    })
+  })
+
+  it('lights no column header while the list is sorted by rating', () => {
+    navigation.search = 'sort=rating'
+    render(<MoviesView movies={page([dune])} genres={genres} />)
+    for (const name of ['Title', 'Runtime', 'Released']) {
+      expect(screen.getByRole('columnheader', { name })).not.toHaveAttribute('aria-sort')
+    }
+  })
+
   it('lists movies with year, genres, runtime, rating and release date, the title linking to the editor', () => {
     render(<MoviesView movies={page([dune, heat])} genres={genres} />)
     const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)

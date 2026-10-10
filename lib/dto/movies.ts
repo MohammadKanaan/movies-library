@@ -6,7 +6,7 @@ import {
   slugListParamSchema,
   slugSchema,
 } from './catalog'
-import { pageQuerySchema, permissionsSchema, searchTermSchema } from './common'
+import { pageQuerySchema, permissionsSchema, searchTermSchema, sortDirectionSchema } from './common'
 import { genreSchema } from './genres'
 import { ratingSchema, ratingSummarySchema } from './reviews'
 import { uploadKeySchema } from './uploads'
@@ -100,6 +100,10 @@ const genreFilterSchema = z
 const isReversed = (from: number | undefined, to: number | undefined) =>
   from !== undefined && to !== undefined && from > to
 
+export const movieSortBySchema = z.enum(['title', 'runtimeMinutes', 'releaseDate'])
+
+export type MovieSortBy = z.output<typeof movieSortBySchema>
+
 /**
  * The movie list's query: a title search and the filters of the advanced search (every genre
  * named, a release year range, a runtime range, an average rating range, a credited person),
@@ -127,6 +131,9 @@ const listMoviesBase = pageQuerySchema.extend({
   /** Only movies rated at most this, in stars (an unrated movie never is). */
   ratingMax: ratingBoundSchema.optional(),
   sort: movieSortSchema,
+  /** A column to order by, overriding `sort` (the admin table's sortable headers). */
+  sortBy: movieSortBySchema.optional(),
+  direction: sortDirectionSchema.default('asc'),
 })
 
 type ListMoviesOutput = z.output<typeof listMoviesBase>
@@ -190,6 +197,11 @@ export const moviesUrlQuery = z.object({
   ratingMin: ratingBoundSchema.nullable().catch(null),
   ratingMax: ratingBoundSchema.nullable().catch(null),
   sort: movieSortSchema.catch('newest'),
+})
+
+export const adminMoviesUrlQuery = moviesUrlQuery.extend({
+  sortBy: movieSortBySchema.or(z.literal('')).catch(''),
+  direction: sortDirectionSchema.catch('asc'),
 })
 
 export type MoviesUrlQuery = z.output<typeof moviesUrlQuery>

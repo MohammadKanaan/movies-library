@@ -136,6 +136,32 @@ describe('movies DAL', () => {
       await expect(listMovies({ sort: 'popular' as never })).rejects.toBeInstanceOf(ValidationError)
     })
 
+    it('sorts runtime before pagination, keeps unknown runtimes last and separates cache entries', async () => {
+      const unknown = await seedMovie({ title: 'Unknown', releaseDate: '2025-01-01' })
+      const short = await seedMovie({
+        title: 'Short',
+        releaseDate: '2024-01-01',
+        runtimeMinutes: 90,
+      })
+      const long = await seedMovie({
+        title: 'Long',
+        releaseDate: '2023-01-01',
+        runtimeMinutes: 180,
+      })
+      expect((await listMovies({ perPage: 1 })).items[0]?.id).toBe(unknown.id)
+      expect(
+        (await listMovies({ perPage: 1, sortBy: 'runtimeMinutes', direction: 'desc' })).items[0]
+          ?.id,
+      ).toBe(long.id)
+      expect(
+        (await listMovies({ perPage: 1, sortBy: 'runtimeMinutes', direction: 'asc' })).items[0]?.id,
+      ).toBe(short.id)
+      expect(
+        (await listMovies({ page: 3, perPage: 1, sortBy: 'runtimeMinutes', direction: 'desc' }))
+          .items[0]?.id,
+      ).toBe(unknown.id)
+    })
+
     it('sorts oldest first, by title, and by when the movie was added', async () => {
       await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
       await seedMovie({ title: 'Arrival', releaseDate: '2016-11-11' })

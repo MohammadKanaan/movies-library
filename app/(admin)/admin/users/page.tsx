@@ -17,11 +17,15 @@ export const metadata: Metadata = {
 
 const AdminUsersPage = async ({ searchParams }: PageProps<'/admin/users'>) => {
   // A garbled URL falls back to the defaults; empty filters are left out of the query.
-  const { q, role, status, page } = usersUrlQuery.parse(toScalarParams(await searchParams))
+  const { q, role, status, page, sortBy, direction } = usersUrlQuery.parse(
+    toScalarParams(await searchParams),
+  )
   const { users, viewer } = await loadPage(async () => {
     // `listUsers` demands an admin first: a regular user gets the not-found page.
     const users = await listUsers({
       page,
+      sortBy,
+      direction,
       perPage: PER_PAGE,
       q: q || undefined,
       role: role || undefined,

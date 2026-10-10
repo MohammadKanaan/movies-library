@@ -63,6 +63,28 @@ describe('admin DAL', () => {
       await expect(listUsers(all)).rejects.toBeInstanceOf(ForbiddenError)
     })
 
+    it('sorts the filtered users before pagination in either direction', async () => {
+      const ada = await createUser({ name: 'Ada', role: 'viewer' })
+      const zoe = await createUser({ name: 'Zoe', role: 'viewer' })
+      const admin = await createUser({ name: 'Root', role: 'admin' })
+      await signInAs(admin)
+      expect(
+        (await listUsers({ page: 1, perPage: 1, role: 'viewer', sortBy: 'name', direction: 'asc' }))
+          .items[0]?.id,
+      ).toBe(ada.id)
+      expect(
+        (
+          await listUsers({
+            page: 1,
+            perPage: 1,
+            role: 'viewer',
+            sortBy: 'name',
+            direction: 'desc',
+          })
+        ).items[0]?.id,
+      ).toBe(zoe.id)
+    })
+
     it('validates the query', async () => {
       const admin = await createUser({ role: 'admin' })
       await signInAs(admin)

@@ -75,7 +75,12 @@ describe('personInput', () => {
 
 describe('people list', () => {
   it('bounds and trims the search, and defaults the paging', () => {
-    expect(listPeopleQuery.parse({})).toEqual({ page: 1, perPage: 10 })
+    expect(listPeopleQuery.parse({})).toEqual({
+      page: 1,
+      perPage: 10,
+      sortBy: 'name',
+      direction: 'asc',
+    })
     expect(listPeopleQuery.parse({ q: '  denis ' }).q).toBe('denis')
     expect(listPeopleQuery.safeParse({ q: 'a'.repeat(PEOPLE_SEARCH_MAX_LENGTH + 1) }).success).toBe(
       false,
@@ -87,10 +92,25 @@ describe('people list', () => {
   })
 
   it('parses any URL by falling back per field', () => {
-    expect(peopleUrlQuery.parse({})).toEqual({ page: 1, q: '' })
-    expect(peopleUrlQuery.parse({ page: 'abc', q: 'a'.repeat(101) })).toEqual({ page: 1, q: '' })
-    expect(peopleUrlQuery.parse({ q: 'de' })).toEqual({ page: 1, q: '' })
-    expect(peopleUrlQuery.parse({ page: '3', q: ' denis ' })).toEqual({ page: 3, q: 'denis' })
+    expect(peopleUrlQuery.parse({})).toEqual({ page: 1, q: '', sortBy: 'name', direction: 'asc' })
+    expect(peopleUrlQuery.parse({ page: 'abc', q: 'a'.repeat(101) })).toEqual({
+      page: 1,
+      q: '',
+      sortBy: 'name',
+      direction: 'asc',
+    })
+    expect(peopleUrlQuery.parse({ q: 'de' })).toEqual({
+      page: 1,
+      q: '',
+      sortBy: 'name',
+      direction: 'asc',
+    })
+    expect(peopleUrlQuery.parse({ page: '3', q: ' denis ' })).toEqual({
+      page: 3,
+      q: 'denis',
+      sortBy: 'name',
+      direction: 'asc',
+    })
   })
 })
 

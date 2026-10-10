@@ -112,6 +112,25 @@ describe('people DAL', () => {
       ])
     })
 
+    it('sorts credit counts before pagination and separates cached sort orders', async () => {
+      const amy = await seedPerson('Amy Adams')
+      const zoe = await seedPerson('Zoe Saldana')
+      await seedMovie({
+        title: 'Arrival',
+        releaseDate: '2016-11-11',
+        credits: [{ personId: zoe.id, role: 'ACTOR' }],
+      })
+      expect((await listPeople({ page: 1, perPage: 1 })).items[0]?.id).toBe(amy.id)
+      expect(
+        (await listPeople({ page: 1, perPage: 1, sortBy: 'creditCount', direction: 'desc' }))
+          .items[0]?.id,
+      ).toBe(zoe.id)
+      expect(
+        (await listPeople({ page: 2, perPage: 1, sortBy: 'creditCount', direction: 'desc' }))
+          .items[0]?.id,
+      ).toBe(amy.id)
+    })
+
     it('validates the query', async () => {
       await expect(listPeople({ page: 0, perPage: 10 })).rejects.toBeInstanceOf(ValidationError)
       await expect(listPeople({ ...all, q: 'a'.repeat(101) })).rejects.toBeInstanceOf(

@@ -5,6 +5,9 @@ export const MAX_PER_PAGE = 100
 /** Caps `page` so unauthenticated callers cannot mint unbounded cache keys and deep OFFSET scans. */
 export const MAX_PAGE = 1000
 
+export const sortDirectionSchema = z.enum(['asc', 'desc'])
+export type SortDirection = z.infer<typeof sortDirectionSchema>
+
 export const SEARCH_MIN_LENGTH = 3
 
 /**

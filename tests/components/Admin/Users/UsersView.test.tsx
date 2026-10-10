@@ -104,6 +104,29 @@ describe('UsersView', () => {
     vi.unstubAllGlobals()
   })
 
+  it('toggles column sorting while keeping filters and resetting the page', async () => {
+    navigation.search = 'page=3&q=ada&role=admin'
+    const { rerender } = render(<UsersView users={page([ada])} viewerId={ADA_ID} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Name' }))
+    let params = new URLSearchParams(navigation.replace.mock.lastCall?.[0].split('?')[1])
+    expect(Object.fromEntries(params)).toEqual({
+      q: 'ada',
+      role: 'admin',
+      sortBy: 'name',
+      direction: 'asc',
+    })
+    navigation.search = params.toString()
+    rerender(<UsersView users={page([ada])} viewerId={ADA_ID} />)
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Name' }))
+    params = new URLSearchParams(navigation.replace.mock.lastCall?.[0].split('?')[1])
+    expect(params.get('direction')).toBeNull()
+    expect(params.get('sortBy')).toBe('name')
+  })
+
   it('lists users with email, status and join date, linking each name to its page', () => {
     render(<UsersView users={page([ada, grace, alan])} viewerId={ADA_ID} />)
     expect(rows()).toHaveLength(3)

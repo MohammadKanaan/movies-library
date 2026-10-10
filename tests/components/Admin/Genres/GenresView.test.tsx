@@ -36,6 +36,31 @@ describe('GenresView', () => {
     vi.mocked(toast.success).mockReset()
   })
 
+  it('sorts all genres numerically by movie count and toggles direction', async () => {
+    const western = { id: 'g3', name: 'Western', slug: 'western', movieCount: 12 }
+    render(<GenresView genres={[drama, noir, western]} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Movies' }))
+    expect(rows().map((row) => within(row).getAllByRole('cell')[0].textContent)).toEqual([
+      'Noir',
+      'Drama',
+      'Western',
+    ])
+    expect(screen.getByRole('columnheader', { name: 'Movies' })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Movies' }))
+    expect(rows().map((row) => within(row).getAllByRole('cell')[0].textContent)).toEqual([
+      'Western',
+      'Drama',
+      'Noir',
+    ])
+    expect(screen.getByRole('columnheader', { name: 'Movies' })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    )
+  })
+
   it('lists genres with their slug and a link to their movies', () => {
     render(<GenresView genres={[drama, noir]} />)
     const row = rowOf('Drama')

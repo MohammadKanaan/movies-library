@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Search } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { UserActions } from '@/components/Admin/Users/UserActions'
+import { SortableTableHead } from '@/components/Admin/SortableTableHead'
 import { Empty } from '@/components/Empty'
 import { Input } from '@/components/Form/Input'
 import { Pagination } from '@/components/Pagination'
@@ -144,11 +145,39 @@ export const UsersView = ({ users, viewerId }: UsersViewProps) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className={styles.secondary}>Email</TableHead>
-                <TableHead className={styles.secondary}>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className={styles.secondary}>Joined</TableHead>
+                <SortableTableHead
+                  direction={state.sortBy === 'name' ? state.direction : undefined}
+                  onSort={(direction) => setState({ sortBy: 'name', direction, page: 1 })}
+                >
+                  Name
+                </SortableTableHead>
+                <SortableTableHead
+                  className={styles.secondary}
+                  direction={state.sortBy === 'email' ? state.direction : undefined}
+                  onSort={(direction) => setState({ sortBy: 'email', direction, page: 1 })}
+                >
+                  Email
+                </SortableTableHead>
+                <SortableTableHead
+                  className={styles.secondary}
+                  direction={state.sortBy === 'role' ? state.direction : undefined}
+                  onSort={(direction) => setState({ sortBy: 'role', direction, page: 1 })}
+                >
+                  Role
+                </SortableTableHead>
+                <SortableTableHead
+                  direction={state.sortBy === 'banned' ? state.direction : undefined}
+                  onSort={(direction) => setState({ sortBy: 'banned', direction, page: 1 })}
+                >
+                  Status
+                </SortableTableHead>
+                <SortableTableHead
+                  className={styles.secondary}
+                  direction={state.sortBy === 'createdAt' ? state.direction : undefined}
+                  onSort={(direction) => setState({ sortBy: 'createdAt', direction, page: 1 })}
+                >
+                  Joined
+                </SortableTableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>

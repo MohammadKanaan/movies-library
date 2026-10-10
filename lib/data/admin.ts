@@ -80,7 +80,7 @@ const readAdminUser = async (id: string): Promise<AdminUser> => {
  */
 export const listUsers = async (query: ListUsersQuery): Promise<Page<AdminUser>> => {
   await requireAdmin()
-  const { page, perPage, q, role, status } = parseInput(listUsersQuery, query)
+  const { page, perPage, q, role, status, sortBy, direction } = parseInput(listUsersQuery, query)
   const contains = q ? { contains: escapeLike(q), mode: 'insensitive' as const } : undefined
   const where: Prisma.UserWhereInput = {
     ...(contains ? { OR: [{ name: contains }, { username: contains }, { email: contains }] } : {}),
@@ -91,7 +91,7 @@ export const listUsers = async (query: ListUsersQuery): Promise<Page<AdminUser>>
     db.user.findMany({
       where,
       select: adminUserSelect,
-      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      orderBy: [{ [sortBy]: direction }, { id: 'asc' }],
       skip: (page - 1) * perPage,
       take: perPage,
     }),

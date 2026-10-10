@@ -208,7 +208,7 @@ const ratedBetween = (
  * filter is an unbounded key and is always read from the database.
  */
 export const listMovies = async (query: ListMoviesQuery): Promise<Page<MovieSummary>> => {
-  const { page, perPage, sort, ...filters } = parseInput(listMoviesQuery, query)
+  const { page, perPage, sort, sortBy, direction, ...filters } = parseInput(listMoviesQuery, query)
   const { q, genres, person, yearFrom, yearTo, runtimeMin, runtimeMax, ratingMin, ratingMax } =
     filters
   const load = async () => {
@@ -229,7 +229,14 @@ export const listMovies = async (query: ListMoviesQuery): Promise<Page<MovieSumm
       db.movie.findMany({
         where,
         select: movieSummarySelect,
-        orderBy: ORDER_BY[sort],
+        orderBy: sortBy
+          ? [
+              sortBy === 'runtimeMinutes'
+                ? { runtimeMinutes: { sort: direction, nulls: 'last' } }
+                : { [sortBy]: direction },
+              { id: 'asc' },
+            ]
+          : ORDER_BY[sort],
         skip: (page - 1) * perPage,
         take: perPage,
       }),
@@ -244,7 +251,7 @@ export const listMovies = async (query: ListMoviesQuery): Promise<Page<MovieSumm
     return load()
   }
   return remember(
-    `movies:list:${JSON.stringify([page, perPage, sort])}`,
+    `movies:list:${JSON.stringify([page, perPage, sort, sortBy, direction])}`,
     {
       ttl: MOVIES_CACHE_TTL,
       tags: [CATALOG_TAG, RATINGS_TAG],

@@ -5,12 +5,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { createGenreAction, deleteGenreAction, updateGenreAction } from '@/actions/genres'
 import { ActionGroup } from '@/components/ActionGroup'
 import { ConfirmDialog } from '@/components/Admin/ConfirmDialog'
 import { NameDialog } from '@/components/Admin/NameDialog'
+import { SortableTableHead } from '@/components/Admin/SortableTableHead'
 import { Empty } from '@/components/Empty'
 import { Input } from '@/components/Form/Input'
 import { LoadingButton } from '@/components/LoadingButton'
@@ -23,6 +25,7 @@ import {
   TableRow,
 } from '@/components/SCN/table'
 import { moviesByGenrePath } from '@/lib/constants-routes'
+import type { SortDirection } from '@/lib/dto/common'
 import { genreInput, type GenreInput, type GenreWithCount } from '@/lib/dto/genres'
 import { applyActionErrors } from '@/lib/formErrors'
 import styles from './styles.module.scss'
@@ -33,6 +36,20 @@ type GenresViewProps = {
 
 /** Every genre with how many movies carry it; add inline, rename and delete through dialogs. */
 export const GenresView = ({ genres }: GenresViewProps) => {
+  const [sort, setSort] = useState<{
+    by: keyof Pick<GenreWithCount, 'name' | 'slug' | 'movieCount'>
+    direction: SortDirection
+  }>({ by: 'name', direction: 'asc' })
+  // This list contains every genre, so sorting locally covers the complete result set.
+  const sortedGenres = genres.toSorted((a, b) => {
+    const left = a[sort.by]
+    const right = b[sort.by]
+    const comparison =
+      typeof left === 'number' && typeof right === 'number'
+        ? left - right
+        : String(left).localeCompare(String(right))
+    return (sort.direction === 'asc' ? comparison : -comparison) || a.id.localeCompare(b.id)
+  })
   const {
     register,
     handleSubmit,
@@ -79,14 +96,30 @@ export const GenresView = ({ genres }: GenresViewProps) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className={styles.secondary}>Slug</TableHead>
-                <TableHead>Movies</TableHead>
+                <SortableTableHead
+                  direction={sort.by === 'name' ? sort.direction : undefined}
+                  onSort={(direction) => setSort({ by: 'name', direction })}
+                >
+                  Name
+                </SortableTableHead>
+                <SortableTableHead
+                  className={styles.secondary}
+                  direction={sort.by === 'slug' ? sort.direction : undefined}
+                  onSort={(direction) => setSort({ by: 'slug', direction })}
+                >
+                  Slug
+                </SortableTableHead>
+                <SortableTableHead
+                  direction={sort.by === 'movieCount' ? sort.direction : undefined}
+                  onSort={(direction) => setSort({ by: 'movieCount', direction })}
+                >
+                  Movies
+                </SortableTableHead>
                 <TableHead className={styles.actionsHead}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {genres.map((genre) => {
+              {sortedGenres.map((genre) => {
                 const inUse = genre.movieCount > 0
                 return (
                   <TableRow key={genre.id}>

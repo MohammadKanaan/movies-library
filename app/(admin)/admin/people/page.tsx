@@ -18,11 +18,11 @@ export const metadata: Metadata = {
 
 const AdminPeoplePage = async ({ searchParams }: PageProps<'/admin/people'>) => {
   // A garbled URL falls back to the defaults; an empty search is left out of the query.
-  const { q, page } = peopleUrlQuery.parse(toScalarParams(await searchParams))
+  const { q, page, sortBy, direction } = peopleUrlQuery.parse(toScalarParams(await searchParams))
   // The people list is public; the page is not, so the admin check comes first.
   const people = await loadPage(async () => {
     await requireAdmin()
-    return listPeople({ page, perPage: PER_PAGE, q: q || undefined })
+    return listPeople({ page, perPage: PER_PAGE, q: q || undefined, sortBy, direction })
   }, ROUTE_ADMIN_PEOPLE)
 
   return (

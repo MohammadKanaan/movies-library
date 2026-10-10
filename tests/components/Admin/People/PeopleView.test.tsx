@@ -74,6 +74,14 @@ describe('PeopleView', () => {
     vi.mocked(toast.success).mockReset()
   })
 
+  it('sorts credit counts without dropping the search or retaining a later page', async () => {
+    navigation.search = 'page=3&q=amy'
+    render(<PeopleView people={page([amy])} canUpload />)
+    await userEvent.click(screen.getByRole('button', { name: 'Credits' }))
+    const params = new URLSearchParams(navigation.replace.mock.lastCall?.[0].split('?')[1])
+    expect(Object.fromEntries(params)).toEqual({ q: 'amy', sortBy: 'creditCount' })
+  })
+
   it('lists people with their slug, credit count and creation date', () => {
     render(<PeopleView people={page([amy, denis])} canUpload />)
     const row = rowOf('Denis Villeneuve')

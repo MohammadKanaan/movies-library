@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { catalogIdSchema, creditRoleSchema, personSummarySchema } from './catalog'
-import { pageQuerySchema, permissionsSchema, searchTermSchema } from './common'
+import { pageQuerySchema, permissionsSchema, searchTermSchema, sortDirectionSchema } from './common'
 import { movieSummarySchema } from './movies'
 import { uploadKeySchema } from './uploads'
 
@@ -47,15 +47,21 @@ export const personDetailSchema = personSummarySchema.extend({
 
 export type PersonDetail = z.infer<typeof personDetailSchema>
 
+export const personSortBySchema = z.enum(['name', 'slug', 'creditCount', 'createdAt'])
+
 export const listPeopleQuery = pageQuerySchema.extend({
+  sortBy: personSortBySchema.default('name'),
+  direction: sortDirectionSchema.default('asc'),
   /** Matches the name case-insensitively; at least three characters (the trigram index), bounded above. */
   q: searchTermSchema(PEOPLE_SEARCH_MAX_LENGTH).optional(),
 })
 
-export type ListPeopleQuery = z.infer<typeof listPeopleQuery>
+export type ListPeopleQuery = z.input<typeof listPeopleQuery>
 
 /** The tolerant URL contract of the people list: any query string parses, falling back to defaults. */
 export const peopleUrlQuery = z.object({
+  sortBy: personSortBySchema.catch('name'),
+  direction: sortDirectionSchema.catch('asc'),
   page: pageQuerySchema.shape.page.catch(1),
   q: searchTermSchema(PEOPLE_SEARCH_MAX_LENGTH).catch(''),
 })

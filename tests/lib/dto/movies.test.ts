@@ -155,7 +155,12 @@ describe('movie list', () => {
     expect(movieSortSchema.parse(undefined)).toBe('newest')
     // `added` orders by when the catalog gained the movie (the admin list's default).
     expect(MOVIE_SORTS).toEqual(['newest', 'oldest', 'title', 'added', 'rating'])
-    expect(listMoviesQuery.parse({})).toEqual({ page: 1, perPage: 10, sort: 'newest' })
+    expect(listMoviesQuery.parse({})).toEqual({
+      page: 1,
+      perPage: 10,
+      sort: 'newest',
+      direction: 'asc',
+    })
     expect(listMoviesQuery.parse({ sort: 'rating' }).sort).toBe('rating')
     expect(listMoviesQuery.safeParse({ sort: 'popular' }).success).toBe(false)
   })
