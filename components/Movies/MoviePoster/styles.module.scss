@@ -1,0 +1,35 @@
+.poster {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--secondary);
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fallback {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding: 1rem;
+  background:
+    radial-gradient(
+      circle at 25% 15%,
+      color-mix(in oklch, var(--primary) 28%, transparent),
+      transparent 60%
+    ),
+    var(--secondary);
+  color: var(--secondary-foreground);
+  font-family: var(--font-display-family);
+  font-size: 1.375rem;
+  font-weight: var(--font-display-weight);
+  letter-spacing: var(--font-display-tracking);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}

@@ -11,6 +11,8 @@ describe('route helpers', () => {
       '/reset-password',
       '/ui-kit',
       '/ui-kit/anything',
+      '/movies',
+      '/movies/dune-2021',
     ]) {
       expect(isPublicRoute(path)).toBe(true)
     }

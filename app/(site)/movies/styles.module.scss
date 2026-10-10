@@ -1,0 +1,36 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  transition: opacity 150ms ease-out;
+
+  // A page change is in flight: dim the grid it is about to replace.
+  &[aria-busy='true'] {
+    opacity: 0.6;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (width < $breakpoint-md) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    gap: 0.75rem;
+  }
+}

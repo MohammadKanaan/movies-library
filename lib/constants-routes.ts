@@ -6,6 +6,13 @@ export const ROUTE_RESET_PASSWORD = '/reset-password'
 export const ROUTE_SETTINGS = '/settings'
 export const ROUTE_ADMIN = '/admin'
 export const ROUTE_UI_KIT = '/ui-kit'
+export const ROUTE_MOVIES = '/movies'
+
+export const moviePath = (slug: string) => `${ROUTE_MOVIES}/${slug}`
+
+/** The movie list filtered to one genre. */
+export const moviesByGenrePath = (genreSlug: string) =>
+  `${ROUTE_MOVIES}?${new URLSearchParams({ genre: genreSlug })}`
 
 export const loginPath = (next: string) => `${ROUTE_LOGIN}?next=${encodeURIComponent(next)}`
 
@@ -17,6 +24,7 @@ export const PUBLIC_ROUTES = [
   ROUTE_FORGOT_PASSWORD,
   ROUTE_RESET_PASSWORD,
   ROUTE_UI_KIT,
+  ROUTE_MOVIES,
 ] as const
 
 export const isPublicRoute = (path: string): boolean =>

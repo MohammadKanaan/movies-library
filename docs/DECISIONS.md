@@ -108,6 +108,13 @@ Left out on purpose; add them when a project needs them.
   policy a membership check, which changes the shape of the whole DAL. That is a design decision for
   the project that needs it, not something to leave half-wired in a template.
 - **API keys and OpenAPI:** the REST endpoints use the session cookie only, and no spec is generated.
+- **Page transitions between the movie card and the detail page:** tried with React's
+  `<ViewTransition>` (a shared poster morph plus a content crossfade) and taken out (2026-10-10)
+  because it looked wrong. Notes for the next attempt: it only feels instant when the destination is
+  already in hand at the click (`prefetch` the full dynamic route; prefetching is off in `next dev`, so
+  judge on a production build); React waits for images to decode before the snapshot but skips
+  `loading="lazy"` ones; crossfading two snapshots of the same poster shows a mid-flight re-render;
+  every layer must run on one clock; and stable React in Vitest has no `ViewTransition`.
 - **End-to-end browser tests:** the suite stops at Vitest (DAL, actions, handlers, components).
 - **A last-admin guard on account deletion:** only an admin changing their own role is blocked; the
   last admin can still delete their own account.

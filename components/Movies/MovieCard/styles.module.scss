@@ -1,0 +1,153 @@
+$ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+.card {
+  position: relative;
+  display: block;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--secondary);
+  color: var(--foreground);
+  text-decoration: none;
+  outline: none;
+  transition: transform 120ms ease-out;
+
+  &:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--background),
+      0 0 0 4px var(--ring);
+  }
+
+  &:active {
+    transform: scale(0.985);
+  }
+
+  // A second, deeper scrim fades in on hover and focus so the details read clearly. Only its
+  // opacity animates.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      color-mix(in oklch, var(--background) 70%, transparent),
+      transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 200ms ease-out;
+    pointer-events: none;
+  }
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    color-mix(in oklch, var(--background) 90%, transparent) 0%,
+    color-mix(in oklch, var(--background) 50%, transparent) 32%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+// The title never moves: the details line keeps its space and only fades.
+.info {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+}
+
+.year {
+  order: -1;
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--foreground);
+  font-family: var(--font-display-family);
+  font-size: 1.125rem;
+  font-weight: var(--font-display-weight);
+  letter-spacing: var(--font-display-tracking);
+  line-height: 1.15;
+}
+
+.details {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 200ms ease-out,
+    transform 200ms $ease-out;
+}
+
+@mixin revealed {
+  &::after {
+    opacity: 1;
+  }
+
+  .details {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    @include revealed;
+  }
+}
+
+.card:focus-visible {
+  @include revealed;
+}
+
+// No hover to reveal on touch screens, so the details are simply there.
+@media (hover: none), (pointer: coarse) {
+  .details {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (width < $breakpoint-md) {
+  .info {
+    padding: 0.75rem;
+  }
+
+  .title {
+    font-size: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .details {
+    transition-property: opacity;
+  }
+
+  .card:active {
+    transform: none;
+  }
+
+  .details {
+    transform: none;
+  }
+}

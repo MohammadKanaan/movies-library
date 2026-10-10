@@ -15,6 +15,7 @@ import {
   ROUTE_ADMIN,
   ROUTE_HOME,
   ROUTE_LOGIN,
+  ROUTE_MOVIES,
   ROUTE_SETTINGS,
   ROUTE_UI_KIT,
 } from '@/lib/constants-routes'
@@ -24,7 +25,10 @@ import styles from './styles.module.scss'
 
 const MOBILE_NAV_ID = 'mobile-nav'
 
-const NAV_LINKS = [{ label: 'UI Kit', href: ROUTE_UI_KIT }]
+const NAV_LINKS = [
+  { label: 'Movies', href: ROUTE_MOVIES },
+  { label: 'UI Kit', href: ROUTE_UI_KIT },
+]
 
 /** Only for admins; the page itself is guarded by the DAL, this just hides the link. */
 const ADMIN_LINK = { label: 'Admin', href: ROUTE_ADMIN }
