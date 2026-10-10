@@ -1,23 +1,53 @@
 import { ArrowLeft } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { cache } from 'react'
+import { cache, Fragment } from 'react'
 import { DeleteMovieDialog } from '@/components/Movies/DeleteMovieDialog'
 import { GenreTags } from '@/components/Movies/GenreTags'
 import { MoviePoster } from '@/components/Movies/MoviePoster'
-import { moviePath, ROUTE_MOVIES } from '@/lib/constants-routes'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/SCN/tooltip'
+import { moviePath, moviesByPersonPath, ROUTE_MOVIES } from '@/lib/constants-routes'
 import { getMovieBySlug } from '@/lib/data/movies'
 import { loadPage } from '@/lib/data/page'
 import type { PersonSummary } from '@/lib/dto/people'
 import { formatDate } from '@/lib/formatDate'
 import { formatRuntime } from '@/lib/formatRuntime'
 import { getInitials } from '@/lib/getInitials'
+import { presentMovieDetail, type SupportingCredit } from '@/presenters/movieDetail'
 import styles from './styles.module.scss'
 
 // `generateMetadata` and the page read the same movie: one DAL call per request.
 const loadMovie = cache((slug: string) => loadPage(() => getMovieBySlug(slug), moviePath(slug)))
 
-const joinNames = (people: PersonSummary[]) => people.map((person) => person.name).join(', ')
+/**
+ * Names as links to each person's movies, separated by dots. Each dot travels with the name before
+ * it, so a line break falls between names and never opens a line with a dot.
+ */
+const NameList = ({ people }: { people: PersonSummary[] }) =>
+  people.map((person, index) => (
+    <Fragment key={person.id}>
+      {index > 0 ? ' ' : null}
+      <span className={styles.nameItem}>
+        <Link href={moviesByPersonPath(person.slug)} className={styles.name}>
+          {person.name}
+        </Link>
+        {index < people.length - 1 ? (
+          <span className={styles.dot} aria-hidden="true">
+            {' ·'}
+          </span>
+        ) : null}
+      </span>
+    </Fragment>
+  ))
+
+const supportingTitle = (supporting: SupportingCredit[]) => {
+  const hasCast = supporting.some((credit) => credit.role === 'cast')
+  const hasWriters = supporting.some((credit) => credit.role === 'writer')
+  if (hasCast && hasWriters) {
+    return 'More cast & crew'
+  }
+  return hasCast ? 'More cast' : 'More writers'
+}
 
 export const generateMetadata = async ({
   params,
@@ -29,12 +59,10 @@ export const generateMetadata = async ({
 
 const MoviePage = async ({ params }: PageProps<'/movies/[slug]'>) => {
   const { slug } = await params
-  const movie = await loadMovie(slug)
+  const movie = presentMovieDetail(await loadMovie(slug))
   const { directors, writers, cast } = movie.credits
-  const meta = [
-    String(movie.releaseDate.getUTCFullYear()),
-    movie.runtimeMinutes === null ? null : formatRuntime(movie.runtimeMinutes),
-  ].filter((part) => part !== null)
+  const releaseDay = movie.releaseDate.toISOString().slice(0, 10)
+  const hasCredits = directors.length + writers.length + cast.length > 0
 
   return (
     <article className={styles.page}>
@@ -59,13 +87,24 @@ const MoviePage = async ({ params }: PageProps<'/movies/[slug]'>) => {
             </div>
 
             <div className={styles.heroText}>
-              <p className={styles.eyebrow}>{meta.join(' · ')}</p>
+              <p className={styles.eyebrow}>
+                {/* Focusable so the full date shows on keyboard focus too, not only on hover. */}
+                <Tooltip>
+                  <TooltipTrigger
+                    render={<time className={styles.year} dateTime={releaseDay} tabIndex={0} />}
+                  >
+                    {movie.year}
+                  </TooltipTrigger>
+                  <TooltipContent>Released {formatDate(movie.releaseDate)}</TooltipContent>
+                </Tooltip>
+                {movie.runtimeMinutes === null ? null : ` · ${formatRuntime(movie.runtimeMinutes)}`}
+              </p>
               <h1 className={styles.title}>{movie.title}</h1>
-              {directors.length > 0 ? (
-                <p className={styles.byline}>
-                  Directed by <strong>{joinNames(directors)}</strong>
-                </p>
-              ) : null}
+              {movie.synopsis ? (
+                <p className={styles.synopsis}>{movie.synopsis}</p>
+              ) : (
+                <p className={styles.empty}>No synopsis yet.</p>
+              )}
               <GenreTags genres={movie.genres} />
               {movie.permissions.delete ? (
                 <div className={styles.actions}>
@@ -78,68 +117,80 @@ const MoviePage = async ({ params }: PageProps<'/movies/[slug]'>) => {
       </section>
 
       <div className={styles.body}>
-        {movie.synopsis ? (
-          <p className={styles.synopsis}>{movie.synopsis}</p>
-        ) : (
-          <p className={styles.synopsisEmpty}>No synopsis yet.</p>
-        )}
+        {/* The leads, set like a one-sheet's billing block. */}
+        <section className={styles.billing} aria-label="Credits">
+          {hasCredits ? (
+            <>
+              {movie.starring.length > 0 ? (
+                <div className={styles.credit}>
+                  <h2 className={styles.role}>Starring</h2>
+                  <p className={styles.starring}>
+                    <NameList people={movie.starring} />
+                  </p>
+                </div>
+              ) : null}
 
-        {cast.length > 0 ? (
-          <section className={styles.section} aria-labelledby="cast-heading">
-            <h2 id="cast-heading" className={styles.sectionTitle}>
-              Cast
+              {directors.length + movie.writtenBy.length > 0 ? (
+                <div className={styles.crew}>
+                  {directors.length > 0 ? (
+                    <div className={styles.credit}>
+                      <h2 className={styles.role}>Directed by</h2>
+                      <p className={styles.crewNames}>
+                        <NameList people={directors} />
+                      </p>
+                    </div>
+                  ) : null}
+                  {movie.writtenBy.length > 0 ? (
+                    <div className={styles.credit}>
+                      <h2 className={styles.role}>Written by</h2>
+                      <p className={styles.crewNames}>
+                        <NameList people={movie.writtenBy} />
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <p className={styles.empty}>No credits yet.</p>
+          )}
+        </section>
+
+        {movie.supporting.length > 0 ? (
+          <section className={styles.section} aria-labelledby="supporting-heading">
+            <h2 id="supporting-heading" className={styles.sectionTitle}>
+              {supportingTitle(movie.supporting)}
             </h2>
             <ol className={styles.rail}>
-              {cast.map((person, index) => (
-                <li key={person.id} className={styles.railItem}>
-                  <span className={styles.avatar} aria-hidden="true">
-                    {getInitials(person.name)}
-                  </span>
-                  <span className={styles.railName}>{person.name}</span>
-                  <span className={styles.railBilling}>
-                    {index === 0 ? 'Top billed' : `#${index + 1}`}
-                  </span>
+              {movie.supporting.map(({ person, role, label }) => (
+                <li key={`${role}:${person.id}`} className={styles.railItem}>
+                  <Link href={moviesByPersonPath(person.slug)} className={styles.card}>
+                    <span className={styles.avatar} aria-hidden="true">
+                      {getInitials(person.name)}
+                    </span>
+                    <span className={styles.cardName}>{person.name}</span>
+                    <span className={styles.cardRole}>{label}</span>
+                  </Link>
                 </li>
               ))}
             </ol>
           </section>
         ) : null}
 
-        <section className={styles.section} aria-labelledby="details-heading">
-          <h2 id="details-heading" className={styles.sectionTitle}>
-            Details
-          </h2>
-          <dl className={styles.facts}>
-            <div>
-              <dt>Released</dt>
-              <dd>
-                <time dateTime={movie.releaseDate.toISOString().slice(0, 10)}>
-                  {formatDate(movie.releaseDate)}
-                </time>
-              </dd>
-            </div>
-            {directors.length > 0 ? (
-              <div>
-                <dt>{directors.length > 1 ? 'Directors' : 'Director'}</dt>
-                <dd>{joinNames(directors)}</dd>
-              </div>
-            ) : null}
-            {writers.length > 0 ? (
-              <div>
-                <dt>{writers.length > 1 ? 'Writers' : 'Writer'}</dt>
-                <dd>{joinNames(writers)}</dd>
-              </div>
-            ) : null}
-            {movie.createdBy ? (
-              <div>
-                <dt>Added</dt>
-                <dd>
-                  {formatDate(movie.createdAt)} by {movie.createdBy.name}
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-        </section>
+        {/* The small print: release, runtime and provenance. */}
+        <p className={styles.colophon}>
+          <span>
+            Released <time dateTime={releaseDay}>{formatDate(movie.releaseDate)}</time>
+          </span>
+          {movie.runtimeMinutes !== null ? (
+            <span>{formatRuntime(movie.runtimeMinutes)}</span>
+          ) : null}
+          {movie.createdBy ? (
+            <span>
+              Added {formatDate(movie.createdAt)} by {movie.createdBy.name}
+            </span>
+          ) : null}
+        </p>
       </div>
     </article>
   )

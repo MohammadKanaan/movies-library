@@ -272,7 +272,7 @@ logged and falls through to the database. Tag versions have no TTL, so Redis mus
 - **Presenters** (`presenters/`): plain functions, only for overrides. A presenter spreads the DTO
   and overrides or adds just the fields a view needs reshaped:
   `export const presentMovie = (movie) => ({ ...movie, year: movie.releaseDate.getUTCFullYear() })`.
-  There are none yet; `presenters/` starts with the first view that needs one.
+  The first is `presentMovieDetail` (the movie page's split of leads and supporting credits).
   No classes, no presenter that only passes data through — if the DTO already fits the view, use it
   directly.
 - Apply a presenter where the data is consumed: call it directly in a Server Component or in a
