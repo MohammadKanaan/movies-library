@@ -1,5 +1,6 @@
 import { createDocument, createSchema } from 'zod-openapi'
 import type { z } from 'zod'
+import { PUBLIC_API_LIMIT } from '@/lib/constants-rateLimit'
 import { pageSchema, SEARCH_MIN_LENGTH } from '@/lib/dto/common'
 import { errorBodySchema } from '@/lib/dto/errors'
 import { healthSchema } from '@/lib/dto/health'
@@ -103,6 +104,11 @@ const invalidQuery = {
   content: { 'application/json': { schema: errorBody } },
 }
 
+const rateLimited = {
+  description: `More than ${PUBLIC_API_LIMIT.max} requests to this endpoint from one client address in a minute.`,
+  content: { 'application/json': { schema: errorBody } },
+}
+
 /** DTO-only documentation: generating it never initializes the DAL, auth, DB, or Redis. */
 export const generateOpenApi = () =>
   createDocument(
@@ -141,6 +147,7 @@ export const generateOpenApi = () =>
                 },
               },
               422: invalidQuery,
+              429: rateLimited,
             },
           },
         },
@@ -169,6 +176,7 @@ export const generateOpenApi = () =>
                 },
               },
               422: invalidQuery,
+              429: rateLimited,
             },
           },
         },
@@ -191,6 +199,7 @@ export const generateOpenApi = () =>
                 },
               },
               422: invalidQuery,
+              429: rateLimited,
             },
           },
         },

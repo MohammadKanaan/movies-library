@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { parseInput, toErrorResponse } from '@/lib/data/errors'
+import { consumePublicApiLimit } from '@/lib/data/rateLimit'
 import { suggestCatalog } from '@/lib/data/search'
 import { searchCatalogQuery } from '@/lib/dto/search'
 import { toScalarParams } from '@/lib/searchParams'
@@ -11,6 +12,7 @@ import { toScalarParams } from '@/lib/searchParams'
  */
 export const GET = async (request: Request) => {
   try {
+    await consumePublicApiLimit('search')
     const query = parseInput(searchCatalogQuery, toScalarParams(new URL(request.url).searchParams))
     return NextResponse.json(await suggestCatalog(query))
   } catch (error) {

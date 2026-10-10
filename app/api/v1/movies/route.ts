@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { parseInput, toErrorResponse } from '@/lib/data/errors'
 import { listMovies } from '@/lib/data/movies'
+import { consumePublicApiLimit } from '@/lib/data/rateLimit'
 import { listMoviesUrlQuery } from '@/lib/dto/movies'
 import { toScalarParams } from '@/lib/searchParams'
 
@@ -11,6 +12,7 @@ import { toScalarParams } from '@/lib/searchParams'
  */
 export const GET = async (request: Request) => {
   try {
+    await consumePublicApiLimit('movies')
     const query = parseInput(listMoviesUrlQuery, toScalarParams(new URL(request.url).searchParams))
     return NextResponse.json(await listMovies(query))
   } catch (error) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { parseInput, toErrorResponse } from '@/lib/data/errors'
 import { listPeople } from '@/lib/data/people'
+import { consumePublicApiLimit } from '@/lib/data/rateLimit'
 import { listPeopleQuery } from '@/lib/dto/people'
 import { toScalarParams } from '@/lib/searchParams'
 
@@ -11,6 +12,7 @@ import { toScalarParams } from '@/lib/searchParams'
  */
 export const GET = async (request: Request) => {
   try {
+    await consumePublicApiLimit('people')
     const query = parseInput(listPeopleQuery, toScalarParams(new URL(request.url).searchParams))
     return NextResponse.json(await listPeople(query))
   } catch (error) {

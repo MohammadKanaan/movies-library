@@ -18,7 +18,7 @@ describe('generated OpenAPI document', () => {
       '/api/v1/search',
     ])
     for (const path of ['/api/v1/movies', '/api/v1/people', '/api/v1/search']) {
-      expect(Object.keys(spec.paths?.[path]?.get?.responses ?? {})).toEqual(['200', '422'])
+      expect(Object.keys(spec.paths?.[path]?.get?.responses ?? {})).toEqual(['200', '422', '429'])
     }
     expect(Object.keys(spec.paths?.['/api/health']?.get?.responses ?? {})).toEqual(['200', '503'])
     expect(spec.security).toBeUndefined()
