@@ -425,11 +425,16 @@ describe('reviews DAL', () => {
       expect(await ratingOf(movie.slug)).toEqual({ average: null, count: 0 })
     })
 
-    it('stays as it was when an edit changes only the text', async () => {
+    it('stays as it was, the movie row unwritten, when an edit changes only the text', async () => {
       const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
+      // A row's `xmin` changes whenever the row is written, even to the same values.
+      const rowVersion = () =>
+        db.$queryRaw`SELECT xmin::text AS version FROM movies WHERE id = ${movie.id}::uuid`
       await signInAsViewer()
       const review = await createReview({ movieId: movie.id, rating: 4 })
+      const before = await rowVersion()
       await updateReview({ id: review.id, rating: 4, body: 'Sand, mostly.' })
+      expect(await rowVersion()).toEqual(before)
       expect(await ratingOf(movie.slug)).toEqual({ average: 4, count: 1 })
     })
 

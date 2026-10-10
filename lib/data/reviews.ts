@@ -238,12 +238,15 @@ export const updateReview = async (input: UpdateReviewInput): Promise<Review> =>
   if (record.halfStars === halfStars && record.body === body && record.spoiler === spoiler) {
     return toReview(record, viewer)
   }
+  const rerated = halfStars !== record.halfStars
   const row = await db.review.update({
     where: { id },
-    data: { halfStars, body, spoiler },
+    // Assigning `halfStars` fires the rating trigger, which rewrites the movie row even for the same
+    // value, so a text-only edit leaves the column out.
+    data: { ...(rerated ? { halfStars } : {}), body, spoiler },
     select: reviewSelect,
   })
-  if (row.halfStars !== record.halfStars) {
+  if (rerated) {
     await invalidateTags(RATINGS_TAG)
   }
   return toReview(row, viewer)

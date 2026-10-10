@@ -19,6 +19,7 @@ import {
   type MovieSummary,
   type UpdateMovieInput,
 } from '@/lib/dto/movies'
+import type { RatingSummary } from '@/lib/dto/reviews'
 import { slugify } from '@/lib/slug'
 import { invalidateTags, remember } from '@/lib/server/cache'
 import { logger } from '@/lib/server/logger'
@@ -28,11 +29,13 @@ import { CATALOG_TAG, RATINGS_TAG } from './cacheTags'
 import { db } from './db'
 import { escapeLike } from './escapeLike'
 import { NotFoundError, parseInput, ValidationError } from './errors'
+import { genreSelect } from './genres'
 import { movieSummarySelect, toMovieSummary } from './movieSummary'
 import { personSummarySelect } from './people'
 import { moviePolicy } from './policies/movie'
 import { authorize, permissionsFor } from './policy'
 import { isForeignKeyViolation, isUniqueViolation } from './prismaErrors'
+import { movieRatingSelect, toRatingSummary } from './reviews'
 import { uniqueSlug } from './slugs'
 import { deleteObjectAfterTicket, requireOwnKey, verifyStoredObject } from './uploads'
 import { userProfileSelect } from './users'
@@ -56,16 +59,41 @@ const movieDetailSelect = {
   },
 } satisfies Prisma.MovieSelect
 
+/** The detail without its rating, which is read on its own (`loadMovieRating`). */
+const movieRecordSelect = {
+  id: true,
+  slug: true,
+  title: true,
+  releaseDate: true,
+  runtimeMinutes: true,
+  posterUrl: true,
+  genres: {
+    select: { genre: { select: genreSelect } },
+    orderBy: [{ genre: { name: 'asc' } }, { genreId: 'asc' }],
+  },
+  synopsis: true,
+  createdAt: true,
+  updatedAt: true,
+  createdById: true,
+  createdBy: { select: userProfileSelect },
+  credits: {
+    select: { role: true, star: true, person: { select: personSummarySelect } },
+    orderBy: [{ position: 'asc' }, { personId: 'asc' }],
+  },
+} satisfies Prisma.MovieSelect
+
 type MovieDetailRow = Prisma.MovieGetPayload<{ select: typeof movieDetailSelect }>
+type MovieRecordRow = Prisma.MovieGetPayload<{ select: typeof movieRecordSelect }>
 
 /**
- * The detail without `permissions` plus the policy's input (`createdById`): the same for every
- * viewer, so this is what gets cached.
+ * The detail without `permissions` and `rating`, plus the policy's input (`createdById`): the same
+ * for every viewer and changed by catalog writes only, so this is what gets cached. The rating is
+ * left out because reviews change it far more often than the catalog changes the rest.
  */
-type MovieRecord = Omit<MovieDetail, 'permissions'> & { createdById: string | null }
+type MovieRecord = Omit<MovieDetail, 'permissions' | 'rating'> & { createdById: string | null }
 
 const movieRecordSchema = movieDetailSchema
-  .omit({ permissions: true })
+  .omit({ permissions: true, rating: true })
   .extend({ createdById: z.string().nullable() })
 
 const MOVIES_CACHE_TTL = 5 * MINUTE
@@ -84,15 +112,7 @@ const ORDER_BY: Record<MovieSort, Prisma.MovieOrderByWithRelationInput[]> = {
   ],
 }
 
-const toMovieRecord = ({
-  credits,
-  synopsis,
-  createdAt,
-  updatedAt,
-  createdById,
-  createdBy,
-  ...summaryRow
-}: MovieDetailRow): MovieRecord => {
+const toMovieRecord = ({ credits, genres, ...movie }: MovieRecordRow): MovieRecord => {
   const grouped: MovieRecord['credits'] = { directors: [], writers: [], cast: [] }
   for (const { role, star, person } of credits) {
     if (role === 'DIRECTOR') {
@@ -103,39 +123,40 @@ const toMovieRecord = ({
       grouped.cast.push({ ...person, star })
     }
   }
-  return {
-    ...toMovieSummary(summaryRow),
-    synopsis,
-    createdAt,
-    updatedAt,
-    createdById,
-    createdBy,
-    credits: grouped,
-  }
+  return { ...movie, genres: genres.map(({ genre }) => genre), credits: grouped }
 }
 
-const withPermissions = (
+const toMovieDetail = (
   { createdById, ...record }: MovieRecord,
+  rating: RatingSummary,
   viewer: SessionUser | null,
 ): MovieDetail => ({
   ...record,
+  rating,
   permissions: permissionsFor(moviePolicy, PERMISSION_ACTIONS, viewer, { createdById }),
 })
 
 const loadMovieRecord = async (
   where: Prisma.MovieWhereUniqueInput,
 ): Promise<MovieRecord | null> => {
-  const row = await db.movie.findUnique({ where, select: movieDetailSelect })
+  const row = await db.movie.findUnique({ where, select: movieRecordSelect })
   return row ? toMovieRecord(row) : null
+}
+
+const loadMovieRating = async (
+  where: Prisma.MovieWhereUniqueInput,
+): Promise<RatingSummary | null> => {
+  const row = await db.movie.findUnique({ where, select: movieRatingSelect })
+  return row ? toRatingSummary(row) : null
 }
 
 /** The detail fresh from the database, for the result of a write. */
 const readMovieDetail = async (id: string, viewer: SessionUser): Promise<MovieDetail> => {
-  const record = await loadMovieRecord({ id })
-  if (!record) {
+  const [record, rating] = await Promise.all([loadMovieRecord({ id }), loadMovieRating({ id })])
+  if (!record || !rating) {
     throw new NotFoundError('Movie not found')
   }
-  return withPermissions(record, viewer)
+  return toMovieDetail(record, rating, viewer)
 }
 
 /** The first and last day of a year range, as the `date` column holds them (midnight UTC). */
@@ -234,8 +255,10 @@ export const listMovies = async (query: ListMoviesQuery): Promise<Page<MovieSumm
 }
 
 /**
- * Public: one movie with its genres, credits by role in billing order and creator. A malformed slug
- * is not found, like an unknown one. The record is cached; `permissions` is computed per viewer after.
+ * Public: one movie with its genres, credits by role in billing order, creator and rating. A
+ * malformed slug is not found, like an unknown one. The record is cached under `CATALOG_TAG` alone;
+ * the rating is read beside it by primary key, so a review never expires the record (nor any other
+ * movie's). `permissions` is computed per viewer after.
  */
 export const getMovieBySlug = async (slug: string): Promise<MovieDetail> => {
   const viewer = await getSessionUser()
@@ -243,18 +266,25 @@ export const getMovieBySlug = async (slug: string): Promise<MovieDetail> => {
   if (!parsed.success) {
     throw new NotFoundError('Movie not found')
   }
-  const record = await remember(
-    `movie:${parsed.data}`,
-    { ttl: MOVIES_CACHE_TTL, tags: [CATALOG_TAG, RATINGS_TAG], schema: movieRecordSchema },
-    async () => {
-      const loaded = await loadMovieRecord({ slug: parsed.data })
-      if (!loaded) {
-        throw new NotFoundError('Movie not found')
-      }
-      return loaded
-    },
-  )
-  return withPermissions(record, viewer)
+  const [record, rating] = await Promise.all([
+    remember(
+      `movie:${parsed.data}`,
+      { ttl: MOVIES_CACHE_TTL, tags: [CATALOG_TAG], schema: movieRecordSchema },
+      async () => {
+        const loaded = await loadMovieRecord({ slug: parsed.data })
+        if (!loaded) {
+          throw new NotFoundError('Movie not found')
+        }
+        return loaded
+      },
+    ),
+    loadMovieRating({ slug: parsed.data }),
+  ])
+  // Deleted since its record was cached.
+  if (!rating) {
+    throw new NotFoundError('Movie not found')
+  }
+  return toMovieDetail(record, rating, viewer)
 }
 
 type ParsedMovieInput = z.output<typeof movieInput>

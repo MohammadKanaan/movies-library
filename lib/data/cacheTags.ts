@@ -12,9 +12,10 @@ export const userTag = (id: string) => `user:${id}`
 export const CATALOG_TAG = 'catalog'
 
 /**
- * Every cached read that shows a movie's rating (movie lists and details, filmographies) carries this
- * tag as well, and every review write invalidates it, as does deleting a user (their reviews
- * cascade). It is not `CATALOG_TAG`: a review changes ratings, not genres or people. One tag rather
- * than one per movie, because a list sorted by rating changes when any movie's rating does.
+ * Every cached read that shows many movies' ratings (movie lists, filmographies) carries this tag as
+ * well, and every review write invalidates it, as does deleting a user (their reviews cascade). It is
+ * not `CATALOG_TAG`: a review changes ratings, not genres or people. One tag rather than one per
+ * movie, because a list sorted by rating changes when any movie's rating does. A movie's own page
+ * does not carry it: `getMovieBySlug` reads the rating beside its cached record.
  */
 export const RATINGS_TAG = 'ratings'
