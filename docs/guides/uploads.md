@@ -7,7 +7,7 @@ bucket through a presigned PUT; the code in `lib/server/storage.ts`, `lib/data/u
 The five `R2_*` variables are **optional as a group** (`lib/server/env.ts` refuses a partial set).
 Without them `isStorageConfigured()` is false, the DAL refuses tickets, `/settings` hides the profile
 photo card and the admin poster card and people photo dialog show a note instead of their controls
-(`canUpload()`), and the template runs without an R2 account. With them:
+(`canUpload()`), and the app runs without an R2 account. With them:
 
 | Variable               | Value                                                                                               |
 | ---------------------- | --------------------------------------------------------------------------------------------------- |
@@ -20,7 +20,7 @@ photo card and the admin poster card and people photo dialog show a note instead
 Setting up the bucket in the Cloudflare dashboard:
 
 1. **Create the bucket.** Location hint as you like; `region` in the client is `auto`.
-2. **Public access.** Settings → Public access: enable the `r2.dev` subdomain (fine for a template;
+2. **Public access.** Settings → Public access: enable the `r2.dev` subdomain (fine for development;
    rate limited and not for production traffic) or connect a custom domain (recommended in production:
    Cloudflare's cache and WAF sit in front). Either origin is `R2_PUBLIC_URL`. This makes **every
    object in the bucket** readable by URL, drafts included: private documents need short-lived signed

@@ -19,7 +19,6 @@ import {
   ROUTE_MOVIES,
   ROUTE_PEOPLE,
   ROUTE_SETTINGS,
-  ROUTE_UI_KIT,
 } from '@/lib/constants-routes'
 import type { CurrentUser } from '@/lib/dto/users'
 import { env } from '@/lib/env'
@@ -31,7 +30,6 @@ const MOBILE_SEARCH_ID = 'mobile-search'
 const NAV_LINKS = [
   { label: 'Movies', href: ROUTE_MOVIES },
   { label: 'People', href: ROUTE_PEOPLE },
-  { label: 'UI Kit', href: ROUTE_UI_KIT },
 ]
 
 /** Only for admins; the page itself is guarded by the DAL, this just hides the link. */

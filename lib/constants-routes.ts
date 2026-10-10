@@ -1,3 +1,4 @@
+/** Redirects to the movie list (`redirects` in `next.config.ts`): the catalog is the home page. */
 export const ROUTE_HOME = '/'
 export const ROUTE_LOGIN = '/login'
 export const ROUTE_SIGNUP = '/signup'
@@ -5,7 +6,6 @@ export const ROUTE_FORGOT_PASSWORD = '/forgot-password'
 export const ROUTE_RESET_PASSWORD = '/reset-password'
 export const ROUTE_SETTINGS = '/settings'
 export const ROUTE_ADMIN = '/admin'
-export const ROUTE_UI_KIT = '/ui-kit'
 export const ROUTE_MOVIES = '/movies'
 export const ROUTE_PEOPLE = '/people'
 export const ROUTE_SEARCH = '/search'
@@ -60,7 +60,6 @@ export const PUBLIC_ROUTES = [
   ROUTE_SIGNUP,
   ROUTE_FORGOT_PASSWORD,
   ROUTE_RESET_PASSWORD,
-  ROUTE_UI_KIT,
   ROUTE_MOVIES,
   ROUTE_PEOPLE,
   ROUTE_SEARCH,

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { NavBar } from '@/components/Layout/NavBar'
 import type { CurrentUser } from '@/lib/dto/users'
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/ui-kit' }))
+vi.mock('next/navigation', () => ({ usePathname: () => '/movies' }))
 vi.mock('@/components/Auth/SignOutButton', () => ({
   SignOutButton: () => <button>Log out</button>,
 }))

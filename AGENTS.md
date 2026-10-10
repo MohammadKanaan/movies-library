@@ -294,7 +294,7 @@ logged and falls through to the database. Tag versions have no TTL, so Redis mus
 | Variables / functions        | camelCase                  | `hydrateProfileForm`, `presentMovie`    |
 | Components / classes / types | PascalCase                 | `ProfileForm`, `AdminUser`, `DataError` |
 | Component directories        | PascalCase                 | `components/Settings/ProfileForm/`      |
-| Route segments               | lowercase / kebab-case     | `app/(site)/ui-kit/`                    |
+| Route segments               | lowercase / kebab-case     | `app/(minimal)/forgot-password/`        |
 | Hooks                        | `useXxx`                   | `useScrollLock`                         |
 | Presenters                   | `presentXxx`               | `presentMovie`                          |
 | Test files                   | `*.test.ts` / `*.test.tsx` | `users.test.ts`                         |
@@ -328,8 +328,6 @@ logged and falls through to the database. Tag versions have no TTL, so Redis mus
 - Keep test pages internal-facing: simple controls, minimal copy, and enough state visibility to
   support manual QA without turning them into product UI.
 - It should allow the tester to explore the component thoroughly.
-- Reusable component examples belong in the `/ui-kit` catalog instead; keep it in sync when a
-  reusable component changes.
 
 ## Layouts
 

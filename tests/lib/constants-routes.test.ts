@@ -46,8 +46,6 @@ describe('route helpers', () => {
       '/signup',
       '/forgot-password',
       '/reset-password',
-      '/ui-kit',
-      '/ui-kit/anything',
       '/movies',
       '/movies/dune-2021',
       '/people',
@@ -59,7 +57,7 @@ describe('route helpers', () => {
   })
 
   it('treats every other page as private', () => {
-    for (const path of ['/settings', '/admin', '/admin/users', '/anything']) {
+    for (const path of ['/settings', '/admin', '/admin/users', '/ui-kit', '/anything']) {
       expect(isPrivateRoute(path)).toBe(true)
     }
   })

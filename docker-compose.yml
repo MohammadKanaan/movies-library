@@ -15,7 +15,7 @@ x-app-env: &app-env
   BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
   REDIS_URL: redis://redis:6379/0
   RESEND_API_KEY: ${RESEND_API_KEY:-}
-  EMAIL_FROM: ${EMAIL_FROM:-Next Template <noreply@example.com>}
+  EMAIL_FROM: ${EMAIL_FROM:-Movie Library <noreply@example.com>}
   # Google sign-in is on only when both are set (redirect URI: <BETTER_AUTH_URL>/api/auth/callback/google).
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
@@ -66,9 +66,9 @@ services:
     build:
       context: .
       args:
-        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Next Template}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Movie Library}
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/v1}
-    image: next-template-app
+    image: movies-library-app
     command:
       - sh
       - -c
@@ -81,7 +81,7 @@ services:
 
   web:
     profiles: ['app']
-    image: next-template-app
+    image: movies-library-app
     command: ['bun', 'run', 'start']
     environment: *app-env
     ports:
@@ -105,7 +105,7 @@ services:
 
   worker:
     profiles: ['app']
-    image: next-template-app
+    image: movies-library-app
     command: ['bun', 'run', 'worker']
     environment: *app-env
     depends_on:

@@ -40,7 +40,7 @@ describe('proxy', () => {
   })
 
   it('lets anyone through to public pages', () => {
-    for (const path of ['/', '/ui-kit']) {
+    for (const path of ['/', '/movies', '/movies/dune-2021']) {
       expect(proxy(request(path)).headers.get('x-middleware-next')).toBe('1')
     }
   })

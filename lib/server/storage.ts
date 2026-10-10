@@ -12,7 +12,7 @@ import { serverEnv, type ServerEnv } from './env'
 
 // Cloudflare R2 through its S3 API. The five `R2_*` variables are optional as a group: without
 // them `isStorageConfigured()` is false, the DAL refuses to issue tickets and the UI hides the
-// upload controls, so the template runs without an R2 account.
+// upload controls, so the app runs without an R2 account.
 
 type StorageEnv = {
   accountId: string

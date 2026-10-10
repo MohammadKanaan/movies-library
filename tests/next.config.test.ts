@@ -19,6 +19,12 @@ describe('next.config', () => {
     expect(await nextConfig.headers!()).toEqual([{ source: '/(.*)', headers: SECURITY_HEADERS }])
   })
 
+  it('sends the home page to the movie list, temporarily', async () => {
+    expect(await nextConfig.redirects!()).toEqual([
+      { source: '/', destination: '/movies', permanent: false },
+    ])
+  })
+
   it.each(Object.entries(EXPECTED_HEADERS))('sends %s once with its exact value', (key, value) => {
     expect(SECURITY_HEADERS.filter((header) => header.key === key)).toEqual([{ key, value }])
   })
