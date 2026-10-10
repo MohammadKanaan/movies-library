@@ -10,6 +10,7 @@ import { ButtonLink } from '@/components/ButtonLink'
 import { SiteSearch } from '@/components/Layout/SiteSearch'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { UserAvatar } from '@/components/UserAvatar'
+import { useReturnPath } from '@/hooks/useReturnPath'
 import { useScrollLock } from '@/hooks/useScrollLock'
 import { BREAKPOINTS } from '@/lib/constants-breakpoints'
 import {
@@ -71,9 +72,11 @@ type AccountActionsProps = {
 }
 
 const AccountActions = ({ user }: AccountActionsProps) => {
+  const { remember } = useReturnPath()
+
   if (!user) {
     return (
-      <ButtonLink href={ROUTE_LOGIN} size="sm">
+      <ButtonLink href={ROUTE_LOGIN} size="sm" onClick={remember}>
         Log in
       </ButtonLink>
     )
