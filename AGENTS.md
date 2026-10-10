@@ -85,6 +85,7 @@ what the code cannot: creating the R2 bucket, its public domain, CORS rule and A
 ```
 app/                     # App Router: route groups (site), (minimal); api/auth, api/health
   (site)/<route>/        # page.tsx (Server Component) + optional view.tsx ('use client') + styles.module.scss
+  (site)/(home)/         # the home page (`/`), grouped so it has a styles.module.scss of its own
 actions/                 # 'use server' Server Actions (auth, users, admin, uploads)
 components/              # React components (ComponentName/index.tsx + styles.module.scss)
 components/SCN/          # shadcn/ui primitives (the only place Tailwind is allowed)
@@ -97,7 +98,7 @@ lib/dto/                 # Zod schemas + inferred types (inputs and outputs); cl
 lib/client/              # Browser-side helpers: uploadFile (the one fetch to a non-app URL), RequestError
 lib/data/                # Server-only DAL: db client, auth (Better Auth config), errors, users, admin,
                          # sessions, uploads, policy, health, rateLimit, page loader, site (the
-                         # public origin), sitemap;
+                         # public origin), sitemap, discover (the home page's rankings);
                          # maintenance is the system DAL (jobs only)
 lib/server/              # Server-only infrastructure that is not the database: env, redis, cache,
                          # queue, mailer, storage (R2), logger

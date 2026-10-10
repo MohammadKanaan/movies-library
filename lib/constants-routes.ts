@@ -1,4 +1,4 @@
-/** Redirects to the movie list (`redirects` in `next.config.ts`): the catalog is the home page. */
+/** The home page: trending movies and people, fan favorites and the latest releases. */
 export const ROUTE_HOME = '/'
 export const ROUTE_LOGIN = '/login'
 export const ROUTE_SIGNUP = '/signup'

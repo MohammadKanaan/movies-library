@@ -9,6 +9,7 @@ import {
 import { db } from './db'
 import { parseInput } from './errors'
 import { escapeLike } from './escapeLike'
+import { inOrder } from './inOrder'
 import { movieSummarySelect, toMovieSummary } from './movieSummary'
 import { personListItemSelect, toPersonListItem } from './people'
 
@@ -21,15 +22,6 @@ import { personListItemSelect, toPersonListItem } from './people'
 
 /** The ranked ids a search query returns; the rows are then read with the lists' selects. */
 const idRowsSchema = z.array(z.object({ id: z.uuid() }))
-
-/** Keeps `items` in the order of `ids` (`WHERE id IN (...)` returns rows in no particular order). */
-const inOrder = <T extends { id: string }>(ids: string[], items: T[]): T[] => {
-  const byId = new Map(items.map((item) => [item.id, item]))
-  return ids.flatMap((id) => {
-    const item = byId.get(id)
-    return item ? [item] : []
-  })
-}
 
 const rankedMovieIds = async (term: string, contains: string, prefix: string, limit: number) => {
   const rows = await db.$queryRaw`

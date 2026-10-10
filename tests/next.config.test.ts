@@ -19,10 +19,8 @@ describe('next.config', () => {
     expect(await nextConfig.headers!()).toEqual([{ source: '/(.*)', headers: SECURITY_HEADERS }])
   })
 
-  it('sends the home page to the movie list, temporarily', async () => {
-    expect(await nextConfig.redirects!()).toEqual([
-      { source: '/', destination: '/movies', permanent: false },
-    ])
+  it('serves the home page itself, with no redirect', () => {
+    expect(nextConfig.redirects).toBeUndefined()
   })
 
   it.each(Object.entries(EXPECTED_HEADERS))('sends %s once with its exact value', (key, value) => {

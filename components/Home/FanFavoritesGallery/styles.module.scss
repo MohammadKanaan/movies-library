@@ -1,0 +1,303 @@
+// A steep ease-out: the panels move most of the way at once, then settle.
+$ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+$move: 500ms;
+
+.gallery {
+  // The open panel's head start on the others; then every panel shares what is left, so any count
+  // lays out (eight: the open one gets 44%; two: 70%). Resolved on the panels, so `cqw` is the
+  // gallery's width.
+  --open: 36cqw;
+  --height: 28rem;
+  --tilt: 8deg;
+  // Wider than the open panel usually is, so an image can drift without showing an edge.
+  --media-size: calc(var(--open) * 1.5);
+
+  container-type: inline-size;
+  display: flex;
+  gap: 0.625rem;
+  height: var(--height);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  perspective: 1400px;
+}
+
+.panel {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  transform-style: preserve-3d;
+  transition:
+    flex-basis $move $ease-out,
+    transform $move $ease-out;
+
+  &[data-side='active'] {
+    flex-basis: var(--open);
+  }
+
+  // The closed panels turn toward the open one.
+  &[data-side='before'] {
+    transform: rotateY(var(--tilt));
+  }
+
+  &[data-side='after'] {
+    transform: rotateY(calc(var(--tilt) * -1));
+  }
+}
+
+.link {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--secondary);
+  color: var(--foreground);
+  text-decoration: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+
+  &:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--background),
+      0 0 0 4px var(--ring);
+  }
+
+  // Dims a closed panel; fades out as it opens.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: color-mix(in oklch, var(--background) 35%, transparent);
+    transition: opacity 400ms ease;
+    pointer-events: none;
+  }
+}
+
+.panel[data-side='active'] .link::after {
+  opacity: 0;
+}
+
+// Beside the open panel an image drifts away from it, further two or more panels out.
+.media {
+  --drift: 0;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: max(100%, var(--media-size));
+  height: 100%;
+  filter: grayscale(1);
+  transform: translateX(calc(-50% + var(--drift) * var(--media-size) * 0.03));
+  transition:
+    transform $move $ease-out,
+    filter 400ms ease;
+}
+
+.panel[data-side='active'] .media {
+  filter: grayscale(0);
+}
+
+.panel[data-side='before'] .media {
+  --drift: 1;
+}
+
+.panel[data-side='before'][data-far] .media {
+  --drift: 1.5;
+}
+
+.panel[data-side='after'] .media {
+  --drift: -1;
+}
+
+.panel[data-side='after'][data-far] .media {
+  --drift: -1.5;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    color-mix(in oklch, var(--background) 92%, transparent) 0%,
+    color-mix(in oklch, var(--background) 45%, transparent) 30%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.rank {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 2;
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.label {
+  position: absolute;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  left: 1.25rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.bar {
+  flex: none;
+  align-self: stretch;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--primary);
+  box-shadow: 0 0 12px color-mix(in oklch, var(--primary) 60%, transparent);
+}
+
+.text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--foreground);
+  font-family: var(--font-display-family);
+  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+  font-weight: var(--font-display-weight);
+  letter-spacing: var(--font-display-tracking);
+  line-height: 1.1;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.625rem;
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+}
+
+.rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--muted-foreground);
+
+  svg {
+    width: 0.875rem;
+    height: 0.875rem;
+    color: var(--primary);
+    fill: currentColor;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+// A closing panel's caption leaves quickly; an opening one's arrives once the panel has room,
+// bar first, then the title, then the year and rating.
+.bar,
+.title,
+.meta {
+  opacity: 0;
+  transform: translateX(-14px);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease-out;
+}
+
+.panel[data-side='active'] {
+  .bar,
+  .title,
+  .meta {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 300ms ease 150ms,
+      transform 400ms $ease-out 150ms;
+  }
+
+  .title {
+    transition-delay: 200ms;
+  }
+
+  .meta {
+    transition-delay: 250ms;
+  }
+}
+
+// A phone stacks the panels and opens one downward; nothing tilts or drifts.
+@media (width < $breakpoint-md) {
+  .gallery {
+    --height: 34rem;
+    --open: calc(var(--height) * 0.36);
+    flex-direction: column;
+    gap: 0.5rem;
+    perspective: none;
+  }
+
+  .panel[data-side] {
+    transform: none;
+  }
+
+  .gallery .panel[data-side] .media {
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: max(100%, var(--media-size));
+    transform: translateY(-50%);
+  }
+
+  .rank {
+    top: 0.875rem;
+  }
+
+  .label {
+    right: 1rem;
+    bottom: 1rem;
+    left: 1rem;
+  }
+}
+
+// Gentler, not still: the panels change size at once with no tilt, drift or slide, and only the
+// color and caption fade.
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    transition: none;
+  }
+
+  .panel[data-side] {
+    transform: none;
+  }
+
+  .gallery .panel[data-side] .media {
+    --drift: 0;
+    transition: filter 400ms ease;
+  }
+
+  .bar,
+  .title,
+  .meta,
+  .panel[data-side='active'] .bar,
+  .panel[data-side='active'] .title,
+  .panel[data-side='active'] .meta {
+    transform: none;
+  }
+}

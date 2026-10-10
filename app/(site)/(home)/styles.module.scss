@@ -1,0 +1,30 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+// The way on to the whole catalog, under its first rows.
+.more {
+  display: flex;
+  justify-content: center;
+  margin-top: -1rem;
+}
+
+@media (width < $breakpoint-md) {
+  .page {
+    gap: 2rem;
+  }
+}
