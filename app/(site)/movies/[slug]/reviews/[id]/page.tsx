@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { ButtonLink } from '@/components/ButtonLink'
+import { JsonLd } from '@/components/JsonLd'
 import { MoviePoster } from '@/components/Movies/MoviePoster'
 import { CommentList } from '@/components/Reviews/CommentList'
 import { NewComment } from '@/components/Reviews/NewComment'
@@ -18,9 +19,12 @@ import {
 import { loadPage } from '@/lib/data/page'
 import { listComments } from '@/lib/data/reviewComments'
 import { getReview } from '@/lib/data/reviews'
+import { siteUrl } from '@/lib/data/site'
 import { getViewer } from '@/lib/data/users'
 import { commentsUrlQuery } from '@/lib/dto/reviewComments'
 import { toScalarParams } from '@/lib/searchParams'
+import { describeReview, pagedPath, SITE_OPEN_GRAPH } from '@/lib/seo'
+import { reviewJsonLd } from '@/lib/structuredData'
 import { CommentsView } from './view'
 import styles from './styles.module.scss'
 
@@ -42,10 +46,26 @@ const loadReviewOf = async (slug: string, id: string) => {
 
 export const generateMetadata = async ({
   params,
+  searchParams,
 }: PageProps<'/movies/[slug]/reviews/[id]'>): Promise<Metadata> => {
   const { slug, id } = await params
+  const { page } = commentsUrlQuery.parse(toScalarParams(await searchParams))
   const review = await loadReviewOf(slug, id)
-  return { title: `${review.author.name}’s review of ${review.movie.title}` }
+  const { movie } = review
+  return {
+    title: `${review.author.name}’s review of ${movie.title}`,
+    description: describeReview(review),
+    alternates: { canonical: pagedPath(reviewPath(slug, id), page) },
+    openGraph: {
+      ...SITE_OPEN_GRAPH,
+      type: 'article',
+      url: reviewPath(slug, id),
+      publishedTime: review.createdAt.toISOString(),
+      modifiedTime: review.updatedAt.toISOString(),
+      authors: review.author.name,
+      ...(movie.posterUrl ? { images: [{ url: movie.posterUrl, alt: movie.title }] } : {}),
+    },
+  }
 }
 
 const ReviewPage = async ({ params, searchParams }: PageProps<'/movies/[slug]/reviews/[id]'>) => {
@@ -69,6 +89,7 @@ const ReviewPage = async ({ params, searchParams }: PageProps<'/movies/[slug]/re
 
   return (
     <div className={styles.page}>
+      <JsonLd data={reviewJsonLd(review, siteUrl())} />
       <Link href={movieReviewsPath(slug)} className={styles.back}>
         <ArrowLeft aria-hidden="true" />
         All reviews

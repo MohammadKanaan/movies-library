@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { cache } from 'react'
 import { ButtonLink } from '@/components/ButtonLink'
 import { Empty } from '@/components/Empty'
 import { MovieCard } from '@/components/Movies/MovieCard'
@@ -9,9 +10,16 @@ import { listGenres } from '@/lib/data/genres'
 import { listMovies } from '@/lib/data/movies'
 import { loadPage } from '@/lib/data/page'
 import { getPersonSummaryBySlug } from '@/lib/data/people'
-import { hasMovieFilters, moviesUrlQuery, toListMoviesQuery } from '@/lib/dto/movies'
+import type { GenreWithCount } from '@/lib/dto/genres'
+import {
+  hasMovieFilters,
+  moviesUrlQuery,
+  toListMoviesQuery,
+  type MoviesUrlQuery,
+} from '@/lib/dto/movies'
 import type { PersonSummary } from '@/lib/dto/people'
 import { toScalarParams } from '@/lib/searchParams'
+import { moviesCanonicalPath, NO_INDEX, pagedTitle } from '@/lib/seo'
 import { MoviesView } from './view'
 import styles from './styles.module.scss'
 
@@ -20,8 +28,34 @@ const PER_PAGE = 24
 /** Roughly the first two rows on a wide screen: their posters load eagerly. */
 const EAGER_POSTERS = 8
 
-export const metadata: Metadata = {
-  title: 'Movies',
+const ALL_MOVIES = 'Every film in the catalog, newest release first.'
+
+// `generateMetadata` and the page read the same genres: one DAL call per request.
+const loadGenres = cache(() => loadPage(listGenres, ROUTE_MOVIES))
+
+/** The genre a URL filters on when that is its only filter: the page's subject. */
+const onlyGenreOf = (url: MoviesUrlQuery, genres: GenreWithCount[]) =>
+  url.genres.length === 1 && !hasMovieFilters({ ...url, genres: [] })
+    ? genres.find((genre) => genre.slug === url.genres[0])
+    : undefined
+
+/**
+ * The whole catalog and each genre are indexed page by page; any other view is not (see
+ * `moviesCanonicalPath`), and neither is a genre that does not exist.
+ */
+export const generateMetadata = async ({
+  searchParams,
+}: PageProps<'/movies'>): Promise<Metadata> => {
+  const url = moviesUrlQuery.parse(toScalarParams(await searchParams))
+  const genre = onlyGenreOf(url, await loadGenres())
+  const canonical = url.genres.length > 0 && !genre ? null : moviesCanonicalPath(url)
+  return {
+    title: pagedTitle(genre ? `${genre.name} movies` : 'Movies', url.page),
+    description: genre
+      ? `Every ${genre.name} film in the catalog, newest release first.`
+      : ALL_MOVIES,
+    ...(canonical ? { alternates: { canonical } } : { robots: NO_INDEX }),
+  }
 }
 
 /** The person a `person` filter names, for the header and the chip; an unknown slug is no one. */
@@ -45,7 +79,7 @@ const MoviesPage = async ({ searchParams }: PageProps<'/movies'>) => {
   const { movies, genres, person } = await loadPage(async () => {
     const [movies, genres, person] = await Promise.all([
       listMovies(listQuery),
-      listGenres(),
+      loadGenres(),
       url.person ? findPerson(url.person) : null,
     ])
     return { movies, genres, person }
@@ -53,10 +87,7 @@ const MoviesPage = async ({ searchParams }: PageProps<'/movies'>) => {
 
   const filtered = hasMovieFilters(url)
   // A single genre or a single person is the page's subject; anything else is "your filters".
-  const onlyGenre =
-    url.genres.length === 1 && !hasMovieFilters({ ...url, genres: [] })
-      ? genres.find((genre) => genre.slug === url.genres[0])
-      : undefined
+  const onlyGenre = onlyGenreOf(url, genres)
   const onlyPerson = person && !hasMovieFilters({ ...url, person: '' }) ? person : null
   const description = onlyGenre
     ? `${plural(movies.totalItems)} in this genre.`
@@ -64,7 +95,7 @@ const MoviesPage = async ({ searchParams }: PageProps<'/movies'>) => {
       ? `${plural(movies.totalItems)} credited to ${onlyPerson.name}.`
       : filtered
         ? `${plural(movies.totalItems)} match your filters.`
-        : 'Every film in the catalog, newest release first.'
+        : ALL_MOVIES
 
   return (
     <div className={styles.page}>

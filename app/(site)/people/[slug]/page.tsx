@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { cache } from 'react'
 import { ActionGroup } from '@/components/ActionGroup'
 import { Empty } from '@/components/Empty'
+import { JsonLd } from '@/components/JsonLd'
 import { MovieCard } from '@/components/Movies/MovieCard'
 import { DeletePersonDialog } from '@/components/People/DeletePersonDialog'
 import { Headshot } from '@/components/People/Headshot'
@@ -11,7 +12,10 @@ import { personPath, ROUTE_PEOPLE } from '@/lib/constants-routes'
 import { creditRoleLabel, summarizeFilmography } from '@/lib/creditRoles'
 import { loadPage } from '@/lib/data/page'
 import { getPersonBySlug } from '@/lib/data/people'
+import { siteUrl } from '@/lib/data/site'
 import { formatDate } from '@/lib/formatDate'
+import { describePerson, SITE_OPEN_GRAPH } from '@/lib/seo'
+import { personJsonLd } from '@/lib/structuredData'
 import styles from './styles.module.scss'
 
 /** Roughly the first two rows on a wide screen: their posters load eagerly. */
@@ -25,7 +29,18 @@ export const generateMetadata = async ({
 }: PageProps<'/people/[slug]'>): Promise<Metadata> => {
   const { slug } = await params
   const person = await loadPerson(slug)
-  return { title: person.name }
+  const path = personPath(slug)
+  return {
+    title: person.name,
+    description: describePerson(person),
+    alternates: { canonical: path },
+    openGraph: {
+      ...SITE_OPEN_GRAPH,
+      type: 'profile',
+      url: path,
+      ...(person.headshotUrl ? { images: [{ url: person.headshotUrl, alt: person.name }] } : {}),
+    },
+  }
 }
 
 const PersonPage = async ({ params }: PageProps<'/people/[slug]'>) => {
@@ -37,6 +52,7 @@ const PersonPage = async ({ params }: PageProps<'/people/[slug]'>) => {
 
   return (
     <article className={styles.page}>
+      <JsonLd data={personJsonLd(person, siteUrl())} />
       <Link href={ROUTE_PEOPLE} className={styles.back}>
         <ArrowLeft aria-hidden="true" />
         All people

@@ -91,11 +91,13 @@ components/SCN/          # shadcn/ui primitives (the only place Tailwind is allo
 hooks/                   # Reusable React hooks (useXxx)
 presenters/              # Override functions for views that need reshaped data
 types/                   # Cross-cutting types (types/api.ts: ActionResult, ErrorBody, FieldErrors)
-lib/                     # Pure helpers, constants, env, formErrors, username derivation
+lib/                     # Pure helpers, constants, env, formErrors, username derivation,
+                         # seo (descriptions, canonicals, NO_INDEX) and structuredData (JSON-LD)
 lib/dto/                 # Zod schemas + inferred types (inputs and outputs); client- and server-safe
 lib/client/              # Browser-side helpers: uploadFile (the one fetch to a non-app URL), RequestError
 lib/data/                # Server-only DAL: db client, auth (Better Auth config), errors, users, admin,
-                         # sessions, uploads, policy, health, rateLimit, page loader;
+                         # sessions, uploads, policy, health, rateLimit, page loader, site (the
+                         # public origin), sitemap;
                          # maintenance is the system DAL (jobs only)
 lib/server/              # Server-only infrastructure that is not the database: env, redis, cache,
                          # queue, mailer, storage (R2), logger
@@ -140,6 +142,12 @@ docs/DECISIONS.md        # Framework and library choices, with reasons; what was
 - **Server Components by default.** Add `'use client'` only for state, effects, event handlers, or
   browser APIs. `page.tsx` is an async Server Component that owns `metadata`, awaits
   `params`/`searchParams` (Promises), calls the DAL through `loadPage` and renders the markup.
+- **SEO lives in the page's metadata.** A public page sets a `description` and a relative
+  `alternates.canonical` (the root layout's `metadataBase`, `siteUrl()`, makes it absolute); a
+  record page also sets `openGraph` (spreading `SITE_OPEN_GRAPH`, which a page's own object
+  replaces) and renders `<JsonLd>` from `lib/structuredData`. A private, transient or
+  near-duplicate view (search results, filtered lists, auth pages) sets `robots: NO_INDEX` instead
+  of a canonical. A new indexable route also goes into `app/sitemap.ts`.
 - **Push `'use client'` to the leaves.** A page with nothing interactive of its own has no
   `view.tsx`: it renders on the server and only its interactive pieces (a delete button) are client
   components. Add a sibling `view.tsx` only for the interactive part: handlers that call Server

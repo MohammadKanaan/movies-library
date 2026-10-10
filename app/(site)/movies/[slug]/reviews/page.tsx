@@ -13,6 +13,7 @@ import { loadPage } from '@/lib/data/page'
 import { getReviewSummary, listReviews } from '@/lib/data/reviews'
 import { reviewsUrlQuery } from '@/lib/dto/reviews'
 import { toScalarParams } from '@/lib/searchParams'
+import { metaDescription, pagedPath, pagedTitle } from '@/lib/seo'
 import { ReviewsView } from './view'
 import styles from './styles.module.scss'
 
@@ -25,10 +26,17 @@ const loadMovie = cache((slug: string) =>
 
 export const generateMetadata = async ({
   params,
+  searchParams,
 }: PageProps<'/movies/[slug]/reviews'>): Promise<Metadata> => {
   const { slug } = await params
+  const { page } = reviewsUrlQuery.parse(toScalarParams(await searchParams))
   const movie = await loadMovie(slug)
-  return { title: `Reviews of ${movie.title} (${movie.releaseDate.getUTCFullYear()})` }
+  const title = `${movie.title} (${movie.releaseDate.getUTCFullYear()})`
+  return {
+    title: pagedTitle(`Reviews of ${title}`, page),
+    description: metaDescription(`What viewers think of ${title}: their ratings and reviews.`),
+    alternates: { canonical: pagedPath(movieReviewsPath(slug), page) },
+  }
 }
 
 const MovieReviewsPage = async ({ params, searchParams }: PageProps<'/movies/[slug]/reviews'>) => {

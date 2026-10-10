@@ -19,6 +19,7 @@ import { searchCatalog } from '@/lib/data/search'
 import { SEARCH_MIN_LENGTH } from '@/lib/dto/common'
 import { isSearchable, searchUrlQuery } from '@/lib/dto/search'
 import { toScalarParams } from '@/lib/searchParams'
+import { NO_INDEX } from '@/lib/seo'
 import styles from './styles.module.scss'
 
 /** How many movies and how many people the page shows; the lists have the rest. */
@@ -30,7 +31,8 @@ export const generateMetadata = async ({
   searchParams,
 }: PageProps<'/search'>): Promise<Metadata> => {
   const { q } = searchUrlQuery.parse(toScalarParams(await searchParams))
-  return { title: q ? `“${q}” · Search` : 'Search' }
+  // Search results are not a page of their own: crawlers follow the links, the index skips it.
+  return { title: q ? `“${q}” · Search` : 'Search', robots: NO_INDEX }
 }
 
 /**

@@ -5,6 +5,7 @@ import { cache, Fragment } from 'react'
 import { ActionGroup } from '@/components/ActionGroup'
 import { ActionLink } from '@/components/ActionLink'
 import { ButtonLink } from '@/components/ButtonLink'
+import { JsonLd } from '@/components/JsonLd'
 import { DeleteMovieDialog } from '@/components/Movies/DeleteMovieDialog'
 import { GenreTags } from '@/components/Movies/GenreTags'
 import { MoviePoster } from '@/components/Movies/MoviePoster'
@@ -21,15 +22,19 @@ import {
   personPath,
   ROUTE_MOVIES,
 } from '@/lib/constants-routes'
+import { MINUTE } from '@/lib/constants-time'
 import { getMovieBySlug } from '@/lib/data/movies'
 import { loadPage } from '@/lib/data/page'
 import { getReviewSummary, getViewerReview, listReviews } from '@/lib/data/reviews'
+import { siteUrl } from '@/lib/data/site'
 import { getViewer } from '@/lib/data/users'
 import type { PersonSummary } from '@/lib/dto/people'
 import { viewerReviewUrlQuery, type RatingSummary } from '@/lib/dto/reviews'
 import { formatDate } from '@/lib/formatDate'
 import { formatRuntime } from '@/lib/formatRuntime'
 import { toScalarParams } from '@/lib/searchParams'
+import { describeMovie, SITE_OPEN_GRAPH } from '@/lib/seo'
+import { movieJsonLd } from '@/lib/structuredData'
 import { presentMovieDetail, type SupportingCredit } from '@/presenters/movieDetail'
 import styles from './styles.module.scss'
 
@@ -79,7 +84,21 @@ export const generateMetadata = async ({
 }: PageProps<'/movies/[slug]'>): Promise<Metadata> => {
   const { slug } = await params
   const movie = await loadMovie(slug)
-  return { title: `${movie.title} (${movie.releaseDate.getUTCFullYear()})` }
+  const path = moviePath(slug)
+  return {
+    title: `${movie.title} (${movie.releaseDate.getUTCFullYear()})`,
+    description: describeMovie(movie),
+    alternates: { canonical: path },
+    openGraph: {
+      ...SITE_OPEN_GRAPH,
+      type: 'video.movie',
+      url: path,
+      releaseDate: movie.releaseDate.toISOString().slice(0, 10),
+      ...(movie.runtimeMinutes === null ? {} : { duration: movie.runtimeMinutes * MINUTE }),
+      tags: movie.genres.map((genre) => genre.name),
+      ...(movie.posterUrl ? { images: [{ url: movie.posterUrl, alt: movie.title }] } : {}),
+    },
+  }
 }
 
 const MoviePage = async ({ params, searchParams }: PageProps<'/movies/[slug]'>) => {
@@ -109,6 +128,7 @@ const MoviePage = async ({ params, searchParams }: PageProps<'/movies/[slug]'>) 
 
   return (
     <article className={styles.page}>
+      <JsonLd data={movieJsonLd(movie, summary, siteUrl())} />
       {/* Always dark: the hero sits on the poster's blurred colours, in either theme. */}
       <section className={`dark ${styles.hero}`}>
         {movie.posterUrl ? (
