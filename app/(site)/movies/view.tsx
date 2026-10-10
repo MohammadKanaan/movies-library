@@ -13,6 +13,8 @@ import { useUrlState } from '@/hooks/useUrlState'
 import styles from './styles.module.scss'
 
 type MoviesViewProps = {
+  /** The server-rendered page header, with the filter toggle and sort beside it. */
+  header: ReactNode
   page: number
   perPage: number
   totalPages: number
@@ -169,13 +171,14 @@ const MoviesResults = ({
  * down when it opens; a different query or first batch starts a fresh list and aborts the old one.
  */
 export const MoviesView = (props: MoviesViewProps) => {
-  const { page, perPage, totalPages, query, genres, person, initialIds } = props
+  const { header, page, perPage, totalPages, query, genres, person, initialIds } = props
   const { state, setState, isPending } = useUrlState(moviesUrlQuery, { history: 'push' })
   const key = JSON.stringify([query, page, perPage, totalPages, initialIds])
 
   return (
     <div className={styles.view}>
       <MovieFilters
+        header={header}
         filters={state}
         sort={state.sort}
         genres={genres}

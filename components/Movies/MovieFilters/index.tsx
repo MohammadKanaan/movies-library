@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronDown, Search, SlidersHorizontal, X } from 'lucide-react'
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Input } from '@/components/Form/Input'
 import { GenreFilter } from '@/components/Movies/GenreFilter'
 import { PersonFilter } from '@/components/Movies/PersonFilter'
@@ -42,6 +42,8 @@ const YEAR_TRACK_MIN = 1920
 const RUNTIME_TRACK = { min: 30, max: 240, step: 5 }
 
 type MovieFiltersProps = {
+  /** The page header the Filters toggle and the sort sit beside. */
+  header?: ReactNode
   /** The filters in the URL. */
   filters: Filters
   sort: MovieSort
@@ -138,13 +140,14 @@ const readoutOf = (from: number | null, to: number | null, any: string, unit = '
   from === null && to === null ? any : rangeLabel(from, to, unit)
 
 /**
- * The movie list's search and filters, IMDb's advanced search in one bar: the title search and
- * sort always shown, a card under them (opened by Filters, growing in and pushing the list down)
- * for genres, release year, runtime and person, and a chip per filter in force. Everything lives
- * in the URL through `onChange` / `onSortChange`: the title search applies on its button, the
- * card's fields as each choice settles (a genre picked, a slider released).
+ * The movie list's search and filters, IMDb's advanced search beside the page header in one bar:
+ * the title search and sort always shown, a card under them (opened by Filters, growing in and
+ * pushing the list down) for genres, release year, runtime and person, and a chip per filter in
+ * force. Everything lives in the URL through `onChange` / `onSortChange`: the title search applies
+ * on its button, the card's fields as each choice settles (a genre picked, a slider released).
  */
 export const MovieFilters = ({
+  header,
   filters,
   sort,
   genres,
@@ -199,6 +202,7 @@ export const MovieFilters = ({
   return (
     <div className={styles.filters}>
       <div className={styles.toolbar}>
+        {header}
         <form className={styles.search} role="search" aria-label="Movies" onSubmit={handleSearch}>
           <div className={styles.searchField}>
             {/* Keyed by the URL's search, so a removed chip or the back button refills it. */}

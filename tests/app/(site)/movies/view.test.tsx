@@ -31,6 +31,7 @@ const movie = (id: string, title: string): MovieSummary => ({
 const query: ListMoviesQuery = { q: 'film', genres: ['drama'], person: 'amy-adams', sort: 'oldest' }
 
 const props = {
+  header: <h1>Movies</h1>,
   page: 1,
   perPage: 24,
   totalPages: 1,
@@ -92,8 +93,9 @@ describe('MoviesView', () => {
   })
   afterEach(() => vi.unstubAllGlobals())
 
-  it('renders the grid it is given and no load control for a single batch', () => {
+  it('renders the header and grid it is given and no load control for a single batch', () => {
     render(view())
+    expect(screen.getByRole('heading', { name: 'Movies' })).toBeInTheDocument()
     expect(screen.getByText('the grid')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Load more movies' })).not.toBeInTheDocument()
   })

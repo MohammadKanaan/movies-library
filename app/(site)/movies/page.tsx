@@ -99,18 +99,20 @@ const MoviesPage = async ({ searchParams }: PageProps<'/movies'>) => {
 
   return (
     <div className={styles.page}>
-      <PageHeader
-        title={onlyGenre?.name ?? 'Movies'}
-        description={description}
-        actions={
-          filtered ? (
-            <ButtonLink href={ROUTE_MOVIES} variant="outline">
-              All movies
-            </ButtonLink>
-          ) : null
-        }
-      />
       <MoviesView
+        header={
+          <PageHeader
+            title={onlyGenre?.name ?? 'Movies'}
+            description={description}
+            actions={
+              filtered ? (
+                <ButtonLink href={ROUTE_MOVIES} variant="outline">
+                  All movies
+                </ButtonLink>
+              ) : null
+            }
+          />
+        }
         page={movies.page}
         perPage={movies.perPage}
         totalPages={movies.totalPages}
