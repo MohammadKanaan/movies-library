@@ -29,8 +29,7 @@ import { CATALOG_TAG, RATINGS_TAG } from './cacheTags'
 import { db } from './db'
 import { escapeLike } from './escapeLike'
 import { NotFoundError, parseInput, ValidationError } from './errors'
-import { genreSelect } from './genres'
-import { movieSummarySelect, toMovieSummary } from './movieSummary'
+import { movieFieldsSelect, movieSummarySelect, toMovieSummary } from './movieSummary'
 import { personSummarySelect } from './people'
 import { moviePolicy } from './policies/movie'
 import { authorize, permissionsFor } from './policy'
@@ -46,31 +45,9 @@ import { userProfileSelect } from './users'
 
 const log = logger.child({ module: 'movies' })
 
-const movieDetailSelect = {
-  ...movieSummarySelect,
-  synopsis: true,
-  createdAt: true,
-  updatedAt: true,
-  createdById: true,
-  createdBy: { select: userProfileSelect },
-  credits: {
-    select: { role: true, star: true, person: { select: personSummarySelect } },
-    orderBy: [{ position: 'asc' }, { personId: 'asc' }],
-  },
-} satisfies Prisma.MovieSelect
-
 /** The detail without its rating, which is read on its own (`loadMovieRating`). */
 const movieRecordSelect = {
-  id: true,
-  slug: true,
-  title: true,
-  releaseDate: true,
-  runtimeMinutes: true,
-  posterUrl: true,
-  genres: {
-    select: { genre: { select: genreSelect } },
-    orderBy: [{ genre: { name: 'asc' } }, { genreId: 'asc' }],
-  },
+  ...movieFieldsSelect,
   synopsis: true,
   createdAt: true,
   updatedAt: true,
@@ -82,7 +59,6 @@ const movieRecordSelect = {
   },
 } satisfies Prisma.MovieSelect
 
-type MovieDetailRow = Prisma.MovieGetPayload<{ select: typeof movieDetailSelect }>
 type MovieRecordRow = Prisma.MovieGetPayload<{ select: typeof movieRecordSelect }>
 
 /**

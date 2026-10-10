@@ -8,8 +8,8 @@ import { movieRatingSelect, toRatingSummary } from './reviews'
 // `people.ts` for the credits' people, and `people.ts` needs the summary for filmographies.
 // `admin.ts` and `search.ts` reuse them too.
 
-/** Exactly the `MovieSummary` DTO (`toMovieSummary` flattens the genre join and gathers the rating). */
-export const movieSummarySelect = {
+/** The summary's fields without its rating: what the movie detail's cached record shares with it. */
+export const movieFieldsSelect = {
   id: true,
   slug: true,
   title: true,
@@ -20,6 +20,11 @@ export const movieSummarySelect = {
     select: { genre: { select: genreSelect } },
     orderBy: [{ genre: { name: 'asc' } }, { genreId: 'asc' }],
   },
+} satisfies Prisma.MovieSelect
+
+/** Exactly the `MovieSummary` DTO (`toMovieSummary` flattens the genre join and gathers the rating). */
+export const movieSummarySelect = {
+  ...movieFieldsSelect,
   ...movieRatingSelect,
 } satisfies Prisma.MovieSelect
 
