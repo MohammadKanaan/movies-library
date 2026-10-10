@@ -56,8 +56,8 @@ logged.
 public domain, the CORS rule and the API token). Without them the card is hidden and everything else
 works.
 
-`db:seed` and `db:reset` write straight to PostgreSQL and do not flush the Redis cache, so `/posts`
-can show pre-reset data for up to 5 minutes (`redis-cli -n 0 flushdb` clears it).
+`db:seed` and `db:reset` write straight to PostgreSQL and do not flush the Redis cache, so cached
+reads can show pre-reset data for up to 5 minutes (`redis-cli -n 0 flushdb` clears it).
 
 ## Run everything with Docker
 
@@ -143,90 +143,11 @@ Server Action (actions/*) ────────▶ lib/data
 Route Handler (app/api/v1) ───────▶ lib/data   (decodes with lib/dto, answers JSON)
 ```
 
-**Styling and `components/SCN`.** `styles/global.css` contains the zippystarter shadcn theme,
-light/dark tokens, and Tailwind base styles. Application CSS Modules use those tokens directly.
-`components/SCN` holds stock CLI-generated primitives, with no local styling or API overrides.
-Forms use `components/Form/Input` and `components/Form/Textarea` for labels and errors;
-`LoadingButton` composes the stock Button and Spinner; `ButtonLink` is a link with the button styles. Callers do not pass `className` or `style`
-to application components. Read `AGENTS.md` for the full rules. Add or reinstall primitives with
-`bunx shadcn@latest add button input textarea --overwrite --yes`; keep `lib/utils.ts` dedicated to
-the CLI's `cn` utility. The `/ui-kit` catalog exercises the components and the theme toggle.
-
-**DTOs.** `lib/dto` holds Zod schemas for inputs (`updateProfileInput`, `signUpInput`) and outputs
-(`currentUserSchema`, `adminUserSchema`); `z.infer` gives the types. Output schemas use
-`z.coerce.date()`, so a client parsing JSON gets `Date` back. Lists are `Page<T>`.
-
-**Data Access Layer.** `lib/data/*` is `server-only` and the only code that imports Prisma (ESLint
-enforces it). Each function selects exactly the columns its DTO needs, maps the row to the DTO, and
-enforces auth itself with `requireUser()` / `requireAdmin()` plus record-level rules
-(`lib/data/policies`: e.g. an editor may change the movies they created, an admin any). It also validates its own
-inputs with the `lib/dto` schema (`parseInput`), so the rules hold whichever caller reaches it.
-
-**Server Actions.** Writes live in `actions/`: call the DAL (it validates),
-`revalidatePath` / `refresh`, and return an `ActionResult<T>`. Forms map failures onto fields with
-`applyActionErrors`.
-
-**Caching and rendering.** Pages are async Server Components rendered per request; they await
-their data, so redirects and not-found pages answer with real status codes. Redis is the only
-cache: the DAL caches viewer-independent reads with tag versions and invalidates inside the write
-functions. Next's Cache Components (`'use cache'`) are off, so there is no second cache to keep in
-sync.
-
-**Jobs and email.** `jobs/definitions.ts` lists each job (name, Zod payload, retry options, cron).
-`enqueue()` validates and sends; the worker runs the handlers. Better Auth's verification, reset and
-email-change mails are queued as `send-email` jobs without awaiting (so response time cannot reveal
-whether an account exists); the worker renders the plain templates in `emails/` and sends through
-Resend, or logs the mail when no key is set. Jobs that touch the database use the system DAL
-`lib/data/maintenance.ts`, importable only from `jobs/`.
-
-**Route Handlers.** There is no REST API yet; add one under `app/api/v1/<resource>` only when an
-HTTP client needs it (conventions in `docs/guides/route-handlers.md`). Errors are
-`{ code, message, fieldErrors? }` with 401, 403, 404, 422 or 429. `GET /api/health` returns 200 when
-PostgreSQL and Redis answer and 503 otherwise (ok/fail per dependency, no error text).
-
-**Errors.** The DAL throws `UnauthorizedError`, `ForbiddenError`, `NotFoundError`,
-`ValidationError` and `RateLimitedError`. Actions turn them into `ActionResult` failures, the Route
-Handler into 401/403/404/422/429 JSON, and `loadPage` into a login redirect or `notFound()`.
-
-**Presenters.** Types are the source of truth; presenters exist only for overrides. A presenter is
-a plain function that spreads the DTO and replaces just the fields a view needs reshaped
-(e.g. a movie's release year derived from its date). There are none yet.
-
-**Auth.** Better Auth with email + password, database sessions, the `admin` plugin and the
-`nextCookies` plugin. `proxy.ts` redirects private routes to `/login?next=...` when the session
-cookie is absent (unknown paths count as private); it only checks cookie presence, so the `/login`
-and `/signup` pages redirect signed-in users themselves (a stale cookie must not lock anyone out).
-The DAL does the real check on every read and write. Sign-up sends a verification email and the
-login form links to a password reset. Verification is soft: unverified users can sign in and see a
-banner with a Resend button. Resetting a password signs out every session.
-
-Better Auth's HTTP routes that would bypass the DAL's validation and rate limits (`/sign-up/email`,
-`/sign-in/email`, `/update-user`, `/delete-user`, the password and email changes, and every
-`/admin/*` route of the admin plugin) are disabled; the matching Server Actions and DAL functions
-are the only way in. Auth and account actions are rate limited in production (Redis-backed, so
-shared across instances; if Redis is down the attempt is allowed). Full detail in
-[`docs/guides/authentication.md`](docs/guides/authentication.md).
-
-`/settings` is the account page: profile photo (when R2 is configured), profile (name, username),
-email change (confirm at the current address, verify the new one), password change, active sessions
-(revoke one or all others) and account deletion (password required; sessions cascade, the user's
-movies keep a null creator, the avatar's object is queued for deletion).
-
-**Admin.** `/admin` (admins only; anyone else gets the not-found page, signed-out visitors go to
-login) lists users with search and pagination and lets an admin change a role (viewer, editor, admin), ban
-or unban a user (a banned user is signed out everywhere and cannot sign in; the reason is shown to
-them), and impersonate a non-admin user (a one-hour session with a banner and a "Stop impersonating" button).
-Reads are the app's own queries; writes wrap the admin plugin's server API (`auth.api.setRole`,
-`banUser`, `impersonateUser`, …) behind `requireAdmin()` and one extra rule: an admin cannot change
-their own role, so the last admin cannot lock everyone out.
-
-**Google sign-in (optional).** With `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` both set, `/login`
-and `/signup` show a "Continue with Google" button; with neither set the button is absent and
-nothing else changes. Setting only one fails at boot in production. Add the authorized redirect URI
-`<BETTER_AUTH_URL>/api/auth/callback/google` in the Google Cloud Console. A new Google user gets a
-username derived from the email's local part plus a random suffix (they can change it in
-settings); a Google-only account has no password, so `/settings` points it to "Forgot password" to
-set one. The round trip with Google has not been run here (it needs real credentials).
+Every data path ends at the same DAL function and returns the same DTO under the same auth rules;
+the DAL enforces auth and validates its inputs itself. The conventions (DTOs, DAL, Server Actions,
+errors, caching, styling) are in [`AGENTS.md`](AGENTS.md); the reasons behind them in
+[`docs/DECISIONS.md`](docs/DECISIONS.md); each area's narrative (auth and the admin plugin, jobs,
+email, uploads, caching) in [`docs/guides/`](docs/guides/).
 
 ## Pattern index
 
@@ -246,23 +167,6 @@ Where to look to see each pattern done once, properly.
 | OAuth (Google)                        | `lib/data/auth.ts` (`socialProviders`, `isGoogleAuthEnabled`); `signInWithGoogleAction` in `actions/auth.ts`; `lib/username.ts`; `components/Auth/GoogleButton`                          |
 | Direct-to-storage upload (R2)         | `lib/server/storage.ts` (presigned PUT); `createUpload` / `attachAvatar` in `lib/data/uploads.ts`; `lib/client/uploads.ts`; `components/Settings/AvatarUploader`; `jobs/deleteObject.ts` |
 | Health check                          | `lib/data/health.ts`; `app/api/health/route.ts`                                                                                                                                          |
-
-## Design decisions
-
-- **One contract.** Three paths (Server Component, Server Action, Route Handler) end at the same DAL
-  function and return the same DTO type under the same auth rules.
-- **DAL and DTO boundary.** Prisma rows never leave `lib/data`; callers only see Zod-defined DTOs, and
-  the DAL's `select` plus mapping make schema drift a compile error.
-- **Auth in the DAL.** A page, action, or proxy that forgets a check cannot bypass authorization,
-  because the data functions enforce it themselves.
-- **Server Actions vs Route Handlers.** Actions for UI writes (no extra HTTP surface to design);
-  a Route Handler where an HTTP API is required or a client has to fetch.
-- **Typed errors per caller.** One set of error classes, translated once per transport.
-- **Small on purpose.** Notifications, an audit log, soft delete, optimistic locking, full-text
-  search and comments were all built once in this template and then removed,
-  because every project that started from it had to delete them. `docs/recipes/` says how
-  to add each one back in this architecture, and `docs/DECISIONS.md` ("Removed") where it is in the
-  history.
 
 ## Adding a resource
 
@@ -302,9 +206,9 @@ record)`, call them with `authorize()` after the exists check, and build the DTO
 
 ## More
 
-- [`docs/DECISIONS.md`](docs/DECISIONS.md): what was chosen and why, and what was removed and where it went.
 - [`AGENTS.md`](AGENTS.md): project conventions and rules for contributors and agents.
+- [`docs/DECISIONS.md`](docs/DECISIONS.md): what was chosen and why, and what was removed and where it went.
 - Area guides in [`docs/guides/`](docs/guides/): authentication, route-handlers, caching,
-  jobs, email, uploads, infrastructure, hooks, forms, environment.
+  jobs, email, uploads, infrastructure, environment.
 - Recipes in [`docs/recipes/`](docs/recipes/) for what the template leaves out: concurrency and
   optimistic locking, and the other removed patterns.

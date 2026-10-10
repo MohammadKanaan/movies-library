@@ -5,8 +5,21 @@ export const MAX_PER_PAGE = 100
 /** Caps `page` so unauthenticated callers cannot mint unbounded cache keys and deep OFFSET scans. */
 export const MAX_PAGE = 1000
 
-/** A positive Postgres `int4` id, coerced from a route param or query string. */
-export const idSchema = z.coerce.number().int().positive().max(2147483647)
+export const SEARCH_MIN_LENGTH = 3
+
+/**
+ * A free-text search term; empty means "no search". A term is at least three characters because
+ * the trigram indexes (`gin_trgm_ops` on `movies.title` and `people.name`) cannot serve a shorter
+ * `ILIKE`, which would scan the whole table.
+ */
+export const searchTermSchema = (maxLength: number) =>
+  z
+    .string()
+    .trim()
+    .max(maxLength, `Search must be ${maxLength} characters or fewer`)
+    .refine((value) => value.length === 0 || value.length >= SEARCH_MIN_LENGTH, {
+      message: `Search needs at least ${SEARCH_MIN_LENGTH} characters`,
+    })
 
 /** `true` / `false` as a boolean or as the string a query string carries (never `z.coerce.boolean()`, which reads `'false'` as true). */
 export const booleanParamSchema = z.union([z.boolean(), z.stringbool()])

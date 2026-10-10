@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import {
   booleanParamSchema,
-  idSchema,
   MAX_PAGE,
   MAX_PER_PAGE,
   pageQuerySchema,
   pageSchema,
+  SEARCH_MIN_LENGTH,
+  searchTermSchema,
   toPage,
 } from '@/lib/dto/common'
 
@@ -30,16 +31,24 @@ describe('pageQuerySchema', () => {
   })
 })
 
-describe('idSchema', () => {
-  it('accepts positive integer strings only', () => {
-    expect(idSchema.parse('7')).toBe(7)
-    expect(idSchema.parse(7)).toBe(7)
-    expect(idSchema.safeParse('abc').success).toBe(false)
-    expect(idSchema.safeParse('1.5').success).toBe(false)
-    expect(idSchema.safeParse('0').success).toBe(false)
-    expect(idSchema.safeParse(-1).success).toBe(false)
-    expect(idSchema.parse('2147483647')).toBe(2147483647)
-    expect(idSchema.safeParse('2147483648').success).toBe(false)
+describe('searchTermSchema', () => {
+  const schema = searchTermSchema(10)
+
+  it('trims and accepts an empty term or one of at least three characters', () => {
+    expect(schema.parse('  dune ')).toBe('dune')
+    expect(schema.parse('   ')).toBe('')
+    expect(schema.parse('abc')).toBe('abc')
+  })
+
+  it('rejects one or two characters, which the trigram index cannot serve', () => {
+    expect(schema.safeParse('d').success).toBe(false)
+    expect(schema.safeParse(' du ').success).toBe(false)
+    expect(schema.safeParse('ab'.padEnd(SEARCH_MIN_LENGTH - 1, 'x')).success).toBe(false)
+  })
+
+  it('rejects a term over the given maximum', () => {
+    expect(schema.safeParse('a'.repeat(11)).success).toBe(false)
+    expect(schema.parse('a'.repeat(10))).toBe('a'.repeat(10))
   })
 })
 

@@ -13,18 +13,16 @@ How the DAL caches:
   returns the hit parsed with `schema` (the DTO's `z.coerce.date()` restores `Date`s), or runs
   `load()` and stores the JSON with a TTL. `invalidateTags(...tags)` bumps each tag's version, so
   old entries become unreachable at once and age out by TTL.
-- Tags live in `lib/data/cacheTags.ts` (`POSTS_TAG`, `postTag(id)`, `userTag(id)`).
+- Tags live in `lib/data/cacheTags.ts`: `userTag(id)` for one user, `CATALOG_TAG` for every cached
+  catalog read (movies, genres, people reference each other, so one tag beats a fan-out).
 - Check auth first, then `remember()` only the viewer-independent part, then compute viewer-specific
   fields (`permissions`) after. Never cache something that varies by viewer under a shared key.
 - **Invalidate inside the DAL**, right after the write succeeds, so a caller cannot forget
-  (`createPost` / `updatePost` / `deletePost`, `updateProfile`; Better Auth user updates via its
-  database hook). Actions still call `revalidatePath` / `refresh()` for the router cache.
-- **Searches, author lists and draft-bearing lists are never cached.** `listPosts` skips
-  `remember()` when `q` or `authorId` is set (high-cardinality, unbounded keys; the one author list
-  in the UI is the viewer's own, which is viewer dependent anyway) and when the viewer's identity
-  let drafts into the result. Only the published-only list keeps the cache (`page`, `perPage` and
-  `sort` are its key).
-- Cache keys are built from unambiguous parts (`JSON.stringify([...])`, as `listPosts` does), never
+  (`updateProfile`, every catalog write; Better Auth user updates via its database hook). Actions still call `revalidatePath` / `refresh()` for the router cache.
+- **Searches and per-viewer lists are never cached.** A list skips `remember()` when `q` is set
+  (high-cardinality, unbounded keys) or when the viewer's identity changes the result. Only the
+  filter-free list keeps the cache (`page`, `perPage` and `sort` are its key).
+- Cache keys are built from unambiguous parts (`JSON.stringify([...])`), never
   by joining user-controlled strings, and every input that reaches a key is bounded in its DTO
   (`page`, `perPage`), so a caller cannot collide with another entry or mint unlimited keys.
   `remember()` entries have a TTL and Redis runs `volatile-lru`, so a flood evicts cache entries

@@ -35,8 +35,6 @@ Long area narratives live in `docs/guides/`. Read the one for the area you touch
 - `docs/guides/email.md`: the mailer, the `send-email` job and the plain templates in `emails/`.
 - `docs/guides/uploads.md`: uploads on Cloudflare R2 without an uploads table (presigned PUT, per-user keys, attach, delayed deletes, bucket setup).
 - `docs/guides/infrastructure.md`: `lib/server`, logging, Docker and CI.
-- `docs/guides/hooks.md`: hook rules (no `useMemo` / `useCallback`; RHF files opt out with `'use no memo'`), `useUrlState`.
-- `docs/guides/forms.md`: React Hook Form + Zod forms (each starts `'use client'` then `'use no memo'`).
 - `docs/guides/environment.md`: public and server-only config, security headers, `serverEnv()`.
 
 `docs/recipes/` holds patterns the template does **not** implement (concurrency and optimistic locking
