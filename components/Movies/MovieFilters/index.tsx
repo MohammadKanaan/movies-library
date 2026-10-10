@@ -199,7 +199,7 @@ export const MovieFilters = ({
   return (
     <div className={styles.filters}>
       <div className={styles.toolbar}>
-        <form className={styles.search} role="search" onSubmit={handleSearch}>
+        <form className={styles.search} role="search" aria-label="Movies" onSubmit={handleSearch}>
           <div className={styles.searchField}>
             {/* Keyed by the URL's search, so a removed chip or the back button refills it. */}
             <Input

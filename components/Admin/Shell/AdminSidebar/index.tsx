@@ -34,7 +34,7 @@ export const AdminSidebar = ({ viewer }: AdminSidebarProps) => {
   const activeHref = activeAdminHref(pathname)
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" role="navigation" aria-label="Admin">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>

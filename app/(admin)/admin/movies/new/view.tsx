@@ -29,7 +29,9 @@ export const NewMovieView = ({ genres }: NewMovieViewProps) => {
       <aside>
         <Card>
           <CardHeader>
-            <CardTitle>Poster</CardTitle>
+            <CardTitle>
+              <h2>Poster</h2>
+            </CardTitle>
             <CardDescription>Save the movie first to add a poster.</CardDescription>
           </CardHeader>
         </Card>

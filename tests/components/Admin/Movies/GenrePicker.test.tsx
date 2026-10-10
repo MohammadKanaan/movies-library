@@ -41,10 +41,10 @@ describe('GenrePicker', () => {
     expect(onChange).toHaveBeenCalledWith(['g1', 'g3'])
   })
 
-  it('removes an id from its chip', async () => {
+  it('removes an id from its chip, whose button is named after the genre', async () => {
     const onChange = vi.fn()
     render(<GenrePicker genres={genres} value={['g1', 'g3']} onChange={onChange} />)
-    await userEvent.click(within(chipsOf()).getAllByRole('button')[0]!)
+    await userEvent.click(within(chipsOf()).getByRole('button', { name: 'Remove Action' }))
     expect(onChange).toHaveBeenCalledWith(['g3'])
   })
 

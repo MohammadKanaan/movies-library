@@ -24,7 +24,9 @@ behavior live in separate application wrappers. `lib/utils.ts` stays CLI-owned. 
 the [official Next.js guide](https://ui.shadcn.com/docs/dark-mode/next): `next-themes`, a class-based
 provider with system default and transition suppression, and a light/dark/system menu. The site is
 pinned to dark for now (`PINNED_THEME` in `lib/constants-theme.ts`, a `forcedTheme`), with the menu
-hidden rather than deleted so the choice can come back with one line.
+hidden rather than deleted so the choice can come back with one line. The dark `--destructive` is lighter
+than the theme ships (`oklch(0.72 0.2 20)`, was `0.6`): the stock destructive buttons and badges set
+it as text on a 10 to 30% tint of itself, which read at 4:1, under WCAG AA's 4.5:1.
 
 ## Stack choices
 

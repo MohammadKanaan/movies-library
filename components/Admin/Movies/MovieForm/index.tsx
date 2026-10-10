@@ -125,7 +125,9 @@ export const MovieForm = ({ genres, movie, onSubmit, onSaved, submitLabel }: Mov
     <form className={styles.form} onSubmit={submit} onKeyDown={submitOnShortcut} noValidate>
       <Card>
         <CardHeader>
-          <CardTitle>Details</CardTitle>
+          <CardTitle>
+            <h2>Details</h2>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className={styles.fields}>
@@ -176,7 +178,9 @@ export const MovieForm = ({ genres, movie, onSubmit, onSaved, submitLabel }: Mov
 
       <Card>
         <CardHeader>
-          <CardTitle>Genres</CardTitle>
+          <CardTitle>
+            <h2>Genres</h2>
+          </CardTitle>
           <CardDescription>What the movie is, for browsing and filtering.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -193,7 +197,9 @@ export const MovieForm = ({ genres, movie, onSubmit, onSaved, submitLabel }: Mov
 
       <Card>
         <CardHeader>
-          <CardTitle>Credits</CardTitle>
+          <CardTitle>
+            <h2>Credits</h2>
+          </CardTitle>
           <CardDescription>Directors, writers and cast, in billing order.</CardDescription>
         </CardHeader>
         <CardContent>

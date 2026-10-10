@@ -122,6 +122,7 @@ export const SiteSearch = ({ onNavigate, autoFocus, slashShortcut = false }: Sit
     <Form
       action={ROUTE_SEARCH}
       role="search"
+      aria-label="Site"
       className={styles.form}
       onSubmit={() => {
         search.reset()

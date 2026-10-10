@@ -35,7 +35,9 @@ export const PosterCard = ({ movie, canUpload }: PosterCardProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Poster</CardTitle>
+        <CardTitle>
+          <h2>Poster</h2>
+        </CardTitle>
         <CardDescription>
           Shown on the movie&apos;s card and page. PNG, JPEG or WebP, up to{' '}
           {formatBytes(UPLOAD_RULES.poster.maxSize)}.

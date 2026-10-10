@@ -1,9 +1,9 @@
 'use client'
 
 import { useId } from 'react'
+import { RemovableChip } from '@/components/Form/RemovableChip'
 import {
   Combobox,
-  ComboboxChip,
   ComboboxChips,
   ComboboxChipsInput,
   ComboboxContent,
@@ -58,9 +58,7 @@ export const GenreFilter = ({ genres, value, onChange, disabled }: GenreFilterPr
             {(picked: Genre[]) => (
               <>
                 {picked.map((genre) => (
-                  <ComboboxChip key={genre.id} aria-label={genre.name}>
-                    {genre.name}
-                  </ComboboxChip>
+                  <RemovableChip key={genre.id} label={genre.name} />
                 ))}
                 <ComboboxChipsInput
                   id={inputId}

@@ -149,7 +149,9 @@ describe('MoviesView', () => {
   it('lifts one filter from its chip and clears them all', async () => {
     navigation.search = 'q=dune&genres=drama%2Cscience-fiction&yearTo=1999&sort=title'
     render(view())
-    await userEvent.click(screen.getByRole('button', { name: 'Remove Drama' }))
+    // The open panel's genre picker has its own Remove Drama, which only edits the draft.
+    const activeFilters = within(screen.getByRole('list', { name: 'Active filters' }))
+    await userEvent.click(activeFilters.getByRole('button', { name: 'Remove Drama' }))
     expect(navigation.push).toHaveBeenLastCalledWith(
       '/movies?q=dune&genres=science-fiction&yearTo=1999&sort=title',
       { scroll: false },

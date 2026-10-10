@@ -17,7 +17,7 @@ type SearchFormProps = {
  */
 export const SearchForm = ({ q }: SearchFormProps) => {
   return (
-    <Form action={ROUTE_SEARCH} role="search" className={styles.form}>
+    <Form action={ROUTE_SEARCH} role="search" aria-label="Catalog" className={styles.form}>
       <div className={styles.field}>
         <Input
           name="q"

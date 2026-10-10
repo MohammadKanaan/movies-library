@@ -70,7 +70,9 @@ const AdminUserPage = async ({ params }: PageProps<'/admin/users/[id]'>) => {
         <div className={styles.stack}>
           <Card>
             <CardHeader>
-              <CardTitle>Account</CardTitle>
+              <CardTitle>
+                <h2>Account</h2>
+              </CardTitle>
               <CardDescription>
                 {isSelf
                   ? 'Your own account: change your role or ban yourself from another admin’s session.'
@@ -87,7 +89,9 @@ const AdminUserPage = async ({ params }: PageProps<'/admin/users/[id]'>) => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Sessions</CardTitle>
+              <CardTitle>
+                <h2>Sessions</h2>
+              </CardTitle>
               <CardDescription>
                 {user.sessions.length === 0
                   ? 'Not signed in anywhere.'
@@ -128,7 +132,9 @@ const AdminUserPage = async ({ params }: PageProps<'/admin/users/[id]'>) => {
         <div className={styles.stack}>
           <Card>
             <CardHeader>
-              <CardTitle>Movies added</CardTitle>
+              <CardTitle>
+                <h2>Movies added</h2>
+              </CardTitle>
               <CardDescription>
                 {user.movieCount === 0
                   ? 'Has not added any movies.'
@@ -159,7 +165,9 @@ const AdminUserPage = async ({ params }: PageProps<'/admin/users/[id]'>) => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Details</CardTitle>
+              <CardTitle>
+                <h2>Details</h2>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <dl className={styles.facts}>

@@ -29,7 +29,13 @@ export const PeopleView = ({ page, totalPages, children }: PeopleViewProps) => {
   return (
     <div className={styles.view}>
       {/* Remounted when the URL's search changes (back/forward), so the field follows it. */}
-      <form key={state.q} className={styles.search} onSubmit={handleSearch} role="search">
+      <form
+        key={state.q}
+        className={styles.search}
+        onSubmit={handleSearch}
+        role="search"
+        aria-label="People"
+      >
         <div className={styles.searchField}>
           <Input
             name="q"

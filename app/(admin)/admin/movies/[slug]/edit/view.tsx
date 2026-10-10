@@ -36,7 +36,9 @@ export const EditMovieView = ({ movie, genres, canUpload }: EditMovieViewProps) 
 
         <Card>
           <CardHeader>
-            <CardTitle>Details</CardTitle>
+            <CardTitle>
+              <h2>Details</h2>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <dl className={styles.facts}>
@@ -63,7 +65,9 @@ export const EditMovieView = ({ movie, genres, canUpload }: EditMovieViewProps) 
 
         <Card>
           <CardHeader>
-            <CardTitle>Danger zone</CardTitle>
+            <CardTitle>
+              <h2>Danger zone</h2>
+            </CardTitle>
             <CardDescription>Deleting a movie cannot be undone.</CardDescription>
           </CardHeader>
           <CardContent>
