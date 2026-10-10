@@ -79,6 +79,25 @@ provider with system default and transition suppression, and a light/dark/system
 | Tests                  | Vitest + Testing Library + jsdom; server tests on a real test DB and Redis; the mailer mocked globally                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Fast unit tests, real integration for the DAL, actions and handlers.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Docker                 | `docker-compose.yml`: PostgreSQL 18 and Redis 7 with healthchecks; an `app` profile adds `migrate` (one-shot), `web` and `worker` built from one `Dockerfile` (`node:24-slim` + bun); GitHub Actions CI runs format, lint, typecheck, tests and build against Postgres and Redis service containers                                                                                                                                                                                                                                                                                                                                  | One image, three commands. `output: 'standalone'` is not used because the worker runs TypeScript through `tsx` and `prisma migrate deploy` needs the CLI. Neither the image build nor the compose stack has been run end to end yet (Docker was unavailable when they were written).                                                                                                                                                                                                                                                                                                                                                                                                  |
 
+## API documentation
+
+`GET /api/openapi` generates OpenAPI 3.1 with `zod-openapi` from the shared Zod DTOs.
+`GET /api/docs` serves standalone Scalar HTML through `@scalar/nextjs-api-reference`, with the
+browser renderer pinned to `@scalar/api-reference@1.73.1`. Both documentation routes are public in
+all environments. The spec URL and API server URL are relative so requests stay on the current
+origin; Scalar's external request proxy and telemetry are disabled.
+
+The spec covers the existing public `GET /api/v1/people` and `GET /api/health` handlers. The generator
+imports DTOs only, so reading documentation does not initialize auth, PostgreSQL, or Redis. Numeric
+query schemas use their parsed output representation for integer bounds and defaults, while retaining
+the original input optionality. Response dates are documented as ISO date-time strings to match JSON
+serialization. Search refinements that JSON Schema cannot express are described alongside the query.
+
+Account operations use Server Actions. Selected Better Auth account HTTP routes are intentionally
+disabled in `lib/data/auth.ts` to enforce application rules. All authentication operations are excluded
+from the spec; the introduction links to the
+[upstream Better Auth documentation](https://www.better-auth.com/docs). API keys remain deferred.
+
 ## Removed
 
 On 2026-10-09 the template was cut back from a feature showcase to a base. Everything below was built,
@@ -112,7 +131,7 @@ Left out on purpose; add them when a project needs them.
 - **Organizations (teams, membership, per-tenant data):** every query would gain a tenant key and every
   policy a membership check, which changes the shape of the whole DAL. That is a design decision for
   the project that needs it, not something to leave half-wired in a template.
-- **API keys and OpenAPI:** the REST endpoints use the session cookie only, and no spec is generated.
+- **API keys:** no API-key authentication is configured; the existing documented reads are public.
 - **Page transitions between the movie card and the detail page:** tried with React's
   `<ViewTransition>` (a shared poster morph plus a content crossfade) and taken out (2026-10-10)
   because it looked wrong. Notes for the next attempt: it only feels instant when the destination is
