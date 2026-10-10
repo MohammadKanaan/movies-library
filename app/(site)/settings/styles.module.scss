@@ -13,6 +13,11 @@
   gap: 1.5rem;
 }
 
+.email {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
 .note {
   margin: 0;
   color: var(--muted-foreground);

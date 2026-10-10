@@ -120,8 +120,8 @@ export const SettingsView = ({ user, sessions, hasPassword, canUpload }: Setting
         <CardHeader>
           <CardTitle>Email</CardTitle>
           <CardDescription>
-            Your email is {user.email}. We email your current address to confirm a change, then the
-            new address to verify it.
+            Your email is <strong className={styles.email}>{user.email}</strong>. We email your
+            current address to confirm a change, then the new address to verify it.
           </CardDescription>
         </CardHeader>
         <CardContent>

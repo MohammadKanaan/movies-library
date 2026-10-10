@@ -32,7 +32,7 @@ describe('SettingsView', () => {
     for (const title of ['Profile', 'Email', 'Password', 'Sessions', 'Delete account']) {
       expect(screen.getByText(title, { selector: '[data-slot="card-title"]' })).toBeInTheDocument()
     }
-    expect(screen.getByText(/Your email is ada@example.com/)).toBeInTheDocument()
+    expect(screen.getByText('ada@example.com', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.queryByText('Browser notifications')).not.toBeInTheDocument()
     expect(screen.queryByText('Profile photo')).not.toBeInTheDocument()
   })
