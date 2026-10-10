@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CreditsEditor } from '@/components/Admin/Movies/CreditsEditor'
 import type { PersonPickerProps } from '@/components/Admin/Movies/PersonPicker'
 import { MOVIE_CREDITS_MAX, type CreditInput } from '@/lib/dto/movies'
@@ -107,6 +107,67 @@ describe('CreditsEditor', () => {
       ],
       people,
     )
+  })
+
+  describe('dragging', () => {
+    const ROW_HEIGHT = 40
+
+    /** jsdom has no layout: give every row a 40px slot in list order so the drag can measure them. */
+    const layOutRows = () => {
+      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: Element,
+      ) {
+        const row = this.closest('li')
+        const index = row ? Array.from(row.parentElement?.children ?? []).indexOf(row) : 0
+        const top = this.tagName === 'OL' ? 0 : index * ROW_HEIGHT
+        const height = this.tagName === 'OL' ? ROW_HEIGHT * 10 : ROW_HEIGHT
+        return DOMRect.fromRect({ x: 0, y: top, width: 400, height })
+      })
+    }
+
+    /** dnd-kit swallows clicks on the document for 50ms after a drag (the drop's own click). */
+    const CLICK_GUARD_MS = 50
+
+    afterEach(async () => {
+      vi.restoreAllMocks()
+      await new Promise((resolve) => setTimeout(resolve, CLICK_GUARD_MS + 10))
+    })
+
+    const dragRow = (name: string, rows: number) => {
+      const row = screen.getByText(name).closest('li') as HTMLElement
+      const handle = row.querySelector('[aria-hidden="true"]') as HTMLElement
+      fireEvent.pointerDown(handle, { button: 0, isPrimary: true, clientX: 10, clientY: 20 })
+      fireEvent.pointerMove(document, { clientX: 10, clientY: 30 })
+      fireEvent.pointerMove(document, { clientX: 10, clientY: 20 + rows * ROW_HEIGHT })
+      fireEvent.pointerUp(document, { clientX: 10, clientY: 20 + rows * ROW_HEIGHT })
+    }
+
+    it('moves a credit to where it is dropped within its role', () => {
+      layOutRows()
+      const { onChange } = setup({
+        value: [
+          { personId: 'a1', role: 'ACTOR' },
+          { personId: 'a2', role: 'ACTOR' },
+          { personId: 'd1', role: 'ACTOR' },
+        ],
+      })
+      dragRow('Alex Actor', 2)
+      expect(onChange).toHaveBeenCalledWith(
+        [
+          { personId: 'a2', role: 'ACTOR' },
+          { personId: 'd1', role: 'ACTOR' },
+          { personId: 'a1', role: 'ACTOR' },
+        ],
+        people,
+      )
+    })
+
+    it('does not drag while the editor is disabled', () => {
+      layOutRows()
+      const { onChange } = setup({ disabled: true })
+      dragRow('Dana Director', 1)
+      expect(onChange).not.toHaveBeenCalled()
+    })
   })
 
   it('offers a star checkbox on cast rows only', () => {

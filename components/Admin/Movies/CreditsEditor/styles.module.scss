@@ -27,13 +27,73 @@
 }
 
 .row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+  background: var(--card);
 
   & + & {
     border-top: 1px solid var(--border);
+  }
+
+  &:first-child {
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+  }
+
+  &:last-child {
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+  }
+
+  // The neighbours' make-room transition is decoration; the dragged row still follows the pointer.
+  @media (prefers-reduced-motion: reduce) {
+    transition: none !important;
+  }
+}
+
+/* Lifted above its neighbours while it follows the pointer. */
+.dragging {
+  z-index: 1;
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 8px 24px -8px color-mix(in oklab, var(--foreground) 35%, transparent);
+}
+
+.handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  // A 44px-tall touch target around the 16px grip without growing the row.
+  margin-block: -0.5rem;
+  padding: 0.75rem 0.125rem;
+  color: var(--muted-foreground);
+  cursor: grab;
+  // The browser must not scroll the page while a finger drags the row.
+  touch-action: none;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .dragging & {
+    cursor: grabbing;
+    color: var(--foreground);
+  }
+
+  &[data-disabled] {
+    cursor: default;
+    opacity: 0.5;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: var(--foreground);
+    }
   }
 }
 
