@@ -1,8 +1,13 @@
 import { z } from 'zod'
-import { catalogIdSchema, creditRoleSchema, slugListParamSchema, slugSchema } from './catalog'
+import {
+  catalogIdSchema,
+  creditRoleSchema,
+  personSummarySchema,
+  slugListParamSchema,
+  slugSchema,
+} from './catalog'
 import { pageQuerySchema, permissionsSchema, searchTermSchema } from './common'
 import { genreSchema } from './genres'
-import { personSummarySchema } from './people'
 import { uploadKeySchema } from './uploads'
 import { userProfileSchema } from './users'
 
@@ -115,19 +120,20 @@ const listMoviesBase = pageQuerySchema.extend({
 
 type ListMoviesOutput = z.output<typeof listMoviesBase>
 
+/** The ends of the two ranges, as both wire forms of the list parse them. */
+type RangeEnds = Pick<ListMoviesOutput, 'yearFrom' | 'yearTo' | 'runtimeMin' | 'runtimeMax'>
+
 /** The checks both wire forms of the list share; `.refine` keeps the schema's own output type. */
-const withRangeChecks = <S extends z.ZodType>(schema: S): S =>
+const withRangeChecks = <S extends z.ZodType<RangeEnds>>(schema: S): S =>
   schema
-    .refine(
-      (query) =>
-        !isReversed((query as ListMoviesOutput).yearFrom, (query as ListMoviesOutput).yearTo),
-      { path: ['yearTo'], error: 'The last year is before the first' },
-    )
-    .refine(
-      (query) =>
-        !isReversed((query as ListMoviesOutput).runtimeMin, (query as ListMoviesOutput).runtimeMax),
-      { path: ['runtimeMax'], error: 'The longest runtime is shorter than the shortest' },
-    )
+    .refine((query) => !isReversed(query.yearFrom, query.yearTo), {
+      path: ['yearTo'],
+      error: 'The last year is before the first',
+    })
+    .refine((query) => !isReversed(query.runtimeMin, query.runtimeMax), {
+      path: ['runtimeMax'],
+      error: 'The longest runtime is shorter than the shortest',
+    })
 
 /** The list's query as a typed caller passes it (`lib/data/movies.ts`). */
 export const listMoviesQuery = withRangeChecks(listMoviesBase)

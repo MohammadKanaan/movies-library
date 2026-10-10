@@ -227,11 +227,11 @@ describe('reviews DAL', () => {
   })
 
   describe('listReviews', () => {
-    it('is public, 422 for a bad movie id and 404 for an unknown movie', async () => {
-      await expect(listReviews({ movieId: 'nope' })).rejects.toBeInstanceOf(ValidationError)
-      await expect(listReviews({ movieId: MISSING_ID })).rejects.toBeInstanceOf(NotFoundError)
+    it('is public, 422 for a bad movie slug and 404 for an unknown movie', async () => {
+      await expect(listReviews({ movieSlug: 'Not A Slug' })).rejects.toBeInstanceOf(ValidationError)
+      await expect(listReviews({ movieSlug: 'missing-2024' })).rejects.toBeInstanceOf(NotFoundError)
       const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
-      await expect(listReviews({ movieId: movie.id })).resolves.toMatchObject({
+      await expect(listReviews({ movieSlug: movie.slug })).resolves.toMatchObject({
         items: [],
         totalItems: 0,
         totalPages: 1,
@@ -254,12 +254,12 @@ describe('reviews DAL', () => {
       )
       await seedReview({ movieId: other.id, authorId: authors[0].id, rating: 5 })
 
-      const page = await listReviews({ movieId: movie.id, perPage: 2 })
+      const page = await listReviews({ movieSlug: movie.slug, perPage: 2 })
       expect(page).toMatchObject({ page: 1, perPage: 2, totalItems: 3, totalPages: 2 })
       expect(page.items.map((review) => review.id)).toEqual([third.id, second.id])
       expect(page.items[0]).toMatchObject({ rating: 3, movieId: movie.id })
 
-      const next = await listReviews({ movieId: movie.id, perPage: 2, page: 2 })
+      const next = await listReviews({ movieSlug: movie.slug, perPage: 2, page: 2 })
       expect(next.items.map((review) => review.id)).toEqual([first.id])
     })
 
@@ -268,7 +268,7 @@ describe('reviews DAL', () => {
       const author = await createUser()
       await seedReview({ movieId: movie.id, authorId: author.id, rating: 4 })
       const permissionsOf = async () =>
-        (await listReviews({ movieId: movie.id })).items[0].permissions
+        (await listReviews({ movieSlug: movie.slug })).items[0].permissions
 
       expect(await permissionsOf()).toEqual({ update: false, delete: false })
       await signInAsViewer()
@@ -283,9 +283,9 @@ describe('reviews DAL', () => {
   describe('getViewerReview', () => {
     it('is null signed out, and for a viewer who has not reviewed', async () => {
       const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
-      expect(await getViewerReview(movie.id)).toBeNull()
+      expect(await getViewerReview(movie.slug)).toBeNull()
       await signInAsViewer()
-      expect(await getViewerReview(movie.id)).toBeNull()
+      expect(await getViewerReview(movie.slug)).toBeNull()
     })
 
     it('is the viewer’s own review of that movie', async () => {
@@ -295,15 +295,15 @@ describe('reviews DAL', () => {
       const mine = await seedReview({ movieId: movie.id, authorId: viewer.id, rating: 2.5 })
       await seedReview({ movieId: other.id, authorId: viewer.id, rating: 5 })
       await signInAs(viewer)
-      expect(await getViewerReview(movie.id)).toMatchObject({
+      expect(await getViewerReview(movie.slug)).toMatchObject({
         id: mine.id,
         rating: 2.5,
         permissions: { update: true, delete: true },
       })
     })
 
-    it('is 404 for a malformed movie id', async () => {
-      await expect(getViewerReview('nope')).rejects.toBeInstanceOf(NotFoundError)
+    it('is 404 for a malformed movie slug', async () => {
+      await expect(getViewerReview('Not A Slug')).rejects.toBeInstanceOf(NotFoundError)
     })
   })
 
@@ -346,12 +346,12 @@ describe('reviews DAL', () => {
   describe('getReviewSummary', () => {
     it('has no average until a movie is rated', async () => {
       const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
-      expect(await getReviewSummary(movie.id)).toEqual({ average: null, count: 0 })
+      expect(await getReviewSummary(movie.slug)).toEqual({ average: null, count: 0 })
     })
 
     it('is 404 for a malformed or unknown movie', async () => {
-      await expect(getReviewSummary('nope')).rejects.toBeInstanceOf(NotFoundError)
-      await expect(getReviewSummary(MISSING_ID)).rejects.toBeInstanceOf(NotFoundError)
+      await expect(getReviewSummary('Not A Slug')).rejects.toBeInstanceOf(NotFoundError)
+      await expect(getReviewSummary('missing-2024')).rejects.toBeInstanceOf(NotFoundError)
     })
 
     it('averages in stars to one decimal and counts the ratings', async () => {
@@ -360,24 +360,24 @@ describe('reviews DAL', () => {
         await seedReview({ movieId: movie.id, authorId: (await createUser()).id, rating })
       }
       // 12.5 / 3 = 4.1666…
-      expect(await getReviewSummary(movie.id)).toEqual({ average: 4.2, count: 3 })
+      expect(await getReviewSummary(movie.slug)).toEqual({ average: 4.2, count: 3 })
     })
 
     it('is refreshed by a create, an update and a delete', async () => {
       const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
       const other = await createUser()
       await seedReview({ movieId: movie.id, authorId: other.id, rating: 3 })
-      expect(await getReviewSummary(movie.id)).toEqual({ average: 3, count: 1 })
+      expect(await getReviewSummary(movie.slug)).toEqual({ average: 3, count: 1 })
 
       await signInAsViewer()
       const review = await createReview({ movieId: movie.id, rating: 5 })
-      expect(await getReviewSummary(movie.id)).toEqual({ average: 4, count: 2 })
+      expect(await getReviewSummary(movie.slug)).toEqual({ average: 4, count: 2 })
 
       await updateReview({ id: review.id, rating: 1 })
-      expect(await getReviewSummary(movie.id)).toEqual({ average: 2, count: 2 })
+      expect(await getReviewSummary(movie.slug)).toEqual({ average: 2, count: 2 })
 
       await deleteReview(review.id)
-      expect(await getReviewSummary(movie.id)).toEqual({ average: 3, count: 1 })
+      expect(await getReviewSummary(movie.slug)).toEqual({ average: 3, count: 1 })
     })
 
     it('is refreshed by an admin’s delete of another’s review', async () => {
@@ -387,10 +387,10 @@ describe('reviews DAL', () => {
         authorId: (await createUser()).id,
         rating: 4,
       })
-      expect(await getReviewSummary(movie.id)).toEqual({ average: 4, count: 1 })
+      expect(await getReviewSummary(movie.slug)).toEqual({ average: 4, count: 1 })
       await signInAs(await createUser({ role: 'admin' }))
       await deleteReview(review.id)
-      expect(await getReviewSummary(movie.id)).toEqual({ average: null, count: 0 })
+      expect(await getReviewSummary(movie.slug)).toEqual({ average: null, count: 0 })
     })
   })
 
@@ -430,8 +430,8 @@ describe('reviews DAL', () => {
     const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
     const viewer = await signInAsViewer()
     await seedReview({ movieId: movie.id, authorId: viewer.id, rating: 3 })
-    expect(await getViewerReview(movie.id)).not.toBeNull()
+    expect(await getViewerReview(movie.slug)).not.toBeNull()
     signOut()
-    expect(await getViewerReview(movie.id)).toBeNull()
+    expect(await getViewerReview(movie.slug)).toBeNull()
   })
 })

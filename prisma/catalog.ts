@@ -26,9 +26,12 @@ export type SeedMovie = {
   cast: string[]
 }
 
-/** Randomly star half of the seeded actor credits. */
-export const randomlyMarkAsStar = (role: 'DIRECTOR' | 'WRITER' | 'ACTOR') =>
-  role === 'ACTOR' && Math.random() < 0.5
+/** How many top-billed cast members the seed stars, as the `credit_star` migration backfilled. */
+export const SEED_STARS_PER_MOVIE = 3
+
+/** Whether a seeded credit is a star: the first `SEED_STARS_PER_MOVIE` cast members, every seed alike. */
+export const isSeedStar = (role: 'DIRECTOR' | 'WRITER' | 'ACTOR', position: number) =>
+  role === 'ACTOR' && position < SEED_STARS_PER_MOVIE
 
 export const SEED_GENRES = [
   'Action',

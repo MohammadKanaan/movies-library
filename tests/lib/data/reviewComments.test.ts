@@ -266,7 +266,7 @@ describe('review comments DAL', () => {
       await createComment({ reviewId: review.id, body: 'Two.' })
       expect((await getReview(review.id)).commentCount).toBe(2)
       const counts = Object.fromEntries(
-        (await listReviews({ movieId: movie.id })).items.map((item) => [
+        (await listReviews({ movieSlug: movie.slug })).items.map((item) => [
           item.id,
           item.commentCount,
         ]),

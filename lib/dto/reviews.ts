@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { catalogIdSchema } from './catalog'
+import { catalogIdSchema, slugSchema } from './catalog'
 import { pageQuerySchema, permissionsSchema } from './common'
 import { userProfileSchema } from './users'
 
@@ -99,7 +99,8 @@ export const ratingSummarySchema = z.object({
 
 export type RatingSummary = z.infer<typeof ratingSummarySchema>
 
-export const listReviewsQuery = pageQuerySchema.extend({ movieId: catalogIdSchema })
+/** A movie's reviews, by the movie's slug: what a page has before it has read the movie. */
+export const listReviewsQuery = pageQuerySchema.extend({ movieSlug: slugSchema })
 
 export type ListReviewsQuery = z.input<typeof listReviewsQuery>
 

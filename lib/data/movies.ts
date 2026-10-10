@@ -24,11 +24,11 @@ import { invalidateTags, remember } from '@/lib/server/cache'
 import { logger } from '@/lib/server/logger'
 import { keyFromPublicUrl, publicUrl } from '@/lib/server/storage'
 import { getSessionUser, requireAdmin, type SessionUser } from './auth'
-import { CATALOG_TAG } from './cacheTags'
+import { CATALOG_TAG, reviewsTag } from './cacheTags'
 import { db } from './db'
 import { escapeLike } from './escapeLike'
 import { NotFoundError, parseInput, ValidationError } from './errors'
-import { genreSelect } from './genres'
+import { movieSummarySelect, toMovieSummary } from './movieSummary'
 import { personSummarySelect } from './people'
 import { moviePolicy } from './policies/movie'
 import { authorize, permissionsFor } from './policy'
@@ -41,20 +41,6 @@ import { userProfileSelect } from './users'
 // written with the movie as replace-all sets; the poster comes from an upload (`attachPoster`).
 
 const log = logger.child({ module: 'movies' })
-
-/** Exactly the `MovieSummary` DTO (`toMovieSummary` flattens the genre join); the admin DAL reuses it. */
-export const movieSummarySelect = {
-  id: true,
-  slug: true,
-  title: true,
-  releaseDate: true,
-  runtimeMinutes: true,
-  posterUrl: true,
-  genres: {
-    select: { genre: { select: genreSelect } },
-    orderBy: [{ genre: { name: 'asc' } }, { genreId: 'asc' }],
-  },
-} satisfies Prisma.MovieSelect
 
 const movieDetailSelect = {
   ...movieSummarySelect,
@@ -69,7 +55,6 @@ const movieDetailSelect = {
   },
 } satisfies Prisma.MovieSelect
 
-type MovieSummaryRow = Prisma.MovieGetPayload<{ select: typeof movieSummarySelect }>
 type MovieDetailRow = Prisma.MovieGetPayload<{ select: typeof movieDetailSelect }>
 
 /**
@@ -92,11 +77,6 @@ const ORDER_BY: Record<MovieSort, Prisma.MovieOrderByWithRelationInput[]> = {
   title: [{ title: 'asc' }, { id: 'asc' }],
   added: [{ createdAt: 'desc' }, { id: 'desc' }],
 }
-
-export const toMovieSummary = ({ genres, ...movie }: MovieSummaryRow): MovieSummary => ({
-  ...movie,
-  genres: genres.map(({ genre }) => genre),
-})
 
 const toMovieRecord = ({ credits, genres, ...movie }: MovieDetailRow): MovieRecord => {
   const grouped: MovieRecord['credits'] = { directors: [], writers: [], cast: [] }
@@ -197,7 +177,10 @@ export const listMovies = async (query: ListMoviesQuery): Promise<Page<MovieSumm
     ])
     return toPage(rows.map(toMovieSummary), totalItems, { page, perPage })
   }
-  if (Object.values(filters).some((value) => value !== undefined && value !== '')) {
+  const filtered = Object.values(filters).some((value) =>
+    Array.isArray(value) ? value.length > 0 : value !== undefined && value !== '',
+  )
+  if (filtered) {
     return load()
   }
   return remember(
@@ -360,7 +343,10 @@ const queuePosterDeletion = (posterUrl: string | null) => {
   )
 }
 
-/** Admin only → id valid → exists → allowed → deleted (the genre links and credits cascade), its poster queued. */
+/**
+ * Admin only → id valid → exists → allowed → deleted (the genre links, credits and reviews cascade,
+ * so the movie's rating summary is dropped with the catalog caches), its poster queued.
+ */
 export const deleteMovie = async (id: string): Promise<void> => {
   const viewer = await requireAdmin()
   const movieId = parseInput(catalogIdSchema, id)
@@ -373,7 +359,7 @@ export const deleteMovie = async (id: string): Promise<void> => {
   }
   authorize(moviePolicy.delete, viewer, record)
   await db.movie.delete({ where: { id: movieId } })
-  await invalidateTags(CATALOG_TAG)
+  await invalidateTags(CATALOG_TAG, reviewsTag(movieId))
   queuePosterDeletion(record.posterUrl)
 }
 

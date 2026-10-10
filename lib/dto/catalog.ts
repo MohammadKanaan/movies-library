@@ -37,3 +37,18 @@ export const catalogIdSchema = z.uuid('Invalid id')
 export const creditRoleSchema = z.enum(['DIRECTOR', 'WRITER', 'ACTOR'])
 
 export type CreditRole = z.infer<typeof creditRoleSchema>
+
+/**
+ * A person as a movie's credits and the people list show them. It lives here rather than in
+ * `people.ts` because `movies.ts` needs it for the credits while `people.ts` needs `movies.ts`'s
+ * summary for the filmography; `people.ts` re-exports it.
+ */
+export const personSummarySchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  /** A `headshot` upload's public URL, or null (the views show initials). */
+  headshotUrl: z.string().nullable(),
+})
+
+export type PersonSummary = z.infer<typeof personSummarySchema>

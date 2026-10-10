@@ -1,8 +1,10 @@
 import { z } from 'zod'
-import { catalogIdSchema, creditRoleSchema } from './catalog'
+import { catalogIdSchema, creditRoleSchema, personSummarySchema } from './catalog'
 import { pageQuerySchema, permissionsSchema, searchTermSchema } from './common'
-import { genreSchema } from './genres'
+import { movieSummarySchema } from './movies'
 import { uploadKeySchema } from './uploads'
+
+export { personSummarySchema, type PersonSummary } from './catalog'
 
 export const PERSON_NAME_MAX_LENGTH = 200
 export const PERSON_BIO_MAX_LENGTH = 2000
@@ -10,17 +12,6 @@ export const PEOPLE_SEARCH_MAX_LENGTH = 100
 /** The oldest birth date the catalog accepts; the earliest film-makers were born in the 1800s. */
 export const PERSON_BIRTH_MIN = '1800-01-01'
 const today = () => new Date().toISOString().slice(0, 10)
-
-/** A person as a movie's credits and the people list show them. */
-export const personSummarySchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  name: z.string(),
-  /** A `headshot` upload's public URL, or null (the views show initials). */
-  headshotUrl: z.string().nullable(),
-})
-
-export type PersonSummary = z.infer<typeof personSummarySchema>
 
 /** One row of the people list: the summary plus how many credits they hold and when they were added. */
 export const personListItemSchema = personSummarySchema.extend({
@@ -31,18 +22,10 @@ export const personListItemSchema = personSummarySchema.extend({
 export type PersonListItem = z.infer<typeof personListItemSchema>
 
 /**
- * A movie as a person's filmography shows it: the fields of a `MovieSummary` (so a `MovieCard` can
- * render it) plus every role the person holds on it, in `credit_role` order. Spelled out here rather
- * than extended from `movieSummarySchema`, because `movies.ts` imports this file.
+ * A movie as a person's filmography shows it: a `MovieSummary` (so a `MovieCard` can render it) plus
+ * every role the person holds on it, in `credit_role` order.
  */
-export const movieCreditSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  title: z.string(),
-  releaseDate: z.coerce.date(),
-  runtimeMinutes: z.number().int().nullable(),
-  posterUrl: z.string().nullable(),
-  genres: z.array(genreSchema),
+export const movieCreditSchema = movieSummarySchema.extend({
   roles: z.array(creditRoleSchema).min(1),
 })
 

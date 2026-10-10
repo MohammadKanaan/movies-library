@@ -139,6 +139,11 @@ model Movie {
   // so a row cannot move between pages.
   @@index([releaseDate, id])
   @@index([title, id])
+  // The `added` sort: the admin list's default, the overview's and a user's recent movies.
+  @@index([createdAt, id])
+  // `createMovie` numbers a taken slug after a `LIKE 'base%'` lookup, which the unique index
+  // cannot serve under the database's locale collation; `text_pattern_ops` can.
+  @@index([slug(ops: raw("text_pattern_ops"))], map: "movies_slug_pattern_idx")
   // The list's runtime range filter (`runtimeMin` / `runtimeMax`); the release year range reads the
   // `releaseDate` index above.
   @@index([runtimeMinutes])
@@ -186,6 +191,10 @@ model Person {
   credits Credit[]
 
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "people_name_trgm_idx")
+  // The list's order; `id` breaks ties so a row cannot move between pages.
+  @@index([name, id])
+  // `createPerson`'s slug lookup, like `movies_slug_pattern_idx`.
+  @@index([slug(ops: raw("text_pattern_ops"))], map: "people_slug_pattern_idx")
   @@map("people")
 }
 

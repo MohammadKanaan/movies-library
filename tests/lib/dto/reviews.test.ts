@@ -92,12 +92,13 @@ describe('updateReviewInput', () => {
 
 describe('listReviewsQuery', () => {
   it('pages one movie', () => {
-    expect(listReviewsQuery.parse({ movieId: MOVIE_ID })).toEqual({
-      movieId: MOVIE_ID,
+    expect(listReviewsQuery.parse({ movieSlug: 'dune-2021' })).toEqual({
+      movieSlug: 'dune-2021',
       page: 1,
       perPage: 10,
     })
     expect(listReviewsQuery.safeParse({}).success).toBe(false)
+    expect(listReviewsQuery.safeParse({ movieSlug: 'Not A Slug' }).success).toBe(false)
   })
 })
 

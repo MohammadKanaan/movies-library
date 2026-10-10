@@ -80,20 +80,24 @@ export const generateMetadata = async ({
 
 const MoviePage = async ({ params }: PageProps<'/movies/[slug]'>) => {
   const { slug } = await params
-  const movie = presentMovieDetail(await loadMovie(slug))
+  // The reviews are read by the movie's slug, so they load alongside the movie, not after it.
+  const [detail, [viewer, summary, latest, viewerReview]] = await Promise.all([
+    loadMovie(slug),
+    loadPage(
+      () =>
+        Promise.all([
+          getViewer(),
+          getReviewSummary(slug),
+          listReviews({ movieSlug: slug, perPage: LATEST_REVIEWS }),
+          getViewerReview(slug),
+        ]),
+      moviePath(slug),
+    ),
+  ])
+  const movie = presentMovieDetail(detail)
   const { directors, writers, cast } = movie.credits
   const releaseDay = movie.releaseDate.toISOString().slice(0, 10)
   const hasCredits = directors.length + writers.length + cast.length > 0
-  const [viewer, summary, latest, viewerReview] = await loadPage(
-    () =>
-      Promise.all([
-        getViewer(),
-        getReviewSummary(movie.id),
-        listReviews({ movieId: movie.id, perPage: LATEST_REVIEWS }),
-        getViewerReview(movie.id),
-      ]),
-    moviePath(slug),
-  )
   // The viewer's own review has its box above the list.
   const otherReviews = latest.items.filter((review) => review.id !== viewerReview?.id)
 

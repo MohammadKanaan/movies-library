@@ -23,7 +23,7 @@ import { auth, requireAdmin, requireUser, toRole } from './auth'
 import { db } from './db'
 import { escapeLike } from './escapeLike'
 import { ForbiddenError, NotFoundError, parseInput } from './errors'
-import { movieSummarySelect, toMovieSummary } from './movies'
+import { movieSummarySelect, toMovieSummary } from './movieSummary'
 
 // The admin area. Reads are this app's own queries; writes go through Better Auth's admin plugin
 // (`auth.api.*`), which owns the semantics (a ban revokes the sessions, impersonation opens a

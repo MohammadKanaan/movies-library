@@ -4,7 +4,7 @@ import { hashPassword } from 'better-auth/crypto'
 import Redis from 'ioredis'
 import { PrismaClient } from '../generated/prisma/client.ts'
 import { slugify } from '../lib/slug.ts'
-import { randomlyMarkAsStar, SEED_GENRES, SEED_MOVIES, seedPeople } from './catalog.ts'
+import { isSeedStar, SEED_GENRES, SEED_MOVIES, seedPeople } from './catalog.ts'
 
 /** Dev-only password shared by every seeded account. */
 const SEED_PASSWORD = 'password123'
@@ -194,7 +194,7 @@ try {
         personId: idOf(personIds, name),
         role,
         position,
-        star: randomlyMarkAsStar(role),
+        star: isSeedStar(role, position),
       }))
     })
     await db.$transaction(async (tx) => {

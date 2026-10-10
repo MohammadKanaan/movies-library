@@ -9,7 +9,7 @@ import {
 import { db } from './db'
 import { parseInput } from './errors'
 import { escapeLike } from './escapeLike'
-import { movieSummarySelect, toMovieSummary } from './movies'
+import { movieSummarySelect, toMovieSummary } from './movieSummary'
 import { personListItemSelect, toPersonListItem } from './people'
 
 // The catalog's quick search ("search all"): one term, the best movies and people for it. Public,

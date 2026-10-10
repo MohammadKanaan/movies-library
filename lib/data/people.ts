@@ -29,7 +29,7 @@ import { CATALOG_TAG } from './cacheTags'
 import { db } from './db'
 import { escapeLike } from './escapeLike'
 import { NotFoundError, parseInput, ValidationError } from './errors'
-import { genreSelect } from './genres'
+import { movieSummarySelect, toMovieSummary } from './movieSummary'
 import { personPolicy } from './policies/person'
 import { authorize, permissionsFor } from './policy'
 import { uniqueSlug } from './slugs'
@@ -65,21 +65,6 @@ export const toPersonListItem = ({ _count, ...person }: PersonListItemRow): Pers
   creditCount: _count.credits,
 })
 
-// The fields of `movieSummarySelect` (`lib/data/movies.ts`), which cannot be imported here: movies.ts
-// imports this file.
-const movieCreditSelect = {
-  id: true,
-  slug: true,
-  title: true,
-  releaseDate: true,
-  runtimeMinutes: true,
-  posterUrl: true,
-  genres: {
-    select: { genre: { select: genreSelect } },
-    orderBy: [{ genre: { name: 'asc' } }, { genreId: 'asc' }],
-  },
-} satisfies Prisma.MovieSelect
-
 const personDetailSelect = {
   ...personSummarySelect,
   bio: true,
@@ -87,7 +72,7 @@ const personDetailSelect = {
   createdAt: true,
   updatedAt: true,
   credits: {
-    select: { role: true, movie: { select: movieCreditSelect } },
+    select: { role: true, movie: { select: movieSummarySelect } },
     orderBy: [{ movie: { releaseDate: 'desc' } }, { movie: { id: 'desc' } }],
   },
 } satisfies Prisma.PersonSelect
@@ -116,12 +101,7 @@ const toPersonRecord = ({ credits, ...person }: PersonDetailRow): PersonRecord =
     if (entry) {
       entry.roles.push(role)
     } else {
-      const { genres, ...fields } = movie
-      byMovie.set(movie.id, {
-        ...fields,
-        genres: genres.map(({ genre }) => genre),
-        roles: [role],
-      })
+      byMovie.set(movie.id, { ...toMovieSummary(movie), roles: [role] })
     }
   }
   const filmography = [...byMovie.values()].map((entry) => ({
@@ -332,13 +312,8 @@ export const deletePerson = async (id: string): Promise<void> => {
     throw new NotFoundError('Person not found')
   }
   authorize(personPolicy.delete, viewer, record)
-  const credited = await db.credit.findMany({
-    where: { personId },
-    distinct: ['movieId'],
-    select: { movieId: true },
-  })
-  if (credited.length > 0) {
-    const count = credited.length
+  const count = await db.movie.count({ where: { credits: { some: { personId } } } })
+  if (count > 0) {
     const message = `Remove the person from the credits of ${count} ${count === 1 ? 'movie' : 'movies'} first`
     throw new ValidationError({ base: [message] }, message)
   }

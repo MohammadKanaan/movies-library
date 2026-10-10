@@ -1,7 +1,7 @@
 import 'server-only'
 import { Prisma } from '@/generated/prisma/client'
 import { MINUTE } from '@/lib/constants-time'
-import { catalogIdSchema } from '@/lib/dto/catalog'
+import { slugSchema } from '@/lib/dto/catalog'
 import { toPage, type Page } from '@/lib/dto/common'
 import {
   listReviewsQuery,
@@ -88,13 +88,21 @@ const assertMovieExists = async (movieId: string) => {
   }
 }
 
-/** A read by id treats a malformed id as not found, like an unknown one. */
-const readMovieId = (movieId: string) => {
-  const parsed = catalogIdSchema.safeParse(movieId)
+/**
+ * The id of the movie with this slug. The reads take the slug a page has before it has read the
+ * movie, so the reviews load alongside the movie instead of after it; a malformed slug is not
+ * found, like an unknown one.
+ */
+const readMovieIdBySlug = async (movieSlug: string) => {
+  const parsed = slugSchema.safeParse(movieSlug)
   if (!parsed.success) {
     throw new NotFoundError('Movie not found')
   }
-  return parsed.data
+  const movie = await db.movie.findUnique({ where: { slug: parsed.data }, select: { id: true } })
+  if (!movie) {
+    throw new NotFoundError('Movie not found')
+  }
+  return movie.id
 }
 
 /**
@@ -103,8 +111,8 @@ const readMovieId = (movieId: string) => {
  */
 export const listReviews = async (query: ListReviewsQuery): Promise<Page<Review>> => {
   const viewer = await getSessionUser()
-  const { movieId, ...paging } = parseInput(listReviewsQuery, query)
-  await assertMovieExists(movieId)
+  const { movieSlug, ...paging } = parseInput(listReviewsQuery, query)
+  const movieId = await readMovieIdBySlug(movieSlug)
   const where = { movieId } satisfies Prisma.ReviewWhereInput
   const [rows, totalItems] = await Promise.all([
     db.review.findMany({
@@ -127,14 +135,13 @@ export const listReviews = async (query: ListReviewsQuery): Promise<Page<Review>
  * Public: a movie's mean rating in stars (one decimal, null without ratings) and how many
  * reviews carry one. The same for every viewer, so it is cached under the movie's `reviewsTag`.
  */
-export const getReviewSummary = async (movieId: string): Promise<RatingSummary> => {
-  const id = readMovieId(movieId)
+export const getReviewSummary = async (movieSlug: string): Promise<RatingSummary> => {
+  // An unknown movie throws here, so only real movies get a cache key.
+  const id = await readMovieIdBySlug(movieSlug)
   return remember(
     `reviews:summary:${id}`,
     { ttl: REVIEWS_CACHE_TTL, tags: [reviewsTag(id)], schema: ratingSummarySchema },
     async () => {
-      // An unknown movie throws, so only real movies get a cache key.
-      await assertMovieExists(id)
       const { _avg, _count } = await db.review.aggregate({
         where: { movieId: id },
         _avg: { halfStars: true },
@@ -148,15 +155,22 @@ export const getReviewSummary = async (movieId: string): Promise<RatingSummary> 
   )
 }
 
-/** The viewer's own review of a movie, or null: signed out, or not reviewed yet. */
-export const getViewerReview = async (movieId: string): Promise<Review | null> => {
+/**
+ * The viewer's own review of a movie (by slug), or null: signed out, not reviewed yet, or no such
+ * movie. A malformed slug is not found.
+ */
+export const getViewerReview = async (movieSlug: string): Promise<Review | null> => {
   const viewer = await getSessionUser()
-  const id = readMovieId(movieId)
+  const parsed = slugSchema.safeParse(movieSlug)
+  if (!parsed.success) {
+    throw new NotFoundError('Movie not found')
+  }
   if (!viewer) {
     return null
   }
-  const row = await db.review.findUnique({
-    where: { movieId_authorId: { movieId: id, authorId: viewer.id } },
+  // One review per user per movie, so the first match is the only one.
+  const row = await db.review.findFirst({
+    where: { authorId: viewer.id, movie: { slug: parsed.data } },
     select: reviewSelect,
   })
   return row ? toReview(row, viewer) : null

@@ -34,11 +34,12 @@ const MovieReviewsPage = async ({ params, searchParams }: PageProps<'/movies/[sl
   const { slug } = await params
   // A garbled URL falls back to the first page.
   const { page } = reviewsUrlQuery.parse(toScalarParams(await searchParams))
-  const movie = await loadMovie(slug)
   const path = movieReviewsPath(slug)
-  const [summary, reviews] = await Promise.all([
-    loadPage(() => getReviewSummary(movie.id), path),
-    loadPage(() => listReviews({ movieId: movie.id, page, perPage: PER_PAGE }), path),
+  // The reviews are read by the movie's slug, so they load alongside the movie, not after it.
+  const [movie, summary, reviews] = await Promise.all([
+    loadMovie(slug),
+    loadPage(() => getReviewSummary(slug), path),
+    loadPage(() => listReviews({ movieSlug: slug, page, perPage: PER_PAGE }), path),
   ])
   const count = `${summary.count} ${summary.count === 1 ? 'rating' : 'ratings'}`
 
