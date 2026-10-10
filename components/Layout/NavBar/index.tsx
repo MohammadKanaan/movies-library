@@ -15,8 +15,6 @@ import {
   ROUTE_ADMIN,
   ROUTE_HOME,
   ROUTE_LOGIN,
-  ROUTE_POSTS,
-  ROUTE_POSTS_MINE,
   ROUTE_SETTINGS,
   ROUTE_UI_KIT,
 } from '@/lib/constants-routes'
@@ -26,13 +24,7 @@ import styles from './styles.module.scss'
 
 const MOBILE_NAV_ID = 'mobile-nav'
 
-const NAV_LINKS = [
-  { label: 'Posts', href: ROUTE_POSTS },
-  { label: 'UI Kit', href: ROUTE_UI_KIT },
-]
-
-/** Only for signed-in users; `/posts/mine` is private (the proxy and the DAL both guard it). */
-const MY_POSTS_LINK = { label: 'My posts', href: ROUTE_POSTS_MINE }
+const NAV_LINKS = [{ label: 'UI Kit', href: ROUTE_UI_KIT }]
 
 /** Only for admins; the page itself is guarded by the DAL, this just hides the link. */
 const ADMIN_LINK = { label: 'Admin', href: ROUTE_ADMIN }
@@ -46,7 +38,7 @@ type NavLinksProps = {
 const NavLinks = ({ links }: NavLinksProps) => {
   const pathname = usePathname()
   const matches = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
-  // The most specific link wins, so `/posts/mine` does not also light up `/posts`.
+  // The most specific link wins, so a nested link does not also light up its parent.
   const activeHref = links
     .filter((link) => matches(link.href))
     .reduce<string | null>(
@@ -95,11 +87,7 @@ type NavBarProps = {
 
 export const NavBar = ({ user }: NavBarProps) => {
   const { lockScroll, unlockScroll } = useScrollLock()
-  const links = [
-    ...NAV_LINKS,
-    ...(user ? [MY_POSTS_LINK] : []),
-    ...(user?.role === 'admin' ? [ADMIN_LINK] : []),
-  ]
+  const links = [...NAV_LINKS, ...(user?.role === 'admin' ? [ADMIN_LINK] : [])]
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const closeMobileMenu = () => {

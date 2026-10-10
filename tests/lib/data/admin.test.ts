@@ -82,7 +82,7 @@ describe('admin DAL', () => {
         username: 'first_u',
         email: first.email,
         emailVerified: false,
-        role: 'user',
+        role: 'viewer',
         banned: false,
         banReason: null,
         createdAt: expect.any(Date),
@@ -150,7 +150,7 @@ describe('admin DAL', () => {
       const admin = await createUser({ username: 'boss_u', role: 'admin' })
       await signInAs(admin)
       const rowOf = async () => (await listUsers(all)).items.find((user) => user.id === member.id)
-      expect(await rowOf()).toMatchObject({ role: 'user', banned: false })
+      expect(await rowOf()).toMatchObject({ role: 'viewer', banned: false })
       await db.user.update({ where: { id: member.id }, data: { role: 'admin', banned: true } })
       expect(await rowOf()).toMatchObject({ role: 'admin', banned: true })
     })
@@ -170,8 +170,8 @@ describe('admin DAL', () => {
       await expect(setUserRole({ id: member.id, role: 'admin' })).rejects.toBeInstanceOf(
         ForbiddenError,
       )
-      expect(await userRow(target.id)).toMatchObject({ role: 'user' })
-      expect(await userRow(member.id)).toMatchObject({ role: 'user' })
+      expect(await userRow(target.id)).toMatchObject({ role: 'viewer' })
+      expect(await userRow(member.id)).toMatchObject({ role: 'viewer' })
     })
 
     it('validates the id and the role', async () => {
@@ -189,7 +189,7 @@ describe('admin DAL', () => {
     it('reports a missing user as not found', async () => {
       const admin = await createUser({ role: 'admin' })
       await signInAs(admin)
-      await expect(setUserRole({ id: 'missing-id', role: 'admin' })).rejects.toBeInstanceOf(
+      await expect(setUserRole({ id: crypto.randomUUID(), role: 'admin' })).rejects.toBeInstanceOf(
         NotFoundError,
       )
     })
@@ -197,7 +197,7 @@ describe('admin DAL', () => {
     it('refuses to change the admin’s own role', async () => {
       const admin = await createUser({ role: 'admin' })
       await signInAs(admin)
-      await expect(setUserRole({ id: admin.id, role: 'user' })).rejects.toMatchObject({
+      await expect(setUserRole({ id: admin.id, role: 'viewer' })).rejects.toMatchObject({
         code: 'FORBIDDEN',
         message: 'You cannot change your own role',
       })
@@ -213,15 +213,15 @@ describe('admin DAL', () => {
       expect(promoted).toMatchObject({ id: target.id, name: 'Target', role: 'admin' })
       expect(await userRow(target.id)).toMatchObject({ role: 'admin' })
 
-      expect((await setUserRole({ id: target.id, role: 'user' })).role).toBe('user')
-      expect(await userRow(target.id)).toMatchObject({ role: 'user' })
+      expect((await setUserRole({ id: target.id, role: 'viewer' })).role).toBe('viewer')
+      expect(await userRow(target.id)).toMatchObject({ role: 'viewer' })
     })
 
     it('applies on the target’s next request and refreshes their cached viewer', async () => {
       const target = await createUser({})
       const admin = await createUser({ role: 'admin' })
       await signInAs(target)
-      expect((await getViewer())?.role).toBe('user')
+      expect((await getViewer())?.role).toBe('viewer')
       await expect(requireAdmin()).rejects.toBeInstanceOf(ForbiddenError)
       await signInAs(admin)
       await setUserRole({ id: target.id, role: 'admin' })
@@ -263,8 +263,8 @@ describe('admin DAL', () => {
     it('report a missing user as not found', async () => {
       const admin = await createUser({ role: 'admin' })
       await signInAs(admin)
-      await expect(banUser({ id: 'missing-id' })).rejects.toBeInstanceOf(NotFoundError)
-      await expect(unbanUser('missing-id')).rejects.toBeInstanceOf(NotFoundError)
+      await expect(banUser({ id: crypto.randomUUID() })).rejects.toBeInstanceOf(NotFoundError)
+      await expect(unbanUser(crypto.randomUUID())).rejects.toBeInstanceOf(NotFoundError)
     })
 
     it('refuse to ban the admin’s own account', async () => {
@@ -391,7 +391,7 @@ describe('admin DAL', () => {
       const admin = await createUser({ role: 'admin' })
       await signInAs(admin)
       await expect(impersonateUser('a b')).rejects.toBeInstanceOf(ValidationError)
-      await expect(impersonateUser('missing-id')).rejects.toBeInstanceOf(NotFoundError)
+      await expect(impersonateUser(crypto.randomUUID())).rejects.toBeInstanceOf(NotFoundError)
       await expect(getSessionUser()).resolves.toMatchObject({
         id: admin.id,
         impersonatedBy: null,
@@ -418,7 +418,7 @@ describe('admin DAL', () => {
       await impersonateUser(target.id)
 
       const session = await getSessionUser()
-      expect(session).toMatchObject({ id: target.id, role: 'user', impersonatedBy: admin.id })
+      expect(session).toMatchObject({ id: target.id, role: 'viewer', impersonatedBy: admin.id })
       expect((await getViewer())?.id).toBe(target.id)
       const row = await db.session.findUniqueOrThrow({ where: { id: session!.sessionId } })
       expect(row.impersonatedBy).toBe(admin.id)

@@ -27,9 +27,22 @@ import {
 import { useUrlState } from '@/hooks/useUrlState'
 import { ROUTE_HOME } from '@/lib/constants-routes'
 import type { Page } from '@/lib/dto/common'
-import { roleSchema, USER_SEARCH_MAX_LENGTH, usersUrlQuery, type AdminUser } from '@/lib/dto/users'
+import {
+  roleSchema,
+  USER_SEARCH_MAX_LENGTH,
+  usersUrlQuery,
+  type AdminUser,
+  type Role,
+} from '@/lib/dto/users'
 import { formatDateTime } from '@/lib/formatDate'
 import styles from './styles.module.scss'
+
+/** How the confirmation toast names each role. */
+const ROLE_PHRASES: Record<Role, string> = {
+  viewer: 'a viewer',
+  editor: 'an editor',
+  admin: 'an admin',
+}
 
 type AdminViewProps = {
   users: Page<AdminUser>
@@ -69,9 +82,7 @@ export const AdminView = ({ users, viewerId }: AdminViewProps) => {
     await run(async () => {
       const result = await setUserRoleAction({ id: user.id, role: role.data })
       if (result.ok) {
-        toast.success(
-          `${user.name} is now ${role.data === 'admin' ? 'an admin' : 'a regular user'}`,
-        )
+        toast.success(`${user.name} is now ${ROLE_PHRASES[role.data]}`)
       }
       return result
     })
@@ -157,7 +168,8 @@ export const AdminView = ({ users, viewerId }: AdminViewProps) => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="viewer">Viewer</SelectItem>
+                        <SelectItem value="editor">Editor</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>

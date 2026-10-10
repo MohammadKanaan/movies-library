@@ -22,7 +22,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: next_template_test
+          POSTGRES_DB: movies_library_test
         ports:
           - 5432:5432
         options: >-
@@ -48,7 +48,7 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
-      # The example file already points at localhost:5432/next_template_test and Redis database 15,
+      # The example file already points at localhost:5432/movies_library_test and Redis database 15,
       # which is where the service containers above listen.
       - name: Write .env.test
         run: cp .env.test.example .env.test

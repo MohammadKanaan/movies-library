@@ -59,7 +59,7 @@ describe('auth actions', () => {
     expect(await signUpAction(newUser)).toEqual({ ok: true, data: null })
     await expect(requireUser()).resolves.toBeDefined()
     const stored = await db.user.findFirstOrThrow()
-    expect(stored).toMatchObject({ email: 'new@example.com', role: 'user', banned: false })
+    expect(stored).toMatchObject({ email: 'new@example.com', role: 'viewer', banned: false })
   })
 
   it('rejects a taken username', async () => {
@@ -422,9 +422,9 @@ describe('account actions', () => {
   }
 
   const addSession = async (userId: string) => {
-    const id = `session-${Math.random().toString(36).slice(2, 10)}`
+    const token = `token-${Math.random().toString(36).slice(2, 10)}`
     return db.session.create({
-      data: { id, token: `token-${id}`, userId, expiresAt: new Date(Date.now() + 3_600_000) },
+      data: { token, userId, expiresAt: new Date(Date.now() + 3_600_000) },
     })
   }
 
@@ -625,15 +625,13 @@ describe('account actions', () => {
       expect(await db.user.count({ where: { id: user.id } })).toBe(1)
     })
 
-    it('deletes the account with its posts and signs the browser out', async () => {
-      const user = await signedInUser()
-      await db.post.create({ data: { userId: user.id, title: 'T', body: 'B' } })
+    it('deletes the account and signs the browser out', async () => {
+      await signedInUser()
       expect(await deleteAccountAction({ password: TEST_PASSWORD })).toEqual({
         ok: true,
         data: null,
       })
       expect(await db.user.count()).toBe(0)
-      expect(await db.post.count()).toBe(0)
       expect(refresh).toHaveBeenCalledTimes(1)
       await expect(requireUser()).rejects.toBeInstanceOf(UnauthorizedError)
     })

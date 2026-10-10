@@ -22,8 +22,7 @@ const user: CurrentUser = {
   email: 'ada@example.com',
   emailVerified: true,
   image: null,
-  website: null,
-  role: 'user',
+  role: 'viewer',
 }
 const sessions: SessionSummary[] = []
 

@@ -1,10 +1,9 @@
 // @vitest-environment node
 import { APIError } from 'better-auth/api'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { auth, getSessionUser, requireAdmin, requireUser } from '@/lib/data/auth'
+import { auth, getSessionUser, requireAdmin, requireUser, toRole } from '@/lib/data/auth'
 import { db } from '@/lib/data/db'
 import { ForbiddenError, UnauthorizedError } from '@/lib/data/errors'
-import { listPosts } from '@/lib/data/posts'
 import { getViewer } from '@/lib/data/users'
 import { MAX_OBJECT_DELETE_DELAY_SECONDS } from '@/lib/dto/uploads'
 import { enqueue } from '@/lib/server/queue'
@@ -28,6 +27,11 @@ vi.mock('next/headers', () => ({
   headers: async () => requestHeaders(),
 }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), refresh: vi.fn() }))
+const BUCKET_URL = vi.hoisted(() => 'https://pub-abc.r2.dev/')
+vi.mock('@/lib/server/storage', () => ({
+  keyFromPublicUrl: (url: string | null) =>
+    url?.startsWith(BUCKET_URL) ? url.slice(BUCKET_URL.length) : null,
+}))
 
 const currentSessionOf = (userId: string) =>
   db.session.findFirstOrThrow({ where: { userId }, orderBy: { createdAt: 'desc' } })
@@ -59,7 +63,7 @@ describe('DAL auth', () => {
     const session = await currentSessionOf(user.id)
     expect(await requireUser()).toEqual({
       id: user.id,
-      role: 'user',
+      role: 'viewer',
       sessionId: session.id,
       impersonatedBy: null,
     })
@@ -75,16 +79,20 @@ describe('DAL auth', () => {
     expect(await requireAdmin()).toMatchObject({ id: admin.id, role: 'admin' })
   })
 
-  it('reads a role it does not know as a regular user, so an odd value never grants more', async () => {
-    const user = await createUser({})
-    await db.user.update({ where: { id: user.id }, data: { role: 'owner' } })
-    await signInAs(user)
-    expect(await getSessionUser()).toMatchObject({ id: user.id, role: 'user' })
-    await expect(requireAdmin()).rejects.toBeInstanceOf(ForbiddenError)
-
+  it('reads a role it does not know as a viewer, so an odd value never grants more', () => {
+    expect(toRole('owner')).toBe('viewer')
     // The plugin allows comma-separated role lists; a list is not one of ours either.
-    await db.user.update({ where: { id: user.id }, data: { role: 'admin,user' } })
-    expect((await getSessionUser())?.role).toBe('user')
+    expect(toRole('admin,viewer')).toBe('viewer')
+    expect(toRole(null)).toBe('viewer')
+    expect(toRole('editor')).toBe('editor')
+  })
+
+  it('keeps odd roles out of the table altogether (users_role_valid)', async () => {
+    const user = await createUser({})
+    await expect(
+      db.user.update({ where: { id: user.id }, data: { role: 'owner' } }),
+    ).rejects.toThrow()
+    expect((await db.user.findUniqueOrThrow({ where: { id: user.id } })).role).toBe('viewer')
   })
 
   it('exposes the admin behind an impersonated session', async () => {
@@ -95,7 +103,7 @@ describe('DAL auth', () => {
     await db.session.update({ where: { id: session.id }, data: { impersonatedBy: admin.id } })
     expect(await getSessionUser()).toEqual({
       id: user.id,
-      role: 'user',
+      role: 'viewer',
       sessionId: session.id,
       impersonatedBy: admin.id,
     })
@@ -279,7 +287,7 @@ describe('DAL auth', () => {
       ])
       expect(impersonate.headers.get('set-cookie')).toBeNull()
       expect(await db.user.findUniqueOrThrow({ where: { id: target.id } })).toMatchObject({
-        role: 'user',
+        role: 'viewer',
         banned: false,
       })
       expect(await db.session.count({ where: { userId: target.id } })).toBeGreaterThan(0)
@@ -374,60 +382,63 @@ describe('DAL auth', () => {
   })
 
   describe('deleting the account', () => {
-    it('removes the user with their posts and sessions, and nobody else’s', async () => {
+    it('removes the user with their sessions and accounts, and nobody else’s', async () => {
       const user = await createUser({})
       const other = await createUser({})
-      await db.post.create({ data: { userId: user.id, title: 'Mine', body: 'b' } })
-      await db.post.create({ data: { userId: other.id, title: 'Theirs', body: 'b' } })
       await signInAs(user)
 
       await auth.api.deleteUser({ body: { password: TEST_PASSWORD }, headers: requestHeaders() })
 
       expect(await db.user.count({ where: { id: user.id } })).toBe(0)
       expect(await db.user.count({ where: { id: other.id } })).toBe(1)
-      expect(await db.post.findMany({ select: { title: true } })).toEqual([{ title: 'Theirs' }])
       expect(await db.session.count({ where: { userId: user.id } })).toBe(0)
       expect(await db.account.count({ where: { userId: user.id } })).toBe(0)
       await expect(requireUser()).rejects.toBeInstanceOf(UnauthorizedError)
     })
 
-    it('drops the cached post lists and viewer', async () => {
+    it('drops the cached viewer', async () => {
       const user = await createUser({})
-      await db.post.create({
-        data: { userId: user.id, title: 'Soon gone', body: 'b', published: true },
-      })
       await signInAs(user)
-      expect((await listPosts({ page: 1, perPage: 10 })).totalItems).toBe(1)
       expect(await getViewer()).not.toBeNull()
 
       await auth.api.deleteUser({ body: { password: TEST_PASSWORD }, headers: requestHeaders() })
 
-      expect((await listPosts({ page: 1, perPage: 10 })).totalItems).toBe(0)
       expect(await getViewer()).toBeNull()
     })
 
-    it("queues the user's upload objects for deletion, delayed past every ticket's lifetime", async () => {
+    it("queues the avatar's object for deletion, delayed past every ticket's lifetime", async () => {
       const user = await createUser({})
-      const other = await createUser({})
-      const upload = (userId: string, key: string, status: 'pending' | 'attached') =>
-        db.upload.create({
-          data: { userId, key, purpose: 'avatar', contentType: 'image/png', size: 1, status },
-        })
-      await upload(user.id, `avatars/${user.id}/old`, 'attached')
-      await upload(user.id, `avatars/${user.id}/half`, 'pending')
-      await upload(other.id, `avatars/${other.id}/keep`, 'attached')
+      const key = `avatars/${user.id}/0190d1a2-0000-7000-8000-000000000001`
+      await db.user.update({ where: { id: user.id }, data: { image: `${BUCKET_URL}${key}` } })
       await signInAs(user)
       vi.mocked(enqueue).mockClear()
 
       await auth.api.deleteUser({ body: { password: TEST_PASSWORD }, headers: requestHeaders() })
 
       const deletes = vi.mocked(enqueue).mock.calls.filter(([name]) => name === 'delete-object')
-      const keys = deletes.map(([, payload]) => ('key' in payload ? payload.key : null)).sort()
-      expect(keys).toEqual([`avatars/${user.id}/half`, `avatars/${user.id}/old`])
-      for (const [, , options] of deletes) {
-        expect(options).toEqual({ startAfter: MAX_OBJECT_DELETE_DELAY_SECONDS })
+      expect(deletes).toEqual([
+        ['delete-object', { key }, { startAfter: MAX_OBJECT_DELETE_DELAY_SECONDS }],
+      ])
+    })
+
+    it('deletes no object it does not own: a Google picture or another user’s key', async () => {
+      const other = await createUser({})
+      for (const image of [
+        'https://lh3.googleusercontent.com/a/picture',
+        `${BUCKET_URL}avatars/${other.id}/0190d1a2-0000-7000-8000-000000000001`,
+      ]) {
+        const user = await createUser({})
+        await db.user.update({ where: { id: user.id }, data: { image } })
+        await signInAs(user)
+        vi.mocked(enqueue).mockClear()
+
+        await auth.api.deleteUser({ body: { password: TEST_PASSWORD }, headers: requestHeaders() })
+
+        expect(await db.user.count({ where: { id: user.id } })).toBe(0)
+        expect(vi.mocked(enqueue).mock.calls.filter(([name]) => name === 'delete-object')).toEqual(
+          [],
+        )
       }
-      expect(await db.upload.count()).toBe(1)
     })
 
     it('refuses a wrong password and keeps the account', async () => {

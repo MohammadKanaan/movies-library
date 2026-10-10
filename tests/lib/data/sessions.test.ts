@@ -21,11 +21,9 @@ const addSession = async (
   userId: string,
   overrides: { expiresInMs?: number; agent?: string } = {},
 ) => {
-  const id = `session-${Math.random().toString(36).slice(2, 10)}`
   return db.session.create({
     data: {
-      id,
-      token: `token-${id}`,
+      token: `token-${Math.random().toString(36).slice(2, 10)}`,
       userId,
       userAgent: overrides.agent ?? 'Firefox on Linux',
       ipAddress: '203.0.113.7',
@@ -92,7 +90,7 @@ describe('sessions DAL', () => {
     await signedInUser()
     const theirs = await addSession(other.id)
     await expect(revokeSession(theirs.id)).rejects.toBeInstanceOf(NotFoundError)
-    await expect(revokeSession('missing')).rejects.toBeInstanceOf(NotFoundError)
+    await expect(revokeSession(crypto.randomUUID())).rejects.toBeInstanceOf(NotFoundError)
     expect(await db.session.findUnique({ where: { id: theirs.id } })).not.toBeNull()
   })
 

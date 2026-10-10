@@ -1,39 +1,40 @@
 # Uploads (Cloudflare R2)
 
-Files go straight from the browser to the bucket; the app only issues tickets and records the result.
-The one implemented purpose is the profile photo on `/settings` (`avatar`). Storage is Cloudflare R2
-through its S3 API, so the client is `@aws-sdk/client-s3`; nothing here is R2-specific except the
-endpoint and the absence of presigned POST.
+Files go straight from the browser to the bucket; the app only issues tickets and stores the
+result's public URL on the record that uses it. There is **no uploads table**: an object's key is
+`<purpose>s/<userId>/<uuid>`, so the key alone says whose it is and what it is for. The one
+implemented purpose is the profile photo on `/settings` (`avatar`); movie images are next. Storage is
+Cloudflare R2 through its S3 API, so the client is `@aws-sdk/client-s3`; nothing here is R2-specific
+except the endpoint and the absence of presigned POST.
 
 ## Flow
 
-1. **Ticket** (`createUpload(input)` in `lib/data/uploads.ts`): signed in → `createUploadInput` valid
-   for its purpose (type and exact size against `UPLOAD_RULES`) → storage configured (otherwise a
-   `ValidationError`, "Uploads are not available") → expired pending uploads of that purpose are
-   reclaimed → at most `maxPending` live tickets per user (`RateLimitedError`) → a `pending` row with
-   the key `avatars/<userId>/<uuid>` → a **presigned PUT** from `createUploadTicket`
-   (`lib/server/storage.ts`). `createUploadAction` also rate-limits tickets per user (30 a minute).
+1. **Ticket** (`createUpload(input)` in `lib/data/uploads.ts`): signed in → within the per-user
+   ticket limit (`consumeRateLimit`, 10 an hour, production only) → `createUploadInput` valid for its
+   purpose (type and exact size against `UPLOAD_RULES`) → storage configured (otherwise a
+   `ValidationError`, "Uploads are not available") → a new key `avatars/<userId>/<uuid>` → a
+   **presigned PUT** from `createUploadTicket` (`lib/server/storage.ts`). The ticket carries the key.
 2. **Upload** (`uploadFile(ticket, file)` in `lib/client/uploads.ts`): the browser `PUT`s the file to
    the ticket's URL with the ticket's headers. It is the one client-side fetch to a non-app URL;
    bytes never pass through the app.
-3. **Attach** (`attachAvatar(uploadId)`): signed in → id valid → the row exists and is of the purpose
-   (404) → it is the viewer's own (403; not even an admin may use someone else's upload) → still
-   `pending` → `headObject` re-checks size and type against the rule (an object that broke them is
-   deleted at once; the row stays pending for the cleanup) → in one transaction: `user.image =
-publicUrl(key)`, the row becomes `attached` (an `updateMany` on `status: 'pending'`, so a
-   concurrent attach of the same upload matches nothing and rolls back), the previous attached rows
-   are deleted → the user's cache tag is invalidated → each replaced object is queued for deletion.
-   `attachAvatarAction` calls `refresh()` so the layout shows the new image.
+3. **Attach** (`attachAvatar(key)`): signed in → key shaped like `uploadKeySchema` (422) → under the
+   viewer's own `avatars/<userId>/` prefix (403; not even an admin may attach someone else's object)
+   → `headObject` re-checks size and type against the rule (an object that broke them is deleted at
+   once) → in one transaction that first locks the user row (`SELECT … FOR UPDATE`), read the current
+   `image` and set it to `publicUrl(key)` → the user's cache tag is invalidated → the replaced
+   object, if it is in the bucket (`keyFromPublicUrl`) and is not the same key, is queued for
+   deletion. The lock orders two concurrent attaches, so the later one sees and replaces the earlier
+   avatar instead of losing track of it. A Google profile picture is not in the bucket, so replacing
+   it deletes nothing. `attachAvatarAction` calls `refresh()` so the layout shows the new image.
 4. **Delete later, not now.** Storage checks a presigned URL's expiry when the request starts, so a
    slow upload begun just before expiry can land after it. An object is therefore never deleted before
    its ticket lifetime plus `UPLOAD_OBJECT_GRACE_SECONDS` (300 s + 600 s): the replaced avatar goes
-   through a delayed `delete-object` job, and deleting an account queues one per key of the user in
-   Better Auth's `beforeDelete` hook (`lib/data/auth.ts`), delayed by `MAX_OBJECT_DELETE_DELAY_SECONDS`
-   (the rows cascade with the user, the objects would not).
-5. **Orphans.** The hourly `cleanup` job calls `deleteStalePendingUploads` (`lib/data/maintenance.ts`):
-   `pending` rows older than a day, oldest first, in batches of 100 (at most 20 batches a run), object
-   first so a storage failure leaves the row for the next run. `createUpload` reclaims the viewer's
-   own expired tickets sooner, when they ask for a new one.
+   through a delayed `delete-object` job, and deleting an account queues one for the current avatar in
+   Better Auth's `beforeDelete` hook (`lib/data/auth.ts`), delayed by `MAX_OBJECT_DELETE_DELAY_SECONDS`.
+5. **Orphans are accepted.** A ticket whose file is uploaded but never attached leaves its object in
+   the bucket; nothing records it, so nothing cleans it up. The ticket rate limit bounds how many one
+   user can leave (10 an hour, 2 MB each for avatars). If that ever matters, either list and delete
+   by prefix (`avatars/<userId>/`) or bring back a table of pending uploads.
 
 ## Why a presigned PUT, and what it enforces
 
@@ -47,14 +48,16 @@ was issued, and `attach` checks the stored object a third time with `headObject`
 ## Rules and limits
 
 `UPLOAD_RULES` in `lib/dto/uploads.ts` is the one definition of what each purpose accepts: the DTO
-refines against it, the DAL reads `maxSize`, `maxPending` and `ticketSeconds` from it, and
-`AvatarUploader` takes `accept` and the size hint from it. Avatars: PNG, JPEG or WebP, 2 MB, three
-live tickets per user, 300 s tickets. **No SVG or HTML, ever:** the bucket serves files from a
-public origin, and those execute in the browser.
+refines against it, the DAL reads `maxSize` and `ticketSeconds` from it, and `AvatarUploader` takes
+`accept` and the size hint from it. Avatars: PNG, JPEG or WebP, 2 MB, 300 s tickets. **No SVG or
+HTML, ever:** the bucket serves files from a public origin, and those execute in the browser.
 
-Adding a purpose: a value in `uploadPurposeSchema`, a row in `UPLOAD_RULES`, a value in the Prisma
-`UploadPurpose` enum (migration), an `attachXxx` DAL function modelled on `attachAvatar` (and the
-record it links to), its action, and a wrapper component around `components/Form/FileUploader`.
+Adding a purpose (a movie poster): a value in `uploadPurposeSchema` (its keys become
+`<purpose>s/<userId>/<uuid>`), a row in `UPLOAD_RULES`, an `attachXxx` DAL function modelled on
+`attachAvatar` that checks the key's prefix, locks the record it writes (the movie), stores
+`publicUrl(key)` on it and queues the replaced object, its action, and a wrapper component around
+`components/Form/FileUploader`. Deleting the record should queue its object the way `beforeDelete`
+does for avatars.
 
 ## Configuration
 
@@ -106,9 +109,9 @@ signature against a stubbed environment.
 
 - `lib/server/storage.ts`: lazy `S3Client` on `globalThis`, `isStorageConfigured`,
   `createUploadTicket`, `headObject` (null for 404), `deleteObject` (a missing key is success),
-  `publicUrl`.
-- `lib/dto/uploads.ts`: rules, `createUploadInput`, `uploadTicketSchema`, `uploadIdSchema`, the delay
-  constants.
+  `publicUrl` and its inverse `keyFromPublicUrl` (null for a URL outside the bucket).
+- `lib/dto/uploads.ts`: rules, `createUploadInput`, `uploadTicketSchema`, `uploadKeySchema`, the
+  delay constants.
 - `lib/data/uploads.ts`: `canUpload`, `createUpload`, `attachAvatar`.
 - `actions/uploads.ts`: `createUploadAction`, `attachAvatarAction`.
 - `lib/client/uploads.ts`: `uploadFile`; `lib/client/errors.ts`: `RequestError`.
@@ -116,7 +119,6 @@ signature against a stubbed environment.
   one after the other; `fetch` has no upload progress) and `components/Settings/AvatarUploader`
   (asks for the ticket, uploads, attaches, reports). Avatars render through a plain `<img>`, so
   `next/image` remote patterns are not needed.
-- `jobs/deleteObject.ts`, `deleteStalePendingUploads` in `lib/data/maintenance.ts`, the
-  `beforeDelete` hook in `lib/data/auth.ts`.
+- `jobs/deleteObject.ts` and the `beforeDelete` hook in `lib/data/auth.ts`.
 - Tests under the mirrored paths; `tests/lib/data/uploads.test.ts` covers the order of checks, the
-  pending cap, reclaiming, the concurrent attach and the delayed deletes.
+  ticket limit, replacing an avatar, the concurrent attach and the delayed deletes.

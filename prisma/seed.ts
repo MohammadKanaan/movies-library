@@ -1,41 +1,21 @@
 import 'dotenv/config'
-import { randomUUID } from 'node:crypto'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { hashPassword } from 'better-auth/crypto'
 import { PrismaClient } from '../generated/prisma/client.ts'
 
 /** Dev-only password shared by every seeded account. */
 const SEED_PASSWORD = 'password123'
-const POSTS_PER_USER = 4
 
+/** One account per role (`users_role_valid`). */
 const SEED_USERS: {
   name: string
   username: string
   email: string
-  website: string | null
-  role: string
+  role: 'viewer' | 'editor' | 'admin'
 }[] = [
-  {
-    name: 'Ada Admin',
-    username: 'admin',
-    email: 'admin@example.com',
-    website: null,
-    role: 'admin',
-  },
-  {
-    name: 'Leanne Graham',
-    username: 'leanne',
-    email: 'leanne@example.com',
-    website: 'hildegard.org',
-    role: 'user',
-  },
-  {
-    name: 'Ervin Howell',
-    username: 'ervin',
-    email: 'ervin@example.com',
-    website: null,
-    role: 'user',
-  },
+  { name: 'Ada Admin', username: 'admin', email: 'admin@example.com', role: 'admin' },
+  { name: 'Leanne Graham', username: 'leanne', email: 'leanne@example.com', role: 'editor' },
+  { name: 'Ervin Howell', username: 'ervin', email: 'ervin@example.com', role: 'viewer' },
 ]
 
 // The seeded accounts have a public password and one of them is an admin, so a production
@@ -56,37 +36,23 @@ try {
   const password = await hashPassword(SEED_PASSWORD)
 
   for (const data of SEED_USERS) {
-    // Re-seeding replaces the user; sessions, accounts and posts cascade.
+    // Re-seeding replaces the user; sessions and accounts cascade, their movies keep a null owner.
     await db.user.deleteMany({ where: { email: data.email } })
 
-    const id = randomUUID()
-    const firstName = data.name.split(' ')[0]
-    await db.user.create({
-      data: {
-        ...data,
-        id,
-        emailVerified: true,
-        accounts: {
-          create: { id: randomUUID(), accountId: id, providerId: 'credential', password },
-        },
-        // Three published posts and one draft each.
-        posts: {
-          create: Array.from({ length: POSTS_PER_USER }, (_, index) => ({
-            title: `${firstName}'s post #${index + 1}`,
-            body: [
-              `This is the body of ${firstName}'s post number ${index + 1}.`,
-              'It exists so the posts pages have something realistic to render.',
-            ].join(' '),
-            published: index < POSTS_PER_USER - 1,
-          })),
-        },
-      },
+    // Ids come from the schema's `@default(uuid(7))`. Better Auth's credential account uses the
+    // user's id as its `accountId`, so the account is created once the id is known.
+    const user = await db.user.create({
+      data: { ...data, emailVerified: true },
+      select: { id: true },
+    })
+    await db.account.create({
+      data: { accountId: user.id, providerId: 'credential', password, userId: user.id },
     })
   }
 
   console.log(
-    `Seeded ${SEED_USERS.length} users (password "${SEED_PASSWORD}") and ` +
-      `${SEED_USERS.length * POSTS_PER_USER} posts (one draft each).`,
+    `Seeded ${SEED_USERS.length} users (${SEED_USERS.map((user) => user.role).join(', ')}; ` +
+      `password "${SEED_PASSWORD}").`,
   )
 } finally {
   await db.$disconnect()

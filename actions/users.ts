@@ -1,7 +1,6 @@
 'use server'
 
-import { refresh, revalidatePath } from 'next/cache'
-import { ROUTE_POSTS } from '@/lib/constants-routes'
+import { refresh } from 'next/cache'
 import { requireUser } from '@/lib/data/auth'
 import { toActionFailure } from '@/lib/data/errors'
 import { consumeRateLimit } from '@/lib/data/rateLimit'
@@ -16,8 +15,6 @@ export const updateProfileAction = async (
     const viewer = await requireUser()
     await consumeRateLimit(`update-profile:user:${viewer.id}`, { max: 10, windowMs: 60_000 })
     const user = await updateProfile(input)
-    // The name and username also show on post cards and details.
-    revalidatePath(ROUTE_POSTS, 'layout')
     refresh()
     return { ok: true, data: user }
   } catch (error) {

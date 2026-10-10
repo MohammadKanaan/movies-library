@@ -109,7 +109,7 @@ export const SettingsView = ({ user, sessions, hasPassword, canUpload }: Setting
       <Card>
         <CardHeader>
           <CardTitle>Profile</CardTitle>
-          <CardDescription>Your name, username, and website.</CardDescription>
+          <CardDescription>Your name and username.</CardDescription>
         </CardHeader>
         <CardContent>
           <ProfileForm user={user} onSubmit={handleProfile} />
@@ -169,9 +169,7 @@ export const SettingsView = ({ user, sessions, hasPassword, canUpload }: Setting
       <Card>
         <CardHeader>
           <CardTitle>Delete account</CardTitle>
-          <CardDescription>
-            Permanently remove your account and your posts. This cannot be undone.
-          </CardDescription>
+          <CardDescription>Permanently remove your account. This cannot be undone.</CardDescription>
         </CardHeader>
         <CardContent>
           {hasPassword ? (

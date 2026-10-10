@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { refresh, revalidatePath } from 'next/cache'
+import { refresh } from 'next/cache'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { updateProfileAction } from '@/actions/users'
 import { db } from '@/lib/data/db'
@@ -12,13 +12,12 @@ vi.mock('next/headers', () => ({
 }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), refresh: vi.fn() }))
 
-const input = { name: 'Ada Lovelace', username: 'ada_l', website: 'example.com' }
+const input = { name: 'Ada Lovelace', username: 'ada_l' }
 
 describe('updateProfileAction', () => {
   beforeEach(async () => {
     await resetDatabase()
     vi.mocked(refresh).mockClear()
-    vi.mocked(revalidatePath).mockClear()
   })
   afterEach(() => vi.unstubAllEnvs())
   afterAll(() => db.$disconnect())
@@ -33,14 +32,9 @@ describe('updateProfileAction', () => {
     const result = await updateProfileAction({
       name: '',
       username: 'A!',
-      website: 'javascript:alert(1)',
     })
     expect(result).toMatchObject({ ok: false, code: 'VALIDATION' })
-    expect(!result.ok && Object.keys(result.fieldErrors ?? {}).sort()).toEqual([
-      'name',
-      'username',
-      'website',
-    ])
+    expect(!result.ok && Object.keys(result.fieldErrors ?? {}).sort()).toEqual(['name', 'username'])
     expect(await db.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
       name: user.name,
     })
@@ -52,10 +46,9 @@ describe('updateProfileAction', () => {
     const result = await updateProfileAction(input)
     expect(result).toMatchObject({
       ok: true,
-      data: { id: user.id, name: 'Ada Lovelace', username: 'ada_l', website: 'example.com' },
+      data: { id: user.id, name: 'Ada Lovelace', username: 'ada_l' },
     })
     expect(refresh).toHaveBeenCalledTimes(1)
-    expect(revalidatePath).toHaveBeenCalledWith('/posts', 'layout')
   })
 
   it('reports a taken username on its field', async () => {

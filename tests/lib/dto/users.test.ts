@@ -11,8 +11,9 @@ import {
   updateProfileInput,
   USER_SEARCH_MAX_LENGTH,
   usersUrlQuery,
-  WEBSITE_MAX_LENGTH,
 } from '@/lib/dto/users'
+
+const ID = '0190d1a2-0000-7000-8000-000000000001'
 
 const valid = { name: 'Ada Lovelace', username: 'ada_l' }
 
@@ -26,37 +27,13 @@ describe('updateProfileInput', () => {
       'username',
     ])
   })
-
-  it('leaves the website optional: undefined, null and empty are all valid', () => {
-    expect(updateProfileInput.parse(valid).website).toBeUndefined()
-    expect(updateProfileInput.parse({ ...valid, website: null }).website).toBeNull()
-    expect(updateProfileInput.parse({ ...valid, website: '  ' }).website).toBe('')
-  })
-
-  it('accepts a bare domain or an http(s) address', () => {
-    for (const website of ['example.com', 'www.example.co.uk/path?q=1', 'https://example.com']) {
-      expect(updateProfileInput.parse({ ...valid, website }).website).toBe(website)
-    }
-  })
-
-  it('rejects other schemes, whitespace and nonsense, and caps the length', () => {
-    for (const website of [
-      'javascript:alert(1)',
-      'ftp://example.com',
-      'not a url',
-      'localhost',
-      `https://${'a'.repeat(WEBSITE_MAX_LENGTH)}.com`,
-    ]) {
-      expect(updateProfileInput.safeParse({ ...valid, website }).success).toBe(false)
-    }
-  })
 })
 
 describe('sessions', () => {
-  it('bounds the session id', () => {
-    expect(sessionIdSchema.safeParse('abc').success).toBe(true)
+  it('takes only a UUID as a session id', () => {
+    expect(sessionIdSchema.safeParse(ID).success).toBe(true)
+    expect(sessionIdSchema.safeParse('abc').success).toBe(false)
     expect(sessionIdSchema.safeParse('').success).toBe(false)
-    expect(sessionIdSchema.safeParse('a'.repeat(65)).success).toBe(false)
   })
 })
 
@@ -77,25 +54,25 @@ describe('admin user list', () => {
   })
 
   it('accepts a user id and a known role only', () => {
-    expect(setUserRoleInput.parse({ id: 'abc-123', role: 'admin' })).toEqual({
-      id: 'abc-123',
+    expect(setUserRoleInput.parse({ id: ID, role: 'admin' })).toEqual({
+      id: ID,
       role: 'admin',
     })
-    expect(setUserRoleInput.safeParse({ id: 'abc-123', role: 'owner' }).success).toBe(false)
-    expect(setUserRoleInput.safeParse({ id: 'a b', role: 'user' }).success).toBe(false)
-    expect(setUserRoleInput.safeParse({ id: '', role: 'user' }).success).toBe(false)
+    expect(setUserRoleInput.safeParse({ id: ID, role: 'owner' }).success).toBe(false)
+    expect(setUserRoleInput.safeParse({ id: 'a b', role: 'viewer' }).success).toBe(false)
+    expect(setUserRoleInput.safeParse({ id: '', role: 'viewer' }).success).toBe(false)
   })
 
   it('accepts a user id and an optional, trimmed, bounded ban reason', () => {
-    expect(banUserInput.parse({ id: 'abc-123' })).toEqual({ id: 'abc-123' })
-    expect(banUserInput.parse({ id: 'abc-123', reason: '  Spam  ' })).toEqual({
-      id: 'abc-123',
+    expect(banUserInput.parse({ id: ID })).toEqual({ id: ID })
+    expect(banUserInput.parse({ id: ID, reason: '  Spam  ' })).toEqual({
+      id: ID,
       reason: 'Spam',
     })
-    expect(banUserInput.parse({ id: 'abc-123', reason: '   ' }).reason).toBe('')
+    expect(banUserInput.parse({ id: ID, reason: '   ' }).reason).toBe('')
     expect(banUserInput.safeParse({ id: 'a b', reason: 'Spam' }).success).toBe(false)
     const long = banUserInput.safeParse({
-      id: 'abc-123',
+      id: ID,
       reason: 'x'.repeat(BAN_REASON_MAX_LENGTH + 1),
     })
     expect(long.success).toBe(false)
@@ -131,7 +108,7 @@ describe('adminUserSchema', () => {
   })
 
   it('rejects a role that is not one of ours', () => {
-    expect(roleSchema.options).toEqual(['user', 'admin'])
+    expect(roleSchema.options).toEqual(['viewer', 'editor', 'admin'])
     expect(adminUserSchema.safeParse({ ...row, role: 'owner' }).success).toBe(false)
     expect(adminUserSchema.safeParse({ ...row, role: 'admin,user' }).success).toBe(false)
   })

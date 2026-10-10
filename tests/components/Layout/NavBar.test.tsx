@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { NavBar } from '@/components/Layout/NavBar'
 import type { CurrentUser } from '@/lib/dto/users'
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/posts' }))
+vi.mock('next/navigation', () => ({ usePathname: () => '/ui-kit' }))
 vi.mock('@/components/Auth/SignOutButton', () => ({
   SignOutButton: () => <button>Log out</button>,
 }))
@@ -16,8 +16,7 @@ const user: CurrentUser = {
   email: 'ada@example.com',
   emailVerified: true,
   image: null,
-  website: null,
-  role: 'user',
+  role: 'viewer',
 }
 
 /** The desktop and the mobile menu both render the links. */
@@ -42,21 +41,9 @@ describe('NavBar', () => {
 
   it('keeps the regular links for everyone', () => {
     const { rerender } = render(<NavBar user={user} />)
-    expect(linksNamed('Posts').length).toBeGreaterThan(0)
     expect(linksNamed('UI Kit').length).toBeGreaterThan(0)
     rerender(<NavBar user={null} />)
-    expect(linksNamed('Posts').length).toBeGreaterThan(0)
-  })
-
-  it('links signed-in users to their own posts, in both menus', () => {
-    const { rerender } = render(<NavBar user={user} />)
-    const links = linksNamed('My posts')
-    expect(links).toHaveLength(2)
-    for (const link of links) {
-      expect(link).toHaveAttribute('href', '/posts/mine')
-    }
-    rerender(<NavBar user={null} />)
-    expect(linksNamed('My posts')).toHaveLength(0)
+    expect(linksNamed('UI Kit').length).toBeGreaterThan(0)
   })
 
   it('has no Dashboard link and no notification bell for anyone', () => {

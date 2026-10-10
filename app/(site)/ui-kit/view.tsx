@@ -11,10 +11,8 @@ import { LoadingButton } from '@/components/LoadingButton'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { PageHeader } from '@/components/PageHeader'
 import { Pagination } from '@/components/Pagination'
-import { PostsFilters, type PostsFiltersPatch } from '@/components/Posts/Filters'
-import { PostForm } from '@/components/Posts/Form'
-import { PostStatusBadge } from '@/components/Posts/StatusBadge'
 import { AvatarUploader } from '@/components/Settings/AvatarUploader'
+import { ProfileForm } from '@/components/Settings/ProfileForm'
 import {
   Avatar,
   AvatarBadge,
@@ -65,6 +63,7 @@ import {
 } from '@/components/SCN/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/SCN/tooltip'
 import { UserAvatar } from '@/components/UserAvatar'
+import type { CurrentUser } from '@/lib/dto/users'
 import styles from './styles.module.scss'
 
 type ButtonVariant = NonNullable<ComponentProps<typeof Button>['variant']>
@@ -102,6 +101,16 @@ const TABLE_ROWS = [
   { id: 'INV-003', name: 'Alan Turing', status: 'Archived' },
 ]
 
+const SAMPLE_USER: CurrentUser = {
+  id: '0190d1a2-0000-7000-8000-000000000001',
+  name: 'Ada Lovelace',
+  username: 'ada',
+  email: 'ada@example.com',
+  emailVerified: true,
+  image: null,
+  role: 'editor',
+}
+
 type SectionProps = {
   id: string
   eyebrow: string
@@ -127,7 +136,6 @@ const Section = ({ id, eyebrow, title, description, children }: SectionProps) =>
 
 export const UiKitView = () => {
   const [page, setPage] = useState(2)
-  const [filters, setFilters] = useState<Required<PostsFiltersPatch>>({ q: '', sort: 'newest' })
 
   return (
     <div className={styles.page}>
@@ -507,44 +515,15 @@ export const UiKitView = () => {
       </Section>
 
       <Section
-        id="posts-filters"
-        eyebrow="Application components"
-        title="PostsFilters"
-        description="Debounced title search and sort order, with a clear button; the page decides where the values live (URL state on the post lists)."
-      >
-        <PostsFilters
-          q={filters.q}
-          sort={filters.sort}
-          onChange={(patch) => setFilters((current) => ({ ...current, ...patch }))}
-        />
-        <p>
-          Search: {filters.q || 'none'}, sort: {filters.sort}
-        </p>
-      </Section>
-
-      <Section
-        id="post-status"
-        eyebrow="Application components"
-        title="Post status"
-        description="Whether a post is a draft or published."
-      >
-        <div className={styles.row}>
-          <PostStatusBadge published={false} />
-          <PostStatusBadge published />
-        </div>
-      </Section>
-
-      <Section
         id="forms"
         eyebrow="Application components"
         title="Forms"
         description="React Hook Form with a Zod schema; the page owns the Server Action call."
       >
-        <PostForm
-          post={null}
-          submitLabel="Submit"
+        <ProfileForm
+          user={SAMPLE_USER}
           onSubmit={async (values) => {
-            toast.success(`Submitted: ${values.title}`)
+            toast.success(`Submitted: ${values.name} (@${values.username})`)
             return { ok: true, data: null }
           }}
         />

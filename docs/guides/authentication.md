@@ -19,7 +19,7 @@
   `resetPasswordAction`, `resendVerificationAction`; pages `/forgot-password` and
   `/reset-password` in `(minimal)`.
 - **Account settings** (`/settings`, a stack of cards): `updateProfileAction` (`actions/users.ts`:
-  name, username, website; a taken username is a field error from the DAL), and in
+  name and username; a taken username is a field error from the DAL), and in
   `actions/auth.ts` `changePasswordAction` (`auth.api.changePassword` with `revokeOtherSessions`,
   so this browser stays signed in and every other session ends), `changeEmailAction`,
   `revokeSessionAction`, `revokeOtherSessionsAction` and `deleteAccountAction`. Each parses its
@@ -32,9 +32,10 @@
     taken address gets the same response and no email; the action itself only rejects the user's
     own address.
   - **Delete account:** `user.deleteUser` is enabled; `deleteAccountAction` always demands the
-    password. Posts, sessions, accounts and upload rows cascade; `beforeDelete` queues a delayed
-    `delete-object` job for each of the user's upload keys (the objects would not cascade; see
-    `docs/guides/uploads.md`) and `afterDelete` invalidates `POSTS_TAG` and the user's tag.
+    password. Sessions and accounts cascade, and the user's movies keep a null `created_by_id`.
+    `beforeDelete` queues a delayed `delete-object` job for the avatar's object when `users.image`
+    points into the bucket under the user's own prefix (objects do not cascade; see
+    `docs/guides/uploads.md`), and `afterDelete` invalidates the user's tag.
   - **Sessions:** `lib/data/sessions.ts` (`listSessions`, `revokeSession`, `revokeOtherSessions`)
     works on the plain `sessions` rows, so deleting a row ends that session. `SessionUser` carries
     `sessionId` to mark the current one. `SessionSummary` never contains the token.
@@ -60,10 +61,18 @@
   in `loadPage(load, path)` (`lib/data/page.ts`), which turns `UnauthorizedError` into a redirect to
   `/login?next=…` and `NotFoundError` **and `ForbiddenError`** into `notFound()`, so a page the
   viewer may not see (the admin area) looks like one that does not exist.
-- **Roles and the admin plugin.** `admin({ defaultRole: 'user', adminRoles: ['admin'] })`. The
-  plugin stores `role` as text (it allows comma-separated lists); `getSessionUser` narrows it with
-  `roleSchema` and anything unknown reads as `user`, so an odd value can never grant more.
-  `requireAdmin()` is `role === 'admin'`. A **banned** user cannot sign in (the plugin refuses to
+- **Roles and the admin plugin.** Three roles: `viewer` (the default), `editor` and `admin`.
+  `admin({ roles: { viewer: userAc, editor: userAc, admin: adminAc }, defaultRole: 'viewer',
+adminRoles: ['admin'] })`: only admins get the plugin's permissions (managing users and
+  sessions); what an editor may do with movies is this app's own policy. Listing `roles` also makes
+  `setRole` refuse any other value, and the `users_role_valid` CHECK constraint keeps the column
+  to the same three. The plugin stores `role` as text (it allows comma-separated lists);
+  `getSessionUser` narrows it with `roleSchema` and anything unknown reads as `viewer`, so an odd
+  value can never grant more. `requireAdmin()` is `role === 'admin'`.
+- **Ids.** Every id is a UUIDv7. `advanced.database.generateId: 'uuid'` makes Better Auth leave
+  the id out of its inserts on PostgreSQL, and Prisma Client fills it from the schema's
+  `@default(uuid(7))`. The id schemas (`userIdSchema`, `sessionIdSchema`) are `z.uuid()`, so a
+  malformed id is a validation error instead of a PostgreSQL error. A **banned** user cannot sign in (the plugin refuses to
   create a session, with `banReason` as the message) and `banUser` deletes their sessions.
   **Impersonation** opens a one-hour session for the target that carries `impersonatedBy`; the
   admin's own session waits in an `admin_session` cookie until `stopImpersonating`. The `(site)`
@@ -106,8 +115,8 @@
   the limits hold across instances). It fails open: if Redis is down the attempt is allowed and the
   error is logged. The per-IP limits read the client from `x-forwarded-for` through `getClientIp`,
   which assumes the app sits behind `TRUSTED_PROXY_HOPS` (default 1) proxies that append the
-  client address. Content creation (`createPost`: 20 per minute per user) is limited inside the
-  DAL instead, because the Server Action and the REST handler both reach it.
+  client address. Upload tickets (`createUpload`: 10 per hour per user) are limited inside the DAL
+  instead, so every caller shares the limit; content creation should follow the same rule.
 - Better Auth's `databaseHooks.user.update.after` invalidates the cached viewer (`user:<id>`), so
   changes made inside Better Auth (email verification, a role change, a ban) show up at once.
 - Sessions refresh only through Server Actions or the auth route (Server Components cannot set

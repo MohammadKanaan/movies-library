@@ -20,7 +20,7 @@ export type AvatarUploaderProps = {
   /** Asks for a presigned upload ticket (a Server Action). */
   onCreateUpload: (input: CreateUploadInput) => Promise<ActionResult<UploadTicket>>
   /** Makes the finished upload the avatar (a Server Action). */
-  onAttach: (uploadId: string) => Promise<ActionResult<CurrentUser>>
+  onAttach: (key: string) => Promise<ActionResult<CurrentUser>>
   onUploaded?: (user: CurrentUser) => void
 }
 
@@ -56,7 +56,7 @@ export const AvatarUploader = ({
         return
       }
       await uploadFile(ticket.data, file)
-      const attached = await onAttach(ticket.data.uploadId)
+      const attached = await onAttach(ticket.data.key)
       if (!attached.ok) {
         setError(attached.message)
         return

@@ -9,7 +9,7 @@ import {
 } from '@/lib/dto/users'
 import { invalidateTags, remember } from '@/lib/server/cache'
 import { getSessionUser, requireUser, toRole } from './auth'
-import { POSTS_TAG, userTag } from './cacheTags'
+import { userTag } from './cacheTags'
 import { db } from './db'
 import { parseInput, UnauthorizedError, ValidationError } from './errors'
 
@@ -18,7 +18,6 @@ export const userProfileSelect = {
   id: true,
   name: true,
   username: true,
-  website: true,
 } satisfies Prisma.UserSelect
 
 export const currentUserSelect = {
@@ -28,7 +27,6 @@ export const currentUserSelect = {
   email: true,
   emailVerified: true,
   image: true,
-  website: true,
   role: true,
 } satisfies Prisma.UserSelect
 
@@ -85,9 +83,8 @@ export const isUsernameTaken = async (username: string) => {
 }
 
 /**
- * Edits the viewer's own name, username and website. The username is unique, so a collision (also
- * from a race with another request) comes back as a field error. Cached post lists embed the
- * author's name and username, so they are invalidated along with the cached viewer.
+ * Edits the viewer's own name and username. The username is unique, so a collision (also from a
+ * race with another request) comes back as a field error.
  */
 export const updateProfile = async (input: UpdateProfileInput): Promise<CurrentUser> => {
   const viewer = await requireUser()
@@ -98,8 +95,6 @@ export const updateProfile = async (input: UpdateProfileInput): Promise<CurrentU
       data: {
         name: data.name,
         username: data.username,
-        // undefined leaves the website alone; an empty string or null clears it.
-        ...(data.website !== undefined && { website: data.website || null }),
       },
       select: currentUserSelect,
     })
@@ -110,6 +105,6 @@ export const updateProfile = async (input: UpdateProfileInput): Promise<CurrentU
       }
       throw error
     })
-  await invalidateTags(userTag(viewer.id), POSTS_TAG)
+  await invalidateTags(userTag(viewer.id))
   return { ...user, role: toRole(user.role) }
 }

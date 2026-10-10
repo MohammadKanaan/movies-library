@@ -51,13 +51,6 @@ export const ProfileForm = ({ user, onSubmit }: ProfileFormProps) => {
         error={errors.username?.message}
         {...register('username')}
       />
-      <Input
-        label="Website"
-        autoComplete="url"
-        placeholder="example.com"
-        error={errors.website?.message}
-        {...register('website')}
-      />
       {errors.root?.server && (
         <p className={styles.formError} role="alert">
           {errors.root.server.message}

@@ -34,8 +34,11 @@ beforeAll(() => {
   Element.prototype.scrollIntoView ??= () => {}
 })
 
+const ADA_ID = '0190d1a2-0000-7000-8000-00000000ada0'
+const GRACE_ID = '0190d1a2-0000-7000-8000-00000000c0de'
+
 const ada: AdminUser = {
-  id: 'u-ada',
+  id: ADA_ID,
   name: 'Ada Lovelace',
   username: 'ada',
   email: 'ada@example.com',
@@ -47,12 +50,12 @@ const ada: AdminUser = {
 }
 const grace: AdminUser = {
   ...ada,
-  id: 'u-grace',
+  id: GRACE_ID,
   name: 'Grace Hopper',
   username: 'grace',
   email: 'grace@example.com',
   emailVerified: false,
-  role: 'user',
+  role: 'viewer',
 }
 const alan: AdminUser = {
   ...ada,
@@ -60,7 +63,7 @@ const alan: AdminUser = {
   name: 'Alan Turing',
   username: 'alan',
   email: 'alan@example.com',
-  role: 'user',
+  role: 'viewer',
   banned: true,
   banReason: 'Spam',
 }
@@ -109,7 +112,7 @@ describe('AdminView', () => {
   })
 
   it('lists users with email, status and join date, and flags unverified emails', () => {
-    render(<AdminView users={page([ada, grace, alan])} viewerId="u-ada" />)
+    render(<AdminView users={page([ada, grace, alan])} viewerId={ADA_ID} />)
     const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)
     expect(headers).toEqual(['Name', 'Email', 'Role', 'Status', 'Joined', 'Actions'])
     expect(rows()).toHaveLength(3)
@@ -123,7 +126,7 @@ describe('AdminView', () => {
   })
 
   it('shows Active or Banned, with the reason as the badge’s title', () => {
-    render(<AdminView users={page([ada, grace, alan])} viewerId="u-ada" />)
+    render(<AdminView users={page([ada, grace, alan])} viewerId={ADA_ID} />)
     expect(within(rowOf('Ada Lovelace')).getByText('Active')).toBeInTheDocument()
     expect(within(rowOf('Grace Hopper')).getByText('Active')).toBeInTheDocument()
     const banned = within(rowOf('Alan Turing')).getByText('Banned')
@@ -132,7 +135,7 @@ describe('AdminView', () => {
   })
 
   it('offers no actions on the viewer’s own row and disables its role select', () => {
-    render(<AdminView users={page([ada, grace])} viewerId="u-ada" />)
+    render(<AdminView users={page([ada, grace])} viewerId={ADA_ID} />)
     const own = rowOf('Ada Lovelace')
     expect(screen.getByRole('combobox', { name: 'Role of Ada Lovelace' })).toBeDisabled()
     expect(within(own).queryAllByRole('button')).toEqual([])
@@ -144,7 +147,7 @@ describe('AdminView', () => {
   })
 
   it('offers Ban but not Impersonate for another admin, and Unban only for a banned user', () => {
-    render(<AdminView users={page([ada, linus, alan])} viewerId="u-ada" />)
+    render(<AdminView users={page([ada, linus, alan])} viewerId={ADA_ID} />)
     const admin = rowOf('Linus Torvalds')
     expect(within(admin).getByRole('button', { name: 'Ban' })).toBeInTheDocument()
     expect(within(admin).queryByRole('button', { name: 'Impersonate' })).not.toBeInTheDocument()
@@ -157,17 +160,26 @@ describe('AdminView', () => {
 
   it('changes another user’s role and confirms', async () => {
     vi.mocked(setUserRoleAction).mockResolvedValue({ ok: true, data: { ...grace, role: 'admin' } })
-    render(<AdminView users={page([ada, grace])} viewerId="u-ada" />)
+    render(<AdminView users={page([ada, grace])} viewerId={ADA_ID} />)
     await userEvent.click(screen.getByRole('combobox', { name: 'Role of Grace Hopper' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Admin' }))
-    expect(setUserRoleAction).toHaveBeenCalledWith({ id: 'u-grace', role: 'admin' })
+    expect(setUserRoleAction).toHaveBeenCalledWith({ id: GRACE_ID, role: 'admin' })
     expect(toast.success).toHaveBeenCalledWith('Grace Hopper is now an admin')
   })
 
-  it('does nothing when the same role is picked again', async () => {
-    render(<AdminView users={page([ada, grace])} viewerId="u-ada" />)
+  it('names the editor role in the confirmation', async () => {
+    vi.mocked(setUserRoleAction).mockResolvedValue({ ok: true, data: { ...grace, role: 'editor' } })
+    render(<AdminView users={page([ada, grace])} viewerId={ADA_ID} />)
     await userEvent.click(screen.getByRole('combobox', { name: 'Role of Grace Hopper' }))
-    await userEvent.click(await screen.findByRole('option', { name: 'User' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Editor' }))
+    expect(setUserRoleAction).toHaveBeenCalledWith({ id: GRACE_ID, role: 'editor' })
+    expect(toast.success).toHaveBeenCalledWith('Grace Hopper is now an editor')
+  })
+
+  it('does nothing when the same role is picked again', async () => {
+    render(<AdminView users={page([ada, grace])} viewerId={ADA_ID} />)
+    await userEvent.click(screen.getByRole('combobox', { name: 'Role of Grace Hopper' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Viewer' }))
     expect(setUserRoleAction).not.toHaveBeenCalled()
   })
 
@@ -177,7 +189,7 @@ describe('AdminView', () => {
       code: 'FORBIDDEN',
       message: 'You are not allowed to do that',
     })
-    render(<AdminView users={page([ada, grace])} viewerId="u-ada" />)
+    render(<AdminView users={page([ada, grace])} viewerId={ADA_ID} />)
     await userEvent.click(screen.getByRole('combobox', { name: 'Role of Grace Hopper' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Admin' }))
     expect(toast.error).toHaveBeenCalledWith('You are not allowed to do that')
@@ -185,7 +197,7 @@ describe('AdminView', () => {
   })
 
   it('opens the ban dialog for the user from the Ban button', async () => {
-    render(<AdminView users={page([ada, grace])} viewerId="u-ada" />)
+    render(<AdminView users={page([ada, grace])} viewerId={ADA_ID} />)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await userEvent.click(within(rowOf('Grace Hopper')).getByRole('button', { name: 'Ban' }))
     const dialog = await screen.findByRole('dialog')
@@ -198,7 +210,7 @@ describe('AdminView', () => {
       ok: true,
       data: { ...alan, banned: false, banReason: null },
     })
-    render(<AdminView users={page([ada, alan])} viewerId="u-ada" />)
+    render(<AdminView users={page([ada, alan])} viewerId={ADA_ID} />)
     await userEvent.click(within(rowOf('Alan Turing')).getByRole('button', { name: 'Unban' }))
     expect(unbanUserAction).toHaveBeenCalledWith('u-alan')
     expect(toast.success).toHaveBeenCalledWith('Alan Turing can sign in again')
@@ -210,7 +222,7 @@ describe('AdminView', () => {
       code: 'NOT_FOUND',
       message: 'User not found',
     })
-    render(<AdminView users={page([ada, alan])} viewerId="u-ada" />)
+    render(<AdminView users={page([ada, alan])} viewerId={ADA_ID} />)
     await userEvent.click(within(rowOf('Alan Turing')).getByRole('button', { name: 'Unban' }))
     expect(toast.error).toHaveBeenCalledWith('User not found')
     expect(toast.success).not.toHaveBeenCalled()
@@ -218,11 +230,11 @@ describe('AdminView', () => {
 
   it('impersonates a user and goes home', async () => {
     vi.mocked(impersonateUserAction).mockResolvedValue({ ok: true, data: null })
-    render(<AdminView users={page([ada, grace])} viewerId="u-ada" />)
+    render(<AdminView users={page([ada, grace])} viewerId={ADA_ID} />)
     await userEvent.click(
       within(rowOf('Grace Hopper')).getByRole('button', { name: 'Impersonate' }),
     )
-    expect(impersonateUserAction).toHaveBeenCalledWith('u-grace')
+    expect(impersonateUserAction).toHaveBeenCalledWith(GRACE_ID)
     await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('/'))
   })
 
@@ -232,7 +244,7 @@ describe('AdminView', () => {
       code: 'FORBIDDEN',
       message: 'You cannot impersonate admins',
     })
-    render(<AdminView users={page([ada, grace])} viewerId="u-ada" />)
+    render(<AdminView users={page([ada, grace])} viewerId={ADA_ID} />)
     await userEvent.click(
       within(rowOf('Grace Hopper')).getByRole('button', { name: 'Impersonate' }),
     )
@@ -247,7 +259,7 @@ describe('AdminView', () => {
         finish = resolve
       }),
     )
-    render(<AdminView users={page([ada, grace, alan])} viewerId="u-ada" />)
+    render(<AdminView users={page([ada, grace, alan])} viewerId={ADA_ID} />)
     await userEvent.click(
       within(rowOf('Grace Hopper')).getByRole('button', { name: 'Impersonate' }),
     )
@@ -262,7 +274,7 @@ describe('AdminView', () => {
 
   it('writes the search to the URL and goes back to page 1', async () => {
     navigation.search = 'page=3'
-    render(<AdminView users={page([ada], { page: 3, totalPages: 4 })} viewerId="u-ada" />)
+    render(<AdminView users={page([ada], { page: 3, totalPages: 4 })} viewerId={ADA_ID} />)
     await userEvent.type(screen.getByLabelText('Search users'), '  grace ')
     await userEvent.click(screen.getByRole('button', { name: 'Search' }))
     expect(navigation.replace).toHaveBeenCalledTimes(1)
@@ -271,10 +283,10 @@ describe('AdminView', () => {
 
   it('shows the search from the URL and follows it when it changes', () => {
     navigation.search = 'q=ada'
-    const { rerender } = render(<AdminView users={page([ada])} viewerId="u-ada" />)
+    const { rerender } = render(<AdminView users={page([ada])} viewerId={ADA_ID} />)
     expect(screen.getByLabelText('Search users')).toHaveValue('ada')
     navigation.search = 'q=grace'
-    rerender(<AdminView users={page([grace])} viewerId="u-ada" />)
+    rerender(<AdminView users={page([grace])} viewerId={ADA_ID} />)
     expect(screen.getByLabelText('Search users')).toHaveValue('grace')
   })
 
@@ -282,7 +294,7 @@ describe('AdminView', () => {
     render(
       <AdminView
         users={page([ada], { page: 1, totalItems: 25, totalPages: 3 })}
-        viewerId="u-ada"
+        viewerId={ADA_ID}
       />,
     )
     await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
@@ -291,14 +303,14 @@ describe('AdminView', () => {
 
   it('says so when nothing matches', () => {
     navigation.search = 'q=zzz'
-    render(<AdminView users={page([], { totalItems: 0 })} viewerId="u-ada" />)
+    render(<AdminView users={page([], { totalItems: 0 })} viewerId={ADA_ID} />)
     expect(screen.getByText('No users found')).toBeInTheDocument()
     expect(screen.getByText('No user matches your search.')).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 
   it('says there are no users yet without a search', () => {
-    render(<AdminView users={page([], { totalItems: 0 })} viewerId="u-ada" />)
+    render(<AdminView users={page([], { totalItems: 0 })} viewerId={ADA_ID} />)
     expect(screen.getByText('There are no users yet.')).toBeInTheDocument()
   })
 })

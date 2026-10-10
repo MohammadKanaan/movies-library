@@ -10,9 +10,9 @@ const SESSION_COOKIE = 'better-auth.session_token=abc.def'
 
 describe('proxy', () => {
   it('sends signed-out visitors from private pages to login with a return path', () => {
-    const response = proxy(request('/posts/mine'))
+    const response = proxy(request('/settings'))
     expect(response.status).toBe(307)
-    expect(response.headers.get('location')).toBe('http://localhost/login?next=%2Fposts%2Fmine')
+    expect(response.headers.get('location')).toBe('http://localhost/login?next=%2Fsettings')
   })
 
   it('sends signed-out visitors from the admin page to login', () => {
@@ -40,7 +40,7 @@ describe('proxy', () => {
   })
 
   it('lets anyone through to public pages', () => {
-    for (const path of ['/', '/posts', '/posts/7', '/ui-kit']) {
+    for (const path of ['/', '/ui-kit']) {
       expect(proxy(request(path)).headers.get('x-middleware-next')).toBe('1')
     }
   })

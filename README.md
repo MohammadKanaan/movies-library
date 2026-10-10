@@ -1,31 +1,13 @@
-# Next Template
+# Movies Library
 
-A reusable Next.js baseline: App Router, a server-only Data Access Layer on Prisma and PostgreSQL,
-Better Auth with its admin plugin, Server Actions for writes, a REST API on the same DAL, shared Zod
-DTOs, schema-first forms, and shadcn/ui with SCSS everywhere else.
+A movie catalog on Next.js: App Router, a server-only Data Access Layer on Prisma and PostgreSQL,
+Better Auth with its admin plugin and three roles (viewer, editor, admin), Server Actions for
+writes, shared Zod DTOs, schema-first forms, and shadcn/ui with SCSS everywhere else.
 
-It is deliberately small. Everything in it is either infrastructure you keep (auth, accounts, admin,
-cache, rate limits, background jobs, email, logging, tooling) or the one example resource,
-**posts**, which shows every layer once and is meant to be replaced by your first real resource.
-
-## Start here
-
-Using this as the base of a new project:
-
-1. `cp .env.example .env`, generate `BETTER_AUTH_SECRET`, `docker compose up -d`, `bun install`,
-   `bun run db:deploy`, `bun run db:seed`, `bun run dev` and `bun run dev:worker` (details under
-   **Setup**).
-2. Rename the app (`NEXT_PUBLIC_APP_NAME`, `package.json`, `docker-compose.yml`'s database names).
-3. Build your first resource next to posts by following **Adding a resource** below, then delete
-   posts: `actions/posts.ts`, `app/(site)/posts/**`, `app/api/v1/posts/**`, `components/Posts/**`,
-   `lib/dto/posts.ts`, `lib/data/posts.ts`, `lib/data/policies/posts.ts`, `lib/excerpt.ts`, the
-   `Post` model and the `posts` relation on `User` in `prisma/schema.prisma` (then
-   `bun run db:migrate`), `POSTS_TAG` / `postTag` in `lib/data/cacheTags.ts` and their two uses in
-   `lib/data/users.ts` and `lib/data/auth.ts`, the post routes in `lib/constants-routes.ts` and
-   `components/Layout/NavBar`, the posts in `prisma/seed.ts`, `posts` in `resetDatabase()`
-   (`tests/helpers/server.ts`), the posts sections of `app/(site)/ui-kit/view.tsx`, the matching
-   tests under `tests/`, `docs/guides/posts.md` and the rows about posts in this file. `bun run
-typecheck` and `bun run lint` find whatever this list misses.
+It started from a template, so the infrastructure is in place (auth, accounts, admin, cache, rate
+limits, background jobs, email, uploads to R2, logging, tooling) and the catalog schema is migrated
+(`movies`, `genres`, `people`, `credits`; see `prisma/schema.prisma`). The catalog features
+themselves are not built yet: follow **Adding a resource** below.
 
 ## Stack
 
@@ -47,16 +29,16 @@ cp .env.test.example .env.test    # same for the test database
 docker compose up -d              # PostgreSQL and Redis; or run them yourself
 bun install                       # also generates the Prisma client (postinstall)
 bun run db:deploy                 # apply migrations
-bun run db:seed                   # 3 users, 12 posts (one draft each)
+bun run db:seed                   # an admin, an editor and a viewer
 bun run dev                       # web process, http://localhost:3000
 bun run dev:worker                # in a second terminal: background jobs (emails, cleanup)
 ```
 
-Log in as `leanne@example.com` / `password123` (admin: `admin@example.com` / `password123`), or
-create an account at `/signup`.
+Log in as `admin@example.com`, `leanne@example.com` (editor) or `ervin@example.com` (viewer), all
+with `password123`, or create an account at `/signup` (new accounts are viewers).
 
 The app needs two services: **PostgreSQL >= 15** (18 in `docker-compose.yml`) and **Redis >= 7**.
-If you run them yourself, create the `next_template_dev` and `next_template_test` databases, point
+If you run them yourself, create the `movies_library_dev` and `movies_library_test` databases, point
 `REDIS_URL` in `.env` at your Redis, and put the matching values in `.env.test` (Redis
 **database 15**: the tests flush it). Redis 7 is a hard minimum: the rate limiter uses
 `PEXPIRE ... NX`. The compose Redis sets `maxmemory` with the `volatile-lru` policy; use the same on
@@ -143,7 +125,7 @@ appends the client address. Set `TRUSTED_PROXY_HOPS` (default `1`) to the number
 
 Copy `.env.test.example` to `.env.test`, run `bun run db:test:prepare` once per schema change (and
 whenever the test DB may be dirty), then `bun run test`. Server tests call the DAL, Server Actions,
-and Route Handlers directly against `next_template_test` and Redis database 15 (flushed between
+and Route Handlers directly against `movies_library_test` and Redis database 15 (flushed between
 tests) and never touch the dev database. The job queue is mocked, so no email is ever sent.
 Component, presenter, and DTO tests need no database.
 
@@ -170,14 +152,14 @@ to application components. Read `AGENTS.md` for the full rules. Add or reinstall
 `bunx shadcn@latest add button input textarea --overwrite --yes`; keep `lib/utils.ts` dedicated to
 the CLI's `cn` utility. The `/ui-kit` catalog exercises the components and the theme toggle.
 
-**DTOs.** `lib/dto` holds Zod schemas for inputs (`createPostInput`, `signUpInput`) and outputs
-(`postSummarySchema`, `postDetailSchema`); `z.infer` gives the types. Output schemas use
+**DTOs.** `lib/dto` holds Zod schemas for inputs (`updateProfileInput`, `signUpInput`) and outputs
+(`currentUserSchema`, `adminUserSchema`); `z.infer` gives the types. Output schemas use
 `z.coerce.date()`, so a client parsing JSON gets `Date` back. Lists are `Page<T>`.
 
 **Data Access Layer.** `lib/data/*` is `server-only` and the only code that imports Prisma (ESLint
 enforces it). Each function selects exactly the columns its DTO needs, maps the row to the DTO, and
 enforces auth itself with `requireUser()` / `requireAdmin()` plus record-level rules
-(`lib/data/policies`: a post may be changed by its author or an admin). It also validates its own
+(`lib/data/policies`: e.g. an editor may change the movies they created, an admin any). It also validates its own
 inputs with the `lib/dto` schema (`parseInput`), so the rules hold whichever caller reaches it.
 
 **Server Actions.** Writes live in `actions/`: call the DAL (it validates),
@@ -197,23 +179,10 @@ whether an account exists); the worker renders the plain templates in `emails/` 
 Resend, or logs the mail when no key is set. Jobs that touch the database use the system DAL
 `lib/data/maintenance.ts`, importable only from `jobs/`.
 
-**Route Handlers.** The REST endpoints below exist for HTTP API clients; no UI calls them. Each
-handler reads the body with `readJsonBody`, decodes it with the DTO schema, and passes it, with the
-raw route `id`, to the DAL, which validates again and authorizes. Authentication is the session
-cookie; writes require `Content-Type: application/json` (a cross-site form cannot send it without a
-CORS preflight, which together with the `SameSite=Lax` cookie is the CSRF guard).
-
-| Method   | Path                 | Auth                                                 | Success                                                                                  |
-| -------- | -------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `GET`    | `/api/v1/posts`      | none (drafts: own list, or admin with `published`)   | 200 `Page<PostSummary>`; filters `q`, `sort`, `published`, `authorId`, `page`, `perPage` |
-| `POST`   | `/api/v1/posts`      | signed in                                            | 201 `PostDetail`                                                                         |
-| `GET`    | `/api/v1/posts/{id}` | none for a published post; author or admin otherwise | 200 `PostDetail`                                                                         |
-| `PATCH`  | `/api/v1/posts/{id}` | author or admin                                      | 200 `PostDetail` (`title`, `body`, `published`; at least one)                            |
-| `DELETE` | `/api/v1/posts/{id}` | author or admin                                      | 204, empty body                                                                          |
-
-Errors are `{ code, message, fieldErrors? }` with 401, 403, 404, 422 (validation, including a
-non-JSON content type or malformed JSON) or 429. `GET /api/health` returns 200 when PostgreSQL and
-Redis answer and 503 otherwise (ok/fail per dependency, no error text).
+**Route Handlers.** There is no REST API yet; add one under `app/api/v1/<resource>` only when an
+HTTP client needs it (conventions in `docs/guides/route-handlers.md`). Errors are
+`{ code, message, fieldErrors? }` with 401, 403, 404, 422 or 429. `GET /api/health` returns 200 when
+PostgreSQL and Redis answer and 503 otherwise (ok/fail per dependency, no error text).
 
 **Errors.** The DAL throws `UnauthorizedError`, `ForbiddenError`, `NotFoundError`,
 `ValidationError` and `RateLimitedError`. Actions turn them into `ActionResult` failures, the Route
@@ -221,7 +190,7 @@ Handler into 401/403/404/422/429 JSON, and `loadPage` into a login redirect or `
 
 **Presenters.** Types are the source of truth; presenters exist only for overrides. A presenter is
 a plain function that spreads the DTO and replaces just the fields a view needs reshaped
-(`presentUser` turns a bare `website` domain into a linkable URL).
+(e.g. a movie's release year derived from its date). There are none yet.
 
 **Auth.** Better Auth with email + password, database sessions, the `admin` plugin and the
 `nextCookies` plugin. `proxy.ts` redirects private routes to `/login?next=...` when the session
@@ -238,14 +207,15 @@ are the only way in. Auth and account actions are rate limited in production (Re
 shared across instances; if Redis is down the attempt is allowed). Full detail in
 [`docs/guides/authentication.md`](docs/guides/authentication.md).
 
-`/settings` is the account page: profile (name, username, website), email change (confirm at the
-current address, verify the new one), password change, active sessions (revoke one or all others)
-and account deletion (password required; posts and sessions cascade).
+`/settings` is the account page: profile photo (when R2 is configured), profile (name, username),
+email change (confirm at the current address, verify the new one), password change, active sessions
+(revoke one or all others) and account deletion (password required; sessions cascade, the user's
+movies keep a null creator, the avatar's object is queued for deletion).
 
 **Admin.** `/admin` (admins only; anyone else gets the not-found page, signed-out visitors go to
-login) lists users with search and pagination and lets an admin change a role, ban or unban a user
-(a banned user is signed out everywhere and cannot sign in; the reason is shown to them), and
-impersonate a regular user (a one-hour session with a banner and a "Stop impersonating" button).
+login) lists users with search and pagination and lets an admin change a role (viewer, editor, admin), ban
+or unban a user (a banned user is signed out everywhere and cannot sign in; the reason is shown to
+them), and impersonate a non-admin user (a one-hour session with a banner and a "Stop impersonating" button).
 Reads are the app's own queries; writes wrap the admin plugin's server API (`auth.api.setRole`,
 `banUser`, `impersonateUser`, …) behind `requireAdmin()` and one extra rule: an admin cannot change
 their own role, so the last admin cannot lock everyone out.
@@ -264,14 +234,11 @@ Where to look to see each pattern done once, properly.
 
 | Pattern                               | Where it is shown                                                                                                                                                                        |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Server-rendered list with URL filters | `app/(site)/posts/page.tsx` + `view.tsx`; `hooks/useUrlState.ts`; `postsUrlQuery` in `lib/dto/posts.ts`; `components/Posts/Filters`                                                      |
-| Create / edit form with field errors  | `components/Posts/Form/index.tsx` (+ `utils.ts`); `lib/formErrors.ts` (`applyActionErrors`); `actions/posts.ts`; pages `/posts/new` and `/posts/[id]/edit`                               |
-| Controlled form field                 | the Published `Checkbox` wired through RHF's `Controller` in `components/Posts/Form/index.tsx`                                                                                           |
-| Record-level authorization policies   | `lib/data/policy.ts` (`authorize`, `permissionsFor`); `lib/data/policies/posts.ts` (`postPolicy`); used by `requirePostChange` in `lib/data/posts.ts`                                    |
-| Viewer-dependent visibility           | `postPolicy.view`, `getPost` and `listPosts` in `lib/data/posts.ts` (cache the shared part, check the viewer after)                                                                      |
-| Redis caching and invalidation        | `remember` / `invalidateTags` in `lib/server/cache.ts`; tags in `lib/data/cacheTags.ts`; used in `lib/data/posts.ts` and `lib/data/users.ts`                                             |
-| REST CRUD handlers                    | `app/api/v1/posts/route.ts`, `app/api/v1/posts/[id]/route.ts`; `readJsonBody` and `toErrorResponse` in `lib/data/errors.ts`                                                              |
-| Rate limiting                         | `consumeRateLimit` / `getClientIp` in `lib/data/rateLimit.ts`; per IP and per account in `actions/auth.ts`, per user in `createPost`                                                     |
+| Server-rendered list with URL filters | `app/(site)/admin/page.tsx` + `view.tsx`; `hooks/useUrlState.ts`; `usersUrlQuery` in `lib/dto/users.ts`                                                                                  |
+| Form with field errors                | `components/Settings/ProfileForm/index.tsx` (+ `utils.ts`); `lib/formErrors.ts` (`applyActionErrors`); `actions/users.ts`                                                                |
+| Record-level authorization policies   | `lib/data/policy.ts` (`authorize`, `permissionsFor`); no resource policy yet                                                                                                             |
+| Redis caching and invalidation        | `remember` / `invalidateTags` in `lib/server/cache.ts`; tags in `lib/data/cacheTags.ts`; `getViewer` in `lib/data/users.ts`                                                              |
+| Rate limiting                         | `consumeRateLimit` / `getClientIp` in `lib/data/rateLimit.ts`; per IP and per account in `actions/auth.ts`, per user in `createUpload`                                                   |
 | Wrapping a Better Auth plugin         | `lib/data/admin.ts` (`setUserRole`, `banUser`, `impersonateUser` over `auth.api.*`); `actions/admin.ts`; page `app/(site)/admin`                                                         |
 | Admin-only page                       | `app/(site)/admin/page.tsx` + `view.tsx`; `listUsers` with `requireAdmin()` in `lib/data/admin.ts`; `loadPage` turns 403 into the not-found page                                         |
 | Account settings on Better Auth       | `actions/auth.ts` (`changePasswordAction`, `changeEmailAction`, `deleteAccountAction`); `lib/data/sessions.ts`; `app/(site)/settings`                                                    |
@@ -299,7 +266,7 @@ Where to look to see each pattern done once, properly.
 
 ## Adding a resource
 
-The posts domain is the worked example; copy its shape. In this order:
+The movie catalog is the first resource to build this way. In this order:
 
 1. **Schema.** Add the model to `prisma/schema.prisma` (camelCase fields with snake_case `@map`s,
    an index on every foreign key you filter by, `onDelete: Cascade` where the child cannot outlive
@@ -325,7 +292,7 @@ record)`, call them with `authorize()` after the exists check, and build the DTO
 5. **Pages and forms.** `page.tsx` is an async Server Component: await `params` / `searchParams`,
    load through `loadPage`, render. Add a `'use client'` `view.tsx` beside it only for what is
    interactive. Forms use React Hook Form with the DTO schema, start with the `'use client'` /
-   `'use no memo'` header (copy `components/Posts/Form`) and map failures with `applyActionErrors`.
+   `'use no memo'` header (copy `components/Settings/ProfileForm`) and map failures with `applyActionErrors`.
    Styles are an SCSS module with shadcn tokens.
 6. **Routes and navigation.** Add the route constants to `lib/constants-routes.ts` and decide
    whether each route is public (`PUBLIC_ROUTES`) or private (the default); add the NavBar link.
@@ -337,7 +304,7 @@ record)`, call them with `authorize()` after the exists check, and build the DTO
 
 - [`docs/DECISIONS.md`](docs/DECISIONS.md): what was chosen and why, and what was removed and where it went.
 - [`AGENTS.md`](AGENTS.md): project conventions and rules for contributors and agents.
-- Area guides in [`docs/guides/`](docs/guides/): authentication, posts, route-handlers, caching,
+- Area guides in [`docs/guides/`](docs/guides/): authentication, route-handlers, caching,
   jobs, email, uploads, infrastructure, hooks, forms, environment.
 - Recipes in [`docs/recipes/`](docs/recipes/) for what the template leaves out: concurrency and
   optimistic locking, and the other removed patterns.

@@ -15,7 +15,7 @@
     `values`. ESLint fails the file if the directive is missing.
 - **URL state:** `useUrlState(schema, { history })` (`hooks/useUrlState.ts`) keeps list filters in
   the query string. The schema is a Zod object whose fields all have `.default()` / `.catch()`, so
-  any URL parses (`postsUrlQuery` in `lib/dto/posts.ts` is the one contract, shared with the
+  any URL parses (`usersUrlQuery` in `lib/dto/users.ts` is the one contract, shared with the
   page's `searchParams`, which the page reduces with `toScalarParams` from `lib/searchParams.ts`:
   a repeated param reads as its last value on server and client alike). `setState(patch)` is one
   navigation per patch; each patch builds on the last query requested (not the

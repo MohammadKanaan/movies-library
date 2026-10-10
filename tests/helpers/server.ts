@@ -7,8 +7,8 @@ import { cookieJar } from './cookies'
 export const TEST_PASSWORD = 'correct-horse-battery'
 
 export const assertTestDatabase = () => {
-  if (!process.env.DATABASE_URL?.includes('next_template_test')) {
-    throw new Error('Server tests must run against next_template_test')
+  if (!process.env.DATABASE_URL?.includes('movies_library_test')) {
+    throw new Error('Server tests must run against movies_library_test')
   }
 }
 
@@ -29,7 +29,7 @@ export const resetDatabase = async () => {
   assertTestDatabase()
   await resetRedis()
   cookieJar.clear()
-  await db.$executeRaw`TRUNCATE TABLE posts, uploads, sessions, accounts, verifications, users RESTART IDENTITY CASCADE`
+  await db.$executeRaw`TRUNCATE TABLE credits, movie_genres, movies, genres, people, sessions, accounts, verifications, users CASCADE`
 }
 
 /** Signs a user up through Better Auth (real password hash and account row), then signs out locally. */
@@ -48,7 +48,7 @@ export const createUser = async (
   })
   cookieJar.clear()
   // The admin plugin's `role` is `input: false`, so it cannot come from sign-up; set it directly.
-  return db.user.update({ where: { email }, data: { role: overrides.role ?? 'user' } })
+  return db.user.update({ where: { email }, data: { role: overrides.role ?? 'viewer' } })
 }
 
 export const signInAs = async (user: { email: string }) => {

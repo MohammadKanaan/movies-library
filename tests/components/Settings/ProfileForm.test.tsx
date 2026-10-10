@@ -11,8 +11,7 @@ const user: CurrentUser = {
   email: 'ada@example.com',
   emailVerified: true,
   image: null,
-  website: 'example.com',
-  role: 'user',
+  role: 'viewer',
 }
 
 describe('ProfileForm', () => {
@@ -20,15 +19,9 @@ describe('ProfileForm', () => {
     render(<ProfileForm user={user} onSubmit={vi.fn()} />)
     expect(screen.getByLabelText(/Name/)).toHaveValue('Ada Lovelace')
     expect(screen.getByLabelText(/Username/)).toHaveValue('ada_l')
-    expect(screen.getByLabelText(/Website/)).toHaveValue('example.com')
     expect(screen.getByRole('button', { name: 'Save profile' })).toBeDisabled()
     await userEvent.type(screen.getByLabelText(/Name/), '!')
     expect(screen.getByRole('button', { name: 'Save profile' })).toBeEnabled()
-  })
-
-  it('shows an empty website for a user without one', () => {
-    render(<ProfileForm user={{ ...user, website: null }} onSubmit={vi.fn()} />)
-    expect(screen.getByLabelText(/Website/)).toHaveValue('')
   })
 
   it('validates before submitting', async () => {
@@ -37,12 +30,9 @@ describe('ProfileForm', () => {
     await userEvent.clear(screen.getByLabelText(/Name/))
     await userEvent.clear(screen.getByLabelText(/Username/))
     await userEvent.type(screen.getByLabelText(/Username/), 'No Spaces!')
-    await userEvent.clear(screen.getByLabelText(/Website/))
-    await userEvent.type(screen.getByLabelText(/Website/), 'javascript:alert(1)')
     await userEvent.click(screen.getByRole('button', { name: 'Save profile' }))
     expect(await screen.findByText('Name is required')).toBeInTheDocument()
     expect(screen.getByText('Use lowercase letters, numbers, and underscores')).toBeInTheDocument()
-    expect(screen.getByText('Enter a website like example.com')).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
@@ -55,7 +45,6 @@ describe('ProfileForm', () => {
     expect(onSubmit).toHaveBeenCalledWith({
       name: 'Ada King',
       username: 'ada_l',
-      website: 'example.com',
     })
   })
 

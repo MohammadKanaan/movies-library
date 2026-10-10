@@ -4,7 +4,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
-# AGENTS.md — Next Template
+# AGENTS.md — Movies Library
 
 ## The One-Contract Rule
 
@@ -17,8 +17,8 @@ that forgets a check cannot bypass it.
 
 ## Locating Code
 
-- Tests under `tests/` mirror the source tree: `tests/components/Posts/PostForm.test.tsx` ↔
-  `components/Posts/Form/`. When a test fails, read the test file first, then look for the source
+- Tests under `tests/` mirror the source tree: `tests/components/Settings/ProfileForm.test.tsx` ↔
+  `components/Settings/ProfileForm/`. When a test fails, read the test file first, then look for the source
   at the mirrored path before searching.
 - Search with `rg`/`grep` scoped to this repo — never search outside the project directory.
   `node_modules/next/dist/docs/` and `node_modules/@prisma/` are the exceptions when you need the
@@ -29,12 +29,11 @@ that forgets a check cannot bypass it.
 Long area narratives live in `docs/guides/`. Read the one for the area you touch before editing it.
 
 - `docs/guides/authentication.md`: Better Auth, the admin plugin (roles, bans, impersonation), email flows, account settings, Google, rate limits.
-- `docs/guides/posts.md`: the posts example (visibility, caching, search, the pages).
 - `docs/guides/route-handlers.md`: Route Handlers, the REST API, health.
 - `docs/guides/caching.md`: the Redis data cache (`remember`, tags, what is never cached).
 - `docs/guides/jobs.md`: pg-boss jobs, handlers, the worker, the system DAL.
 - `docs/guides/email.md`: the mailer, the `send-email` job and the plain templates in `emails/`.
-- `docs/guides/uploads.md`: avatar uploads on Cloudflare R2 (presigned PUT, attach, delayed deletes, bucket setup).
+- `docs/guides/uploads.md`: uploads on Cloudflare R2 without an uploads table (presigned PUT, per-user keys, attach, delayed deletes, bucket setup).
 - `docs/guides/infrastructure.md`: `lib/server`, logging, Docker and CI.
 - `docs/guides/hooks.md`: hook rules (no `useMemo` / `useCallback`; RHF files opt out with `'use no memo'`), `useUrlState`.
 - `docs/guides/forms.md`: React Hook Form + Zod forms (each starts `'use client'` then `'use no memo'`).
@@ -46,24 +45,24 @@ such a feature; never treat it as a description of existing code.
 
 ## Build & Run Commands
 
-| Command                                    | Purpose                                                                                                          |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `bun run dev`                              | Start the Next dev server                                                                                        |
-| `bun run build`                            | Production build                                                                                                 |
-| `bun run test`                             | Run all Vitest tests                                                                                             |
-| `bun run test tests/lib/dto/posts.test.ts` | Run a single test file                                                                                           |
-| `bun run test -t "formats validation"`     | Run tests matching a name pattern                                                                                |
-| `bun run lint`                             | ESLint                                                                                                           |
-| `bun run typecheck`                        | Generate the Prisma client and route types, then `tsc`                                                           |
-| `bun run format:check`                     | Prettier check                                                                                                   |
-| `bun run db:generate`                      | Regenerate the Prisma client into `generated/`                                                                   |
-| `bun run db:migrate`                       | Create + apply a migration to the dev DB, then regenerate                                                        |
-| `bun run db:deploy`                        | Apply pending migrations only (CI / production)                                                                  |
-| `bun run db:seed`                          | Seed the dev DB (3 users, 12 posts; password `password123`); refuses `NODE_ENV=production` unless `ALLOW_SEED=1` |
-| `bun run db:reset`                         | Drop, re-migrate, and re-seed the dev DB (destroys its data)                                                     |
-| `bun run db:test:prepare`                  | Reset the test DB, apply migrations, install the `pgboss` schema                                                 |
-| `bun run worker`                           | Start the background worker (pg-boss jobs and cron)                                                              |
-| `bun run dev:worker`                       | The worker with `tsx watch`, restarting on file changes                                                          |
+| Command                                    | Purpose                                                                                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run dev`                              | Start the Next dev server                                                                                                       |
+| `bun run build`                            | Production build                                                                                                                |
+| `bun run test`                             | Run all Vitest tests                                                                                                            |
+| `bun run test tests/lib/dto/users.test.ts` | Run a single test file                                                                                                          |
+| `bun run test -t "formats validation"`     | Run tests matching a name pattern                                                                                               |
+| `bun run lint`                             | ESLint                                                                                                                          |
+| `bun run typecheck`                        | Generate the Prisma client and route types, then `tsc`                                                                          |
+| `bun run format:check`                     | Prettier check                                                                                                                  |
+| `bun run db:generate`                      | Regenerate the Prisma client into `generated/`                                                                                  |
+| `bun run db:migrate`                       | Create + apply a migration to the dev DB, then regenerate                                                                       |
+| `bun run db:deploy`                        | Apply pending migrations only (CI / production)                                                                                 |
+| `bun run db:seed`                          | Seed the dev DB (an admin, an editor and a viewer; password `password123`); refuses `NODE_ENV=production` unless `ALLOW_SEED=1` |
+| `bun run db:reset`                         | Drop, re-migrate, and re-seed the dev DB (destroys its data)                                                                    |
+| `bun run db:test:prepare`                  | Reset the test DB, apply migrations, install the `pgboss` schema                                                                |
+| `bun run worker`                           | Start the background worker (pg-boss jobs and cron)                                                                             |
+| `bun run dev:worker`                       | The worker with `tsx watch`, restarting on file changes                                                                         |
 
 - **Package manager:** bun (pinned via `packageManager`). Do not use npm or yarn. Scripts run on
   Node, not the Bun runtime.
@@ -82,7 +81,7 @@ such a feature; never treat it as a description of existing code.
   Cache Components (`'use cache'`) are off
 - **Jobs:** pg-boss on the same PostgreSQL, run by a separate worker process (`worker/`)
 - **Storage:** Cloudflare R2 through `@aws-sdk/client-s3` (`lib/server/storage.ts`), optional: the
-  five `R2_*` variables turn the profile photo upload on
+  five `R2_*` variables turn uploads on (profile photos today, movie images next)
 - **Email:** Resend through the `send-email` job, plain HTML templates in `emails/`, logged to the
   logger without an API key
 - **Logging:** pino (`lib/server/logger.ts`), pino-pretty in development
@@ -96,9 +95,9 @@ such a feature; never treat it as a description of existing code.
 ## Project Structure
 
 ```
-app/                     # App Router: route groups (site), (minimal); api/auth, api/v1/posts, api/health
+app/                     # App Router: route groups (site), (minimal); api/auth, api/health
   (site)/<route>/        # page.tsx (Server Component) + optional view.tsx ('use client') + styles.module.scss
-actions/                 # 'use server' Server Actions (auth, users, admin, posts)
+actions/                 # 'use server' Server Actions (auth, users, admin, uploads)
 components/              # React components (ComponentName/index.tsx + styles.module.scss)
 components/SCN/          # shadcn/ui primitives (the only place Tailwind is allowed)
 hooks/                   # Reusable React hooks (useXxx)
@@ -108,7 +107,7 @@ lib/                     # Pure helpers, constants, env, formErrors, username de
 lib/dto/                 # Zod schemas + inferred types (inputs and outputs); client- and server-safe
 lib/client/              # Browser-side helpers: uploadFile (the one fetch to a non-app URL), RequestError
 lib/data/                # Server-only DAL: db client, auth (Better Auth config), errors, users, admin,
-                         # sessions, posts, uploads, policies, health, rateLimit, page loader;
+                         # sessions, uploads, policy, health, rateLimit, page loader;
                          # maintenance is the system DAL (jobs only)
 lib/server/              # Server-only infrastructure that is not the database: env, redis, cache,
                          # queue, mailer, storage (R2), logger
@@ -131,9 +130,9 @@ docs/DECISIONS.md        # Framework and library choices, with reasons; what was
 - Use `| null` union types for nullable fields, matching the database.
 - Avoid `any` when a proper type or type guard is practical.
 - **Zod schemas in `lib/dto` are the source of truth for types** (`z.infer`). Inputs
-  (`createPostInput`) and outputs (`postSummarySchema`, `postDetailSchema`) are both schemas.
+  (`updateProfileInput`) and outputs (`currentUserSchema`, `adminUserSchema`) are both schemas.
   Output schemas use `z.coerce.date()` so a client that parses JSON gets `Date` back.
-- DTO variants are per operation (`PostSummary` for lists, `PostDetail` for one record), shaped by
+- DTO variants are per operation (e.g. a summary for lists, a detail for one record), shaped by
   the DAL's Prisma `select`; the DAL maps rows to DTOs, so drift from the database fails to compile
   there.
 - **No Prisma types outside `lib/data`** (and `prisma/`). ESLint enforces this with
@@ -144,21 +143,21 @@ docs/DECISIONS.md        # Framework and library choices, with reasons; what was
 
 ## React Components
 
-- **Every function is a `const` arrow function** (`export const PostForm = (props) => { … }`),
+- **Every function is a `const` arrow function** (`export const ProfileForm = (props) => { … }`),
   components, hooks, helpers, DAL functions and Server Actions alike; ESLint enforces it with
   `func-style`. The only `function` declarations are in the generated `components/SCN`.
 - Components use **named exports**. Next route files (`page.tsx`, `layout.tsx`,
   `not-found.tsx`, `route.ts`) use the default exports Next requires, written as
-  `const PostsPage = async (…) => { … }` followed by `export default PostsPage`.
+  `const SettingsPage = async (…) => { … }` followed by `export default SettingsPage`.
 - **Server Components by default.** Add `'use client'` only for state, effects, event handlers, or
   browser APIs. `page.tsx` is an async Server Component that owns `metadata`, awaits
   `params`/`searchParams` (Promises), calls the DAL through `loadPage` and renders the markup.
 - **Push `'use client'` to the leaves.** A page with nothing interactive of its own has no
-  `view.tsx` (`/posts/[id]` renders on the server; only `DeletePostButton` is a client component).
-  Add a sibling `view.tsx` only for the interactive part: handlers that call Server Actions,
-  toasts, navigation, URL state. When a view wraps content that needs no interactivity, the page
-  passes that content as `children` so it stays server-rendered (`/posts`: the view owns search,
-  sort and pagination, the page renders the list into it).
+  `view.tsx`: it renders on the server and only its interactive pieces (a delete button) are client
+  components. Add a sibling `view.tsx` only for the interactive part: handlers that call Server
+  Actions, toasts, navigation, URL state (`/settings`, `/admin`). When a view wraps content that
+  needs no interactivity, the page passes that content as `children` so it stays server-rendered
+  (a list page: the view owns search, sort and pagination, the page renders the list into it).
 - **No `<Suspense>` is required around data reads.** A page awaits its data and the response is
   sent when it is ready, so `redirect()` and `notFound()` answer with real 307 / 404 statuses. Wrap
   a slow section in `<Suspense fallback={<PageLoading />}>` only when you want it to stream. The
@@ -192,19 +191,21 @@ docs/DECISIONS.md        # Framework and library choices, with reasons; what was
 
 - `lib/data/**` is the only code that imports `@/generated/prisma/*` or `@prisma/*`. Every file
   starts with `import 'server-only'`.
-- Select exactly the columns a DTO needs (`satisfies Prisma.PostSelect`), map the row to the DTO,
+- Select exactly the columns a DTO needs (`satisfies Prisma.UserSelect`), map the row to the DTO,
   and return the DTO. Never return a Prisma row to a caller.
 - **Every function validates its own inputs** with `parseInput(schema, input)` from `./errors`
   (it throws `ValidationError` with per-field messages) and works on the parsed result, which is
   where trimming and defaults are applied. The parameter stays typed with the DTO type for callers;
   the parse is what makes it true at runtime, whoever calls. Order: signed in (401) → input valid
-  (422) → exists (404) → allowed (403). A read by id treats a malformed id as not found
-  (`getPost('abc')` throws `NotFoundError`), so pages pass the route param straight in.
+  (422) → exists (404) → allowed (403). Ids are UUIDs, and a malformed one must never reach Prisma
+  (PostgreSQL throws on it): validate it with `z.uuid()`. A read by id treats a malformed id as not
+  found (`NotFoundError`), so pages pass the route param straight in; a write that takes an id
+  (`setUserRole`) reports it as a validation error.
 - Every function enforces auth itself: `requireUser()` / `requireAdmin()` plus record-level rules.
-  `createPost` also calls `consumeRateLimit` right after `requireUser()`, so every path to it shares
-  the limit.
-- Record-level rules live in `lib/data/policies/<resource>.ts` (`postPolicy`), pure and tested per
-  viewer in `tests/lib/data/policies/`; DAL functions call `authorize(rule, viewer, record)`
+  A rate-limited write calls `consumeRateLimit` right after `requireUser()` inside the DAL
+  (`createUpload`), so every path to it shares the limit.
+- Record-level rules live in `lib/data/policies/<resource>.ts` (e.g. `moviePolicy`, the first one
+  to be written), pure and tested per viewer in `tests/lib/data/policies/`; DAL functions call `authorize(rule, viewer, record)`
   (`lib/data/policy.ts`, throws `ForbiddenError`) and build a DTO's `permissions` with
   `permissionsFor(policy, actions, viewer, record)`. Do not write inline `viewer.id === authorId` checks.
 - Failures are typed errors (see **Errors**), not return codes.
@@ -266,11 +267,12 @@ author lists are never cached. Redis is an optimization, never a dependency. Ful
   formatting, parsing, and data utilities.
 - **Presenters** (`presenters/`): plain functions, only for overrides. A presenter spreads the DTO
   and overrides or adds just the fields a view needs reshaped:
-  `export const presentUser = (user) => ({ ...user, website: toAbsoluteUrl(user.website) })`.
+  `export const presentMovie = (movie) => ({ ...movie, year: movie.releaseDate.getUTCFullYear() })`.
+  There are none yet; `presenters/` starts with the first view that needs one.
   No classes, no presenter that only passes data through — if the DTO already fits the view, use it
   directly.
-- Apply a presenter where the data is consumed: call it directly in a Server Component
-  (`/posts/[id]`) or in a client view. DTOs are plain objects, so they cross the Server → Client
+- Apply a presenter where the data is consumed: call it directly in a Server Component or in a
+  client view. DTOs are plain objects, so they cross the Server → Client
   Component boundary safely; a presented value that holds a function or class instance would not,
   so present on the side that renders it.
 - Reuse existing helpers and presenters before adding duplicate logic.
@@ -283,16 +285,16 @@ author lists are never cached. Redis is an optimization, never a dependency. Ful
 
 ## Naming Conventions
 
-| Element                      | Convention                 | Example                               |
-| ---------------------------- | -------------------------- | ------------------------------------- |
-| Variables / functions        | camelCase                  | `buildPostAttributes`, `presentUser`  |
-| Components / classes / types | PascalCase                 | `PostForm`, `PostDetail`, `DataError` |
-| Component directories        | PascalCase                 | `components/Posts/Form/`              |
-| Route segments               | lowercase / kebab-case     | `app/(site)/ui-kit/`                  |
-| Hooks                        | `useXxx`                   | `useScrollLock`                       |
-| Presenters                   | `presentXxx`               | `presentUser`                         |
-| Test files                   | `*.test.ts` / `*.test.tsx` | `posts.test.ts`                       |
-| Server Actions               | `xxxAction` in `actions/`  | `createPostAction`                    |
+| Element                      | Convention                 | Example                                 |
+| ---------------------------- | -------------------------- | --------------------------------------- |
+| Variables / functions        | camelCase                  | `hydrateProfileForm`, `presentMovie`    |
+| Components / classes / types | PascalCase                 | `ProfileForm`, `AdminUser`, `DataError` |
+| Component directories        | PascalCase                 | `components/Settings/ProfileForm/`      |
+| Route segments               | lowercase / kebab-case     | `app/(site)/ui-kit/`                    |
+| Hooks                        | `useXxx`                   | `useScrollLock`                         |
+| Presenters                   | `presentXxx`               | `presentMovie`                          |
+| Test files                   | `*.test.ts` / `*.test.tsx` | `users.test.ts`                         |
+| Server Actions               | `xxxAction` in `actions/`  | `updateProfileAction`                   |
 
 ## Testing
 
@@ -302,9 +304,9 @@ author lists are never cached. Redis is an optimization, never a dependency. Ful
 - Use `@/` path aliases for imports in test files.
 - Server tests start with `// @vitest-environment node`, mock `next/headers` with the cookie jar in
   `tests/helpers/cookies.ts` and mock `next/cache`, create users with `createUser()` /
-  `signInAs()` from `tests/helpers/server.ts`, and run against `next_template_test` only. Run
+  `signInAs()` from `tests/helpers/server.ts`, and run against `movies_library_test` only. Run
   `bun run db:test:prepare` after schema changes (it resets the test database; `resetDatabase()`
-  truncates `posts` and the user tables, so new tables that hang off them are cleared too).
+  truncates the catalog and the user tables, so new tables that hang off them are cleared too).
 - `vitest.config.mts` inlines `better-auth` so its internal `next/headers` import goes through the
   mock. It also runs the React Compiler (`reactCompilerPreset`), so component and hook tests
   exercise the same memoized code that ships.

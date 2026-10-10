@@ -9,7 +9,7 @@ import type { CurrentUser } from '@/lib/dto/users'
 vi.mock('@/lib/client/uploads', () => ({ uploadFile: vi.fn(async () => {}) }))
 
 const ticket = {
-  uploadId: 'upload-1',
+  key: 'avatars/u/1',
   url: 'https://acct.r2.cloudflarestorage.com/bucket/k?X-Amz-Signature=s',
   headers: { 'Content-Type': 'image/png' },
 }
@@ -20,8 +20,7 @@ const user: CurrentUser = {
   email: 'ada@example.com',
   emailVerified: true,
   image: 'http://storage.test/bucket/avatars/u1/x',
-  website: null,
-  role: 'user',
+  role: 'viewer',
 }
 
 const setup = () => {
@@ -65,7 +64,7 @@ describe('AvatarUploader', () => {
       size: 1234,
     })
     expect(uploadFile).toHaveBeenCalledWith(ticket, file)
-    expect(onAttach).toHaveBeenCalledWith('upload-1')
+    expect(onAttach).toHaveBeenCalledWith('avatars/u/1')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 

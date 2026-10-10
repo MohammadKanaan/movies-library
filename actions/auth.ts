@@ -296,7 +296,7 @@ export const revokeOtherSessionsAction = async (): Promise<ActionResult<null>> =
   }
 }
 
-/** Deletes the viewer's account (posts, sessions and uploads with it); needs the password. */
+/** Deletes the viewer's account (sessions and avatar with it); needs the password. */
 export const deleteAccountAction = async (
   input: DeleteAccountInput,
 ): Promise<ActionResult<null>> => {

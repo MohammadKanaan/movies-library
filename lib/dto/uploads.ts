@@ -7,8 +7,8 @@ export const UPLOAD_TICKET_SECONDS = 300
 /**
  * How long after a ticket expires an object is still treated as "may still be arriving": storage
  * checks a presigned URL's expiry when the request starts, so a slow upload begun just before
- * expiry can land afterwards. Nothing deletes an uploaded object (or its row) before the ticket
- * plus this grace.
+ * expiry can land afterwards. Nothing deletes a replaced object before the ticket plus this
+ * grace, so it cannot be uploaded again after its delete job ran.
  */
 export const UPLOAD_OBJECT_GRACE_SECONDS = 600
 
@@ -17,11 +17,10 @@ export const uploadPurposeSchema = z.enum(['avatar'])
 
 export type UploadPurpose = z.infer<typeof uploadPurposeSchema>
 
-/** What an upload of one purpose may be. `maxPending` caps the live tickets one user holds. */
+/** What an upload of one purpose may be. */
 export type UploadRule = {
   contentTypes: readonly string[]
   maxSize: number
-  maxPending: number
   ticketSeconds: number
   /** Shown when the file's type or size is not allowed (and as the hint beside the picker). */
   typeError: string
@@ -37,7 +36,6 @@ export const UPLOAD_RULES: Record<UploadPurpose, UploadRule> = {
   avatar: {
     contentTypes: AVATAR_CONTENT_TYPES,
     maxSize: AVATAR_MAX_SIZE,
-    maxPending: 3,
     ticketSeconds: UPLOAD_TICKET_SECONDS,
     typeError: 'Use a PNG, JPEG, or WebP image',
     sizeError: 'The image must be 2 MB or smaller',
@@ -85,14 +83,21 @@ export type CreateUploadInput = z.input<typeof createUploadInput>
 
 /**
  * Where and how the browser sends the file: a presigned `PUT` whose signature covers the headers
- * below (and the exact `Content-Length`, which the browser sets itself), plus the upload's id.
+ * below (and the exact `Content-Length`, which the browser sets itself), plus the object's key,
+ * which the browser hands back to attach the file.
  */
 export const uploadTicketSchema = z.object({
-  uploadId: z.string(),
+  key: z.string(),
   url: z.string(),
   headers: z.record(z.string(), z.string()),
 })
 
 export type UploadTicket = z.infer<typeof uploadTicketSchema>
 
-export const uploadIdSchema = z.uuid('Invalid upload')
+/**
+ * An object key as `createUpload` makes it: `<purpose>s/<user id>/<random UUID>`. The DAL also
+ * checks that the key is the viewer's own and of the expected purpose.
+ */
+export const uploadKeySchema = z
+  .string()
+  .regex(/^[a-z]+s\/[0-9a-f-]{36}\/[0-9a-f-]{36}$/, 'Invalid upload')

@@ -10,7 +10,7 @@
 # whole file, so even `docker compose up -d` needs it set (generate it: openssl rand -base64 32).
 x-app-env: &app-env
   NODE_ENV: production
-  DATABASE_URL: postgresql://postgres:postgres@db:5432/next_template_dev
+  DATABASE_URL: postgresql://postgres:postgres@db:5432/movies_library_dev
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env (openssl rand -base64 32)}
   BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
   REDIS_URL: redis://redis:6379/0
@@ -32,13 +32,13 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: next_template_dev
+      POSTGRES_DB: movies_library_dev
     ports:
       - '127.0.0.1:5432:5432'
     volumes:
       - db-data:/var/lib/postgresql
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d next_template_dev']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d movies_library_dev']
       interval: 5s
       timeout: 3s
       retries: 10
