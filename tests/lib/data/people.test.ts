@@ -17,11 +17,12 @@ import {
   removeHeadshot,
   updatePerson,
 } from '@/lib/data/people'
+import { createReview } from '@/lib/data/reviews'
 import { objectDeleteDelaySeconds } from '@/lib/dto/uploads'
 import { enqueue } from '@/lib/server/queue'
 import { getRedis } from '@/lib/server/redis'
 import { deleteObject, headObject } from '@/lib/server/storage'
-import { seedGenre, seedMovie, seedPerson } from '../../helpers/catalog'
+import { seedGenre, seedMovie, seedPerson, seedReview } from '../../helpers/catalog'
 import { createUser, resetDatabase, signInAs, signOut } from '../../helpers/server'
 
 const { cookieStore, requestHeaders } = await vi.hoisted(
@@ -192,6 +193,7 @@ describe('people DAL', () => {
           { personId: denis.id, role: 'DIRECTOR' },
         ],
       })
+      await seedReview({ movieId: dune.id, authorId: (await createUser()).id, rating: 4.5 })
 
       const person = await getPersonBySlug('denis-villeneuve')
       expect(person).toEqual({
@@ -212,6 +214,7 @@ describe('people DAL', () => {
             runtimeMinutes: 155,
             posterUrl: 'https://pub.example/dune.jpg',
             genres: [{ id: scifi.id, name: 'Science Fiction', slug: 'science-fiction' }],
+            rating: { average: 4.5, count: 1 },
             roles: ['DIRECTOR', 'WRITER'],
           },
           {
@@ -222,11 +225,27 @@ describe('people DAL', () => {
             runtimeMinutes: null,
             posterUrl: null,
             genres: [],
+            rating: { average: null, count: 0 },
             roles: ['DIRECTOR'],
           },
         ],
         permissions: { update: false, delete: false },
       })
+    })
+
+    it('shows a new rating in the cached filmography', async () => {
+      const denis = await seedPerson('Denis Villeneuve')
+      const dune = await seedMovie({
+        title: 'Dune',
+        releaseDate: '2021-10-22',
+        credits: [{ personId: denis.id, role: 'DIRECTOR' }],
+      })
+      const ratingOf = async () =>
+        (await getPersonBySlug('denis-villeneuve')).filmography[0]?.rating
+      expect(await ratingOf()).toEqual({ average: null, count: 0 })
+      await signInAs(await createUser())
+      await createReview({ movieId: dune.id, rating: 3.5 })
+      expect(await ratingOf()).toEqual({ average: 3.5, count: 1 })
     })
 
     it('computes the permissions for the viewer on top of the cached record', async () => {

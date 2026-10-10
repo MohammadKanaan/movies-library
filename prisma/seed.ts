@@ -103,12 +103,6 @@ const db = new PrismaClient({
 try {
   const password = await hashPassword(SEED_PASSWORD)
 
-  // Replacing the users below deletes their reviews, so these movies' cached ratings go stale.
-  const reviewedBefore = await db.review.findMany({
-    distinct: ['movieId'],
-    select: { movieId: true },
-  })
-
   for (const data of SEED_USERS) {
     // Re-seeding replaces the user; sessions and accounts cascade, their movies keep a null owner.
     await db.user.deleteMany({ where: { email: data.email } })
@@ -279,11 +273,8 @@ try {
     redis.on('error', () => {})
     try {
       await redis.incr('cache:tag:catalog')
-      // `reviewsTag` in lib/data/cacheTags.ts: the rating summaries of every movie whose reviews changed.
-      const reviewed = new Set([...reviewedBefore.map((row) => row.movieId), ...reviewedNow])
-      for (const movieId of reviewed) {
-        await redis.incr(`cache:tag:reviews:${movieId}`)
-      }
+      // `RATINGS_TAG` in lib/data/cacheTags.ts: the reviews below changed the movies' ratings.
+      await redis.incr('cache:tag:ratings')
     } catch (error) {
       console.warn('Catalog seeded, but cache invalidation failed:', error)
     } finally {

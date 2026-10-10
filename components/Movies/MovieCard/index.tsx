@@ -1,3 +1,4 @@
+import { Star } from 'lucide-react'
 import Link from 'next/link'
 import { MoviePoster } from '@/components/Movies/MoviePoster'
 import { moviePath } from '@/lib/constants-routes'
@@ -13,8 +14,12 @@ type MovieCardProps = {
   details?: string[]
 }
 
-/** A poster card with the title over it; runtime and genres fade in on hover (always shown on touch). */
+/**
+ * A poster card with the title over it, the year and average rating above; runtime and genres fade
+ * in on hover (always shown on touch).
+ */
 export const MovieCard = ({ movie, priority, details: detailsOverride }: MovieCardProps) => {
+  const { average } = movie.rating
   const details =
     detailsOverride ??
     [
@@ -31,7 +36,18 @@ export const MovieCard = ({ movie, priority, details: detailsOverride }: MovieCa
           flex layout ignores them. */}
       <span className={styles.info}>
         <span className={styles.title}>{movie.title}</span>{' '}
-        <span className={styles.year}>{movie.releaseDate.getUTCFullYear()}</span>{' '}
+        <span className={styles.eyebrow}>
+          <span className={styles.year}>{movie.releaseDate.getUTCFullYear()}</span>
+          {average === null ? null : (
+            <>
+              {' '}
+              <span className={styles.rating}>
+                <Star aria-hidden="true" />
+                <span className={styles.srOnly}>Rated</span> {average.toFixed(1)}
+              </span>
+            </>
+          )}
+        </span>{' '}
         {details.length > 0 ? <span className={styles.details}>{details.join(' · ')}</span> : null}
       </span>
     </Link>

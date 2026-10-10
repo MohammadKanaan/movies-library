@@ -2,12 +2,13 @@ import 'server-only'
 import type { Prisma } from '@/generated/prisma/client'
 import type { MovieSummary } from '@/lib/dto/movies'
 import { genreSelect } from './genres'
+import { movieRatingSelect, toRatingSummary } from './reviews'
 
 // The `MovieSummary` DTO's select and mapper, in a file of their own: `movies.ts` imports
 // `people.ts` for the credits' people, and `people.ts` needs the summary for filmographies.
 // `admin.ts` and `search.ts` reuse them too.
 
-/** Exactly the `MovieSummary` DTO (`toMovieSummary` flattens the genre join). */
+/** Exactly the `MovieSummary` DTO (`toMovieSummary` flattens the genre join and gathers the rating). */
 export const movieSummarySelect = {
   id: true,
   slug: true,
@@ -19,11 +20,18 @@ export const movieSummarySelect = {
     select: { genre: { select: genreSelect } },
     orderBy: [{ genre: { name: 'asc' } }, { genreId: 'asc' }],
   },
+  ...movieRatingSelect,
 } satisfies Prisma.MovieSelect
 
 export type MovieSummaryRow = Prisma.MovieGetPayload<{ select: typeof movieSummarySelect }>
 
-export const toMovieSummary = ({ genres, ...movie }: MovieSummaryRow): MovieSummary => ({
+export const toMovieSummary = ({
+  genres,
+  ratingAverage,
+  ratingCount,
+  ...movie
+}: MovieSummaryRow): MovieSummary => ({
   ...movie,
   genres: genres.map(({ genre }) => genre),
+  rating: toRatingSummary({ ratingAverage, ratingCount }),
 })

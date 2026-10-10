@@ -38,6 +38,7 @@ const movie: MovieDetail = {
   runtimeMinutes: 155,
   posterUrl: null,
   genres: [{ id: GENRE_ID, name: 'Drama', slug: 'drama' }],
+  rating: { average: null, count: 0 },
   credits: {
     directors: [person('a0000000-0000-4000-8000-000000000001', 'Denis Villeneuve')],
     writers: [

@@ -24,6 +24,7 @@ const movieWith = (credits: MovieDetail['credits']): MovieDetail => ({
   runtimeMinutes: 155,
   posterUrl: null,
   genres: [],
+  rating: { average: null, count: 0 },
   credits,
   createdBy: null,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),

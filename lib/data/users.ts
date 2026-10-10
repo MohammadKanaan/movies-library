@@ -13,7 +13,7 @@ import {
 } from '@/lib/dto/users'
 import { invalidateTags, remember } from '@/lib/server/cache'
 import { auth, getSessionUser, requireUser, toRole } from './auth'
-import { CATALOG_TAG, reviewsTag, userTag } from './cacheTags'
+import { CATALOG_TAG, userTag } from './cacheTags'
 import { db } from './db'
 import { parseInput, UnauthorizedError, ValidationError } from './errors'
 import { isUniqueViolation } from './prismaErrors'
@@ -125,17 +125,13 @@ export const updateProfile = async (input: UpdateProfileInput): Promise<CurrentU
  * password is right (422 on `password`) → Better Auth deletes the user, and the database cascades
  * their sessions, accounts, reviews and comments (`lib/data/auth.ts` queues the avatar's object and
  * drops the cached viewer). The caches that embedded the user go too: the catalog, whose movie
- * details name their creator (now null), and the rating summaries of the movies they had reviewed.
+ * details name their creator (now null). The auth hook invalidates ratings after deletion.
  */
 export const deleteAccount = async (input: DeleteAccountInput): Promise<void> => {
   const viewer = await requireUser()
   await consumeRateLimit(`delete-account:user:${viewer.id}`, DELETE_ACCOUNT_LIMIT)
   const { password } = parseInput(deleteAccountInput, input)
-  // Read before the delete: the cascade takes the reviews with the user.
-  const reviewed = await db.review.findMany({
-    where: { authorId: viewer.id },
-    select: { movieId: true },
-  })
+
   await auth.api
     .deleteUser({ body: { password }, headers: await headers() })
     .catch((error: unknown) => {
@@ -144,9 +140,5 @@ export const deleteAccount = async (input: DeleteAccountInput): Promise<void> =>
       }
       throw error
     })
-  await invalidateTags(
-    userTag(viewer.id),
-    CATALOG_TAG,
-    ...reviewed.map(({ movieId }) => reviewsTag(movieId)),
-  )
+  await invalidateTags(userTag(viewer.id), CATALOG_TAG)
 }

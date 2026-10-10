@@ -25,7 +25,7 @@ import {
 import { MINUTE } from '@/lib/constants-time'
 import { getMovieBySlug } from '@/lib/data/movies'
 import { loadPage } from '@/lib/data/page'
-import { getReviewSummary, getViewerReview, listReviews } from '@/lib/data/reviews'
+import { getViewerReview, listReviews } from '@/lib/data/reviews'
 import { siteUrl } from '@/lib/data/site'
 import { getViewer } from '@/lib/data/users'
 import type { PersonSummary } from '@/lib/dto/people'
@@ -106,13 +106,12 @@ const MoviePage = async ({ params, searchParams }: PageProps<'/movies/[slug]'>) 
   // `editReviewPath` asks for the viewer's review on its form; a garbled query shows it as it is.
   const { edit } = viewerReviewUrlQuery.parse(toScalarParams(await searchParams))
   // The reviews are read by the movie's slug, so they load alongside the movie, not after it.
-  const [detail, [viewer, summary, latest, viewerReview]] = await Promise.all([
+  const [detail, [viewer, latest, viewerReview]] = await Promise.all([
     loadMovie(slug),
     loadPage(
       () =>
         Promise.all([
           getViewer(),
-          getReviewSummary(slug),
           listReviews({ movieSlug: slug, perPage: LATEST_REVIEWS }),
           getViewerReview(slug),
         ]),
@@ -128,7 +127,7 @@ const MoviePage = async ({ params, searchParams }: PageProps<'/movies/[slug]'>) 
 
   return (
     <article className={styles.page}>
-      <JsonLd data={movieJsonLd(movie, summary, siteUrl())} />
+      <JsonLd data={movieJsonLd(movie, movie.rating, siteUrl())} />
       {/* Always dark: the hero sits on the poster's blurred colours, in either theme. */}
       <section className={`dark ${styles.hero}`}>
         {movie.posterUrl ? (
@@ -182,8 +181,8 @@ const MoviePage = async ({ params, searchParams }: PageProps<'/movies/[slug]'>) 
               </div>
               <h1 className={styles.title}>{movie.title}</h1>
               <p className={styles.rating}>
-                <StarRating rating={Math.round((summary.average ?? 0) * 2) / 2} decorative />
-                <span>{ratingText(summary)}</span>
+                <StarRating rating={Math.round((movie.rating.average ?? 0) * 2) / 2} decorative />
+                <span>{ratingText(movie.rating)}</span>
               </p>
               {movie.synopsis ? (
                 <p className={styles.synopsis}>{movie.synopsis}</p>

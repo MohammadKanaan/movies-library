@@ -4,7 +4,7 @@ import { auth } from '@/lib/data/auth'
 import { db } from '@/lib/data/db'
 import { UnauthorizedError, ValidationError } from '@/lib/data/errors'
 import { getMovieBySlug } from '@/lib/data/movies'
-import { getReviewSummary } from '@/lib/data/reviews'
+
 import {
   deleteAccount,
   getCurrentUser,
@@ -240,7 +240,7 @@ describe('users DAL', () => {
       })
       await seedReview({ movieId: movie.id, authorId: user.id, rating: 4 })
       expect((await getMovieBySlug('dune-2021')).createdBy).toMatchObject({ name: 'Gone' })
-      expect(await getReviewSummary('dune-2021')).toEqual({ average: 4, count: 1 })
+      expect((await getMovieBySlug('dune-2021')).rating).toEqual({ average: 4, count: 1 })
       await signInAs(user)
       expect(await getViewer()).toMatchObject({ name: 'Gone' })
 
@@ -249,7 +249,7 @@ describe('users DAL', () => {
       expect(await db.user.count({ where: { id: user.id } })).toBe(0)
       expect(await db.session.count({ where: { userId: user.id } })).toBe(0)
       expect((await getMovieBySlug('dune-2021')).createdBy).toBeNull()
-      expect(await getReviewSummary('dune-2021')).toEqual({ average: null, count: 0 })
+      expect((await getMovieBySlug('dune-2021')).rating).toEqual({ average: null, count: 0 })
       expect(await getViewer()).toBeNull()
     })
   })

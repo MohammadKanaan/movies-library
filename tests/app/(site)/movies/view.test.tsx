@@ -26,6 +26,7 @@ const movie = (id: string, title: string): MovieSummary => ({
   posterUrl: null,
   runtimeMinutes: null,
   genres: [],
+  rating: { average: null, count: 0 },
 })
 
 const query: ListMoviesQuery = { q: 'film', genres: ['drama'], person: 'amy-adams', sort: 'oldest' }

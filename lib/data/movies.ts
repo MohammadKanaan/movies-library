@@ -24,7 +24,7 @@ import { invalidateTags, remember } from '@/lib/server/cache'
 import { logger } from '@/lib/server/logger'
 import { keyFromPublicUrl, publicUrl } from '@/lib/server/storage'
 import { getSessionUser, requireAdmin, type SessionUser } from './auth'
-import { CATALOG_TAG, reviewsTag } from './cacheTags'
+import { CATALOG_TAG, RATINGS_TAG } from './cacheTags'
 import { db } from './db'
 import { escapeLike } from './escapeLike'
 import { NotFoundError, parseInput, ValidationError } from './errors'
@@ -77,9 +77,22 @@ const ORDER_BY: Record<MovieSort, Prisma.MovieOrderByWithRelationInput[]> = {
   oldest: [{ releaseDate: 'asc' }, { id: 'asc' }],
   title: [{ title: 'asc' }, { id: 'asc' }],
   added: [{ createdAt: 'desc' }, { id: 'desc' }],
+  rating: [
+    { ratingAverage: { sort: 'desc', nulls: 'last' } },
+    { ratingCount: 'desc' },
+    { id: 'desc' },
+  ],
 }
 
-const toMovieRecord = ({ credits, genres, ...movie }: MovieDetailRow): MovieRecord => {
+const toMovieRecord = ({
+  credits,
+  synopsis,
+  createdAt,
+  updatedAt,
+  createdById,
+  createdBy,
+  ...summaryRow
+}: MovieDetailRow): MovieRecord => {
   const grouped: MovieRecord['credits'] = { directors: [], writers: [], cast: [] }
   for (const { role, star, person } of credits) {
     if (role === 'DIRECTOR') {
@@ -90,7 +103,15 @@ const toMovieRecord = ({ credits, genres, ...movie }: MovieDetailRow): MovieReco
       grouped.cast.push({ ...person, star })
     }
   }
-  return { ...movie, genres: genres.map(({ genre }) => genre), credits: grouped }
+  return {
+    ...toMovieSummary(summaryRow),
+    synopsis,
+    createdAt,
+    updatedAt,
+    createdById,
+    createdBy,
+    credits: grouped,
+  }
 }
 
 const withPermissions = (
@@ -145,18 +166,34 @@ const runtimeBetween = (
   }
 }
 
+/** An average rating range in stars; an unrated movie (a null average) never falls in one. */
+const ratedBetween = (
+  ratingMin: number | undefined,
+  ratingMax: number | undefined,
+): Prisma.FloatNullableFilter | undefined => {
+  if (ratingMin === undefined && ratingMax === undefined) {
+    return undefined
+  }
+  return {
+    ...(ratingMin === undefined ? {} : { gte: ratingMin }),
+    ...(ratingMax === undefined ? {} : { lte: ratingMax }),
+  }
+}
+
 /**
  * Public: a page of summaries, searched by title (case-insensitive, wildcards literal) and
- * filtered by genres (a movie must carry every one named), a credited person, a release year range
- * and a runtime range. Only the unfiltered list is cached: a search or a filter is an unbounded key
- * and is always read from the database.
+ * filtered by genres (a movie must carry every one named), a credited person, a release year range,
+ * a runtime range and an average rating range. Only the unfiltered list is cached: a search or a
+ * filter is an unbounded key and is always read from the database.
  */
 export const listMovies = async (query: ListMoviesQuery): Promise<Page<MovieSummary>> => {
   const { page, perPage, sort, ...filters } = parseInput(listMoviesQuery, query)
-  const { q, genres, person, yearFrom, yearTo, runtimeMin, runtimeMax } = filters
+  const { q, genres, person, yearFrom, yearTo, runtimeMin, runtimeMax, ratingMin, ratingMax } =
+    filters
   const load = async () => {
     const releaseDate = releasedBetween(yearFrom, yearTo)
     const runtimeMinutes = runtimeBetween(runtimeMin, runtimeMax)
+    const ratingAverage = ratedBetween(ratingMin, ratingMax)
     const where: Prisma.MovieWhereInput = {
       ...(q ? { title: { contains: escapeLike(q), mode: 'insensitive' } } : {}),
       ...(genres?.length
@@ -165,6 +202,7 @@ export const listMovies = async (query: ListMoviesQuery): Promise<Page<MovieSumm
       ...(person ? { credits: { some: { person: { slug: person } } } } : {}),
       ...(releaseDate ? { releaseDate } : {}),
       ...(runtimeMinutes ? { runtimeMinutes } : {}),
+      ...(ratingAverage ? { ratingAverage } : {}),
     }
     const [rows, totalItems] = await Promise.all([
       db.movie.findMany({
@@ -186,7 +224,11 @@ export const listMovies = async (query: ListMoviesQuery): Promise<Page<MovieSumm
   }
   return remember(
     `movies:list:${JSON.stringify([page, perPage, sort])}`,
-    { ttl: MOVIES_CACHE_TTL, tags: [CATALOG_TAG], schema: pageSchema(movieSummarySchema) },
+    {
+      ttl: MOVIES_CACHE_TTL,
+      tags: [CATALOG_TAG, RATINGS_TAG],
+      schema: pageSchema(movieSummarySchema),
+    },
     load,
   )
 }
@@ -203,7 +245,7 @@ export const getMovieBySlug = async (slug: string): Promise<MovieDetail> => {
   }
   const record = await remember(
     `movie:${parsed.data}`,
-    { ttl: MOVIES_CACHE_TTL, tags: [CATALOG_TAG], schema: movieRecordSchema },
+    { ttl: MOVIES_CACHE_TTL, tags: [CATALOG_TAG, RATINGS_TAG], schema: movieRecordSchema },
     async () => {
       const loaded = await loadMovieRecord({ slug: parsed.data })
       if (!loaded) {
@@ -360,8 +402,8 @@ const queuePosterDeletion = (posterUrl: string | null) => {
 }
 
 /**
- * Admin only → id valid → exists → allowed → deleted (the genre links, credits and reviews cascade,
- * so the movie's rating summary is dropped with the catalog caches), its poster queued.
+ * Admin only → id valid → exists → allowed → deleted (the genre links, credits and reviews
+ * cascade), its poster queued.
  */
 export const deleteMovie = async (id: string): Promise<void> => {
   const viewer = await requireAdmin()
@@ -375,7 +417,7 @@ export const deleteMovie = async (id: string): Promise<void> => {
   }
   authorize(moviePolicy.delete, viewer, record)
   await db.movie.delete({ where: { id: movieId } })
-  await invalidateTags(CATALOG_TAG, reviewsTag(movieId))
+  await invalidateTags(CATALOG_TAG)
   queuePosterDeletion(record.posterUrl)
 }
 

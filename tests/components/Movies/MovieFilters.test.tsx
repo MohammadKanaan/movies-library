@@ -80,6 +80,7 @@ describe('MovieFilters', () => {
     expect(screen.getAllByRole('status').map((readout) => readout.textContent)).toEqual([
       'From 1990',
       'Until 120 min',
+      'Any rating',
     ])
     const [runtimeFrom, runtimeTo] = thumbsOf('Runtime')
     expect(runtimeFrom).toHaveValue('30')
@@ -165,7 +166,13 @@ describe('MovieFilters', () => {
   })
 
   it('resets the card’s filters and keeps the title search', async () => {
-    const { onChange } = setup({ q: 'dune', genres: ['drama'], yearFrom: 1990 })
+    const { onChange } = setup({
+      q: 'dune',
+      genres: ['drama'],
+      yearFrom: 1990,
+      ratingMin: 3.5,
+      ratingMax: 4.5,
+    })
     await userEvent.click(screen.getByRole('button', { name: 'Reset' }))
     expect(onChange).toHaveBeenCalledWith({
       genres: [],
@@ -174,6 +181,8 @@ describe('MovieFilters', () => {
       yearTo: null,
       runtimeMin: null,
       runtimeMax: null,
+      ratingMin: null,
+      ratingMax: null,
     })
   })
 
@@ -195,16 +204,20 @@ describe('MovieFilters', () => {
 
   it('holds what was just chosen until the navigation lands, then follows the URL', () => {
     const props = { sort: 'newest' as const, genres, onChange: vi.fn(), onSortChange: vi.fn() }
-    const filters = { ...EMPTY_MOVIE_FILTERS, genres: ['drama'] }
-    const next = { ...EMPTY_MOVIE_FILTERS, genres: ['science-fiction'] }
+    const filters = { ...EMPTY_MOVIE_FILTERS, genres: ['drama'], ratingMin: 3.5 }
+    const next = { ...EMPTY_MOVIE_FILTERS, genres: ['science-fiction'], ratingMax: 2 }
     const { rerender } = render(<MovieFilters {...props} filters={filters} person={null} />)
     const field = () =>
       screen.getByRole('combobox', { name: 'Genres' }).closest('[data-slot="combobox-chips"]')
     // A navigation is in flight and the URL moves under the fields: they keep what they show.
     rerender(<MovieFilters {...props} filters={next} person={null} disabled />)
     expect(field()).toHaveTextContent('Drama')
+    expect(thumbsOf('Average rating (stars)')[0]).toHaveValue('3.5')
+    expect(thumbsOf('Average rating (stars)')[1]).toHaveValue('5')
     rerender(<MovieFilters {...props} filters={next} person={null} />)
     expect(field()).toHaveTextContent('Science Fiction')
+    expect(thumbsOf('Average rating (stars)')[0]).toHaveValue('0.5')
+    expect(thumbsOf('Average rating (stars)')[1]).toHaveValue('2')
   })
 
   it('shows a chip per filter and lifts one at a time', async () => {
@@ -215,6 +228,8 @@ describe('MovieFilters', () => {
         yearFrom: 1990,
         yearTo: 1999,
         runtimeMin: 90,
+        ratingMin: 3,
+        ratingMax: 4.5,
         person: 'amy-adams',
       },
       amy,
@@ -226,6 +241,7 @@ describe('MovieFilters', () => {
       'Science Fiction',
       '1990–1999',
       'From 90 min',
+      'Rated 3–4.5',
       'Amy Adams',
       'Clear all',
     ])
@@ -235,6 +251,8 @@ describe('MovieFilters', () => {
     expect(onChange).toHaveBeenLastCalledWith({ yearFrom: null, yearTo: null })
     await userEvent.click(chips.getByRole('button', { name: 'Remove From 90 min' }))
     expect(onChange).toHaveBeenLastCalledWith({ runtimeMin: null, runtimeMax: null })
+    await userEvent.click(chips.getByRole('button', { name: 'Remove Rated 3–4.5' }))
+    expect(onChange).toHaveBeenLastCalledWith({ ratingMin: null, ratingMax: null })
     await userEvent.click(chips.getByRole('button', { name: 'Remove Amy Adams' }))
     expect(onChange).toHaveBeenLastCalledWith({ person: '' })
     await userEvent.click(chips.getByRole('button', { name: 'Remove “dune”' }))
@@ -244,11 +262,60 @@ describe('MovieFilters', () => {
   })
 
   it('names an unknown person by slug and a range by its open end', () => {
-    setup({ person: 'nobody', yearTo: 1999, runtimeMax: 120 })
+    setup({ person: 'nobody', yearTo: 1999, runtimeMax: 120, ratingMax: 2 })
     const chips = screen.getByRole('list', { name: 'Active filters' })
     expect(chips).toHaveTextContent('nobody')
     expect(chips).toHaveTextContent('Until 1999')
     expect(chips).toHaveTextContent('Until 120 min')
+    expect(chips).toHaveTextContent('Rated up to 2')
+  })
+
+  it('names a rating range open at the top by its lowest rating', () => {
+    setup({ ratingMin: 3.5 })
+    expect(screen.getByRole('list', { name: 'Active filters' })).toHaveTextContent('Rated 3.5+')
+    expect(toggle()).toHaveAttribute('aria-expanded', 'true')
+    expect(toggle()).toHaveTextContent('1')
+    expect(thumbsOf('Average rating (stars)')[0]).toHaveValue('3.5')
+    expect(thumbsOf('Average rating (stars)')[1]).toHaveValue('5')
+  })
+
+  it('applies rating thumbs in half-star steps and clears bounds at the track ends', async () => {
+    const { onChange, rerenderWith } = setup()
+    await userEvent.click(toggle())
+    const [lowest, highest] = thumbsOf('Average rating (stars)')
+    lowest!.focus()
+    await userEvent.keyboard('{ArrowRight}')
+    await waitFor(() =>
+      expect(onChange).toHaveBeenLastCalledWith({ ratingMin: 1, ratingMax: null }),
+    )
+    expect(screen.getByText('Rated 1+')).toBeInTheDocument()
+    rerenderWith({ ratingMin: 1 })
+    highest!.focus()
+    await userEvent.keyboard('{ArrowLeft}')
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith({ ratingMin: 1, ratingMax: 4.5 }))
+    expect(screen.getByText('Rated 1–4.5')).toBeInTheDocument()
+    rerenderWith({ ratingMin: 1, ratingMax: 4.5 })
+    lowest!.focus()
+    await userEvent.keyboard('{ArrowLeft}')
+    await waitFor(() =>
+      expect(onChange).toHaveBeenLastCalledWith({ ratingMin: null, ratingMax: 4.5 }),
+    )
+    rerenderWith({ ratingMax: 4.5 })
+    highest!.focus()
+    await userEvent.keyboard('{ArrowRight}')
+    await waitFor(() =>
+      expect(onChange).toHaveBeenLastCalledWith({ ratingMin: null, ratingMax: null }),
+    )
+  })
+
+  it('follows rating-only URL changes and resets the rating thumbs on landing', () => {
+    const { rerenderWith } = setup({ ratingMin: 3.5 })
+    rerenderWith({ ratingMax: 2 })
+    expect(thumbsOf('Average rating (stars)')[0]).toHaveValue('0.5')
+    expect(thumbsOf('Average rating (stars)')[1]).toHaveValue('2')
+    rerenderWith({})
+    expect(thumbsOf('Average rating (stars)')[1]).toHaveValue('5')
+    expect(screen.getByText('Any rating')).toBeInTheDocument()
   })
 
   it('lists every genre on focus and narrows it as the visitor types', async () => {
@@ -281,5 +348,12 @@ describe('MovieFilters', () => {
     await userEvent.click(await screen.findByRole('option', { name: 'Recently added' }))
     expect(onSortChange).toHaveBeenCalledWith('added')
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('sorts by the highest rating', async () => {
+    const { onSortChange } = setup()
+    await userEvent.click(screen.getByRole('combobox', { name: 'Sort' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Highest rated' }))
+    expect(onSortChange).toHaveBeenCalledWith('rating')
   })
 })

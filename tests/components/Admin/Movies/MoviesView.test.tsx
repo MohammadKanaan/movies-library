@@ -32,6 +32,7 @@ const dune: MovieSummary = {
   runtimeMinutes: 155,
   posterUrl: 'https://cdn.example.com/dune.jpg',
   genres: [drama, scifi],
+  rating: { average: 4.2, count: 3 },
 }
 const heat: MovieSummary = {
   id: 'm-heat',
@@ -41,6 +42,7 @@ const heat: MovieSummary = {
   runtimeMinutes: null,
   posterUrl: null,
   genres: [],
+  rating: { average: null, count: 0 },
 }
 
 const page = (
@@ -69,8 +71,18 @@ describe('MoviesView', () => {
     vi.mocked(toast.success).mockReset()
   })
 
-  it('lists movies with year, genres, runtime and release date, the title linking to the editor', () => {
+  it('lists movies with year, genres, runtime, rating and release date, the title linking to the editor', () => {
     render(<MoviesView movies={page([dune, heat])} genres={genres} />)
+    const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)
+    expect(headers).toEqual([
+      'Poster',
+      'Title',
+      'Genres',
+      'Runtime',
+      'Rating',
+      'Released',
+      'Actions',
+    ])
     expect(rows()).toHaveLength(2)
 
     const first = rowOf('Dune')
@@ -81,11 +93,13 @@ describe('MoviesView', () => {
     expect(within(first).getByText('2021')).toBeInTheDocument()
     expect(within(first).getByText('Drama, Science Fiction')).toBeInTheDocument()
     expect(within(first).getByText('2h 35m')).toBeInTheDocument()
+    expect(within(first).getByText('4.2 (3)')).toBeInTheDocument()
     expect(within(first).getByText('Oct 22, 2021')).toBeInTheDocument()
 
     const second = rowOf('Heat')
     expect(within(second).getByText('None')).toBeInTheDocument()
-    expect(within(second).getByText('—')).toBeInTheDocument()
+    // No runtime and no rating.
+    expect(within(second).getAllByText('—')).toHaveLength(2)
     expect(within(second).getByText('Dec 15, 1995')).toBeInTheDocument()
   })
 

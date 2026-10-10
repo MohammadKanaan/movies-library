@@ -5,7 +5,6 @@ import { slugSchema } from '@/lib/dto/catalog'
 import { toPage, type Page } from '@/lib/dto/common'
 import {
   listReviewsQuery,
-  ratingSummarySchema,
   reviewIdSchema,
   reviewInput,
   updateReviewInput,
@@ -16,9 +15,9 @@ import {
   type ReviewInput,
   type UpdateReviewInput,
 } from '@/lib/dto/reviews'
-import { invalidateTags, remember } from '@/lib/server/cache'
+import { invalidateTags } from '@/lib/server/cache'
 import { getSessionUser, requireUser, type SessionUser } from './auth'
-import { reviewsTag } from './cacheTags'
+import { RATINGS_TAG } from './cacheTags'
 import { db } from './db'
 import { NotFoundError, parseInput, ValidationError } from './errors'
 import { reviewPolicy, type ReviewRecord } from './policies/review'
@@ -31,8 +30,11 @@ import { userProfileSelect } from './users'
 // text that can be marked as a spoiler. One review per user per movie. The database stores the
 // rating as `halfStars` (1 to 10); everything outside this file speaks stars. Authors edit and delete
 // their own review, an admin can delete any (`reviewPolicy`), nobody edits another's.
+//
+// A movie's rating is the aggregate of its reviews, kept on the movie row by the
+// `reviews_sync_movie_rating` trigger (see its migration) so lists can sort and filter by it. Every
+// write here invalidates `RATINGS_TAG`, which the cached reads that show a rating carry.
 
-const REVIEWS_CACHE_TTL = 5 * MINUTE
 const PERMISSION_ACTIONS = ['update', 'delete'] as const
 /** Reviews one user may write per minute. */
 const REVIEW_LIMIT = { max: 10, windowMs: MINUTE * 1000 }
@@ -55,6 +57,20 @@ const reviewDetailSelect = {
     select: { id: true, slug: true, title: true, releaseDate: true, posterUrl: true },
   },
 } satisfies Prisma.ReviewSelect
+
+/** A movie's rating columns, for any select that shows its `RatingSummary`. */
+export const movieRatingSelect = {
+  ratingAverage: true,
+  ratingCount: true,
+} satisfies Prisma.MovieSelect
+
+type MovieRatingRow = Prisma.MovieGetPayload<{ select: typeof movieRatingSelect }>
+
+/** The columns as the DTO's `rating`: the trigger already rounds the average to one decimal. */
+export const toRatingSummary = ({ ratingAverage, ratingCount }: MovieRatingRow): RatingSummary => ({
+  average: ratingAverage,
+  count: ratingCount,
+})
 
 type ReviewRow = Prisma.ReviewGetPayload<{ select: typeof reviewSelect }>
 type ReviewDetailRow = Prisma.ReviewGetPayload<{ select: typeof reviewDetailSelect }>
@@ -130,30 +146,6 @@ export const listReviews = async (query: ListReviewsQuery): Promise<Page<Review>
 }
 
 /**
- * Public: a movie's mean rating in stars (one decimal, null without ratings) and how many
- * reviews carry one. The same for every viewer, so it is cached under the movie's `reviewsTag`.
- */
-export const getReviewSummary = async (movieSlug: string): Promise<RatingSummary> => {
-  // An unknown movie throws here, so only real movies get a cache key.
-  const id = await readMovieIdBySlug(movieSlug)
-  return remember(
-    `reviews:summary:${id}`,
-    { ttl: REVIEWS_CACHE_TTL, tags: [reviewsTag(id)], schema: ratingSummarySchema },
-    async () => {
-      const { _avg, _count } = await db.review.aggregate({
-        where: { movieId: id },
-        _avg: { halfStars: true },
-        _count: true,
-      })
-      return {
-        average: _avg.halfStars === null ? null : Math.round((_avg.halfStars / 2) * 10) / 10,
-        count: _count,
-      }
-    },
-  )
-}
-
-/**
  * The viewer's own review of a movie (by slug), or null: signed out, not reviewed yet, or no such
  * movie. A malformed slug is not found.
  */
@@ -215,7 +207,7 @@ export const createReview = async (input: ReviewInput): Promise<Review> => {
       },
       select: reviewSelect,
     })
-    await invalidateTags(reviewsTag(movieId))
+    await invalidateTags(RATINGS_TAG)
     return toReview(row, viewer)
   } catch (error) {
     if (isUniqueViolation(error, 'reviews_movie_id_author_id_key')) {
@@ -231,7 +223,8 @@ export const createReview = async (input: ReviewInput): Promise<Review> => {
 /**
  * Signed in → input valid → exists (404) → the author (403) → the rating, text and flag replaced.
  * A resubmission that changes nothing writes nothing, so `updatedAt` (the "edited" marker) moves
- * only when the review did.
+ * only when the review did. Cached ratings are dropped only when the rating changed: an edit of
+ * the text leaves them as they are.
  */
 export const updateReview = async (input: UpdateReviewInput): Promise<Review> => {
   const viewer = await requireUser()
@@ -250,7 +243,9 @@ export const updateReview = async (input: UpdateReviewInput): Promise<Review> =>
     data: { halfStars, body, spoiler },
     select: reviewSelect,
   })
-  await invalidateTags(reviewsTag(record.movieId))
+  if (row.halfStars !== record.halfStars) {
+    await invalidateTags(RATINGS_TAG)
+  }
   return toReview(row, viewer)
 }
 
@@ -260,12 +255,12 @@ export const deleteReview = async (id: string): Promise<void> => {
   const reviewId = parseInput(reviewIdSchema, id)
   const record = await db.review.findUnique({
     where: { id: reviewId },
-    select: { movieId: true, authorId: true },
+    select: { authorId: true },
   })
   if (!record) {
     throw new NotFoundError('Review not found')
   }
   authorize(reviewPolicy.delete, viewer, record)
   await db.review.delete({ where: { id: reviewId } })
-  await invalidateTags(reviewsTag(record.movieId))
+  await invalidateTags(RATINGS_TAG)
 }

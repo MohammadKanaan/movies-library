@@ -17,6 +17,7 @@ const arrival: MovieDetail = {
   runtimeMinutes: 116,
   posterUrl: 'https://cdn.example/arrival.jpg',
   genres: [{ id: 'g1', name: 'Drama', slug: 'drama' }],
+  rating: { average: null, count: 0 },
   synopsis: 'A linguist is recruited.',
   createdBy: null,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -145,7 +146,7 @@ describe('reviewJsonLd', () => {
     createdAt: new Date('2026-02-01T10:00:00.000Z'),
     updatedAt: new Date('2026-02-01T10:00:00.000Z'),
     commentCount: 0,
-    author: { id: 'u1', name: 'Ada', username: 'ada' },
+    author: { id: 'u1', name: 'Ada', username: 'ada', image: null },
     permissions: { update: false, delete: false },
     movie: {
       id: 'm1',

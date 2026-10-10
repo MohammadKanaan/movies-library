@@ -21,7 +21,8 @@ import { objectDeleteDelaySeconds } from '@/lib/dto/uploads'
 import { enqueue } from '@/lib/server/queue'
 import { getRedis } from '@/lib/server/redis'
 import { deleteObject, headObject } from '@/lib/server/storage'
-import { seedGenre, seedMovie, seedPerson } from '../../helpers/catalog'
+import { createReview } from '@/lib/data/reviews'
+import { seedGenre, seedMovie, seedPerson, seedReview } from '../../helpers/catalog'
 import { createUser, resetDatabase, signInAs, signOut } from '../../helpers/server'
 
 const { cookieStore, requestHeaders } = await vi.hoisted(
@@ -121,6 +122,7 @@ describe('movies DAL', () => {
           { id: drama.id, name: 'Drama', slug: 'drama' },
           { id: scifi.id, name: 'Science Fiction', slug: 'science-fiction' },
         ],
+        rating: { average: null, count: 0 },
       })
       expect(page.items[0]).toMatchObject({ posterUrl: 'https://pub.example/dispatch.jpg' })
     })
@@ -131,7 +133,7 @@ describe('movies DAL', () => {
       // The trigram index cannot serve fewer than three characters.
       await expect(listMovies({ q: 'du' })).rejects.toBeInstanceOf(ValidationError)
       await expect(listMovies({ genres: ['Sci Fi'] })).rejects.toBeInstanceOf(ValidationError)
-      await expect(listMovies({ sort: 'rating' as never })).rejects.toBeInstanceOf(ValidationError)
+      await expect(listMovies({ sort: 'popular' as never })).rejects.toBeInstanceOf(ValidationError)
     })
 
     it('sorts oldest first, by title, and by when the movie was added', async () => {
@@ -145,6 +147,42 @@ describe('movies DAL', () => {
       expect(await titles('newest')).toEqual(['Dune', 'Blade Runner 2049', 'Arrival'])
       // Insertion order reversed, whatever the release dates say.
       expect(await titles('added')).toEqual(['Blade Runner 2049', 'Arrival', 'Dune'])
+    })
+
+    it('sorts by average rating, the more rated first among equals, unrated movies last', async () => {
+      const rate = async (movieId: string, ratings: number[]) => {
+        for (const rating of ratings) {
+          await seedReview({ movieId, authorId: (await createUser()).id, rating })
+        }
+      }
+      const unrated = await seedMovie({ title: 'Unrated', releaseDate: '2024-01-01' })
+      const once = await seedMovie({ title: 'Once', releaseDate: '2020-01-01' })
+      const twice = await seedMovie({ title: 'Twice', releaseDate: '2019-01-01' })
+      const best = await seedMovie({ title: 'Best', releaseDate: '2018-01-01' })
+      const worst = await seedMovie({ title: 'Worst', releaseDate: '2017-01-01' })
+      await rate(once.id, [4])
+      await rate(twice.id, [3.5, 4.5])
+      await rate(best.id, [5, 4.5])
+      await rate(worst.id, [1])
+
+      const page = await listMovies({ sort: 'rating' })
+      expect(page.items.map((movie) => movie.title)).toEqual([
+        'Best',
+        // Both average 4: two ratings before one.
+        'Twice',
+        'Once',
+        'Worst',
+        'Unrated',
+      ])
+      expect(page.items.map((movie) => movie.rating)).toEqual([
+        // 9.5 / 2 = 4.75, shown to one decimal.
+        { average: 4.8, count: 2 },
+        { average: 4, count: 2 },
+        { average: 4, count: 1 },
+        { average: 1, count: 1 },
+        { average: null, count: 0 },
+      ])
+      expect(page.items.at(-1)?.id).toBe(unrated.id)
     })
 
     it('searches the title case-insensitively and treats wildcards literally', async () => {
@@ -233,6 +271,23 @@ describe('movies DAL', () => {
       expect(await titles({ yearFrom: 2000, runtimeMax: 120 })).toEqual(['Arrival'])
     })
 
+    it('filters by average rating range, open at either end, never matching an unrated movie', async () => {
+      const rated = async (title: string, rating: number) => {
+        const movie = await seedMovie({ title, releaseDate: '2020-01-01' })
+        await seedReview({ movieId: movie.id, authorId: (await createUser()).id, rating })
+      }
+      await rated('Great', 4.5)
+      await rated('Good', 3.5)
+      await rated('Poor', 1.5)
+      await seedMovie({ title: 'Unrated', releaseDate: '2020-01-01' })
+      const titles = async (query: Parameters<typeof listMovies>[0]) =>
+        (await listMovies({ ...query, sort: 'title' })).items.map((m) => m.title)
+      expect(await titles({ ratingMin: 3.5 })).toEqual(['Good', 'Great'])
+      expect(await titles({ ratingMax: 3.5 })).toEqual(['Good', 'Poor'])
+      expect(await titles({ ratingMin: 2, ratingMax: 4 })).toEqual(['Good'])
+      expect(await titles({ ratingMin: 0.5 })).toEqual(['Good', 'Great', 'Poor'])
+    })
+
     it('refuses a reversed range and an impossible year as validation errors', async () => {
       await expect(listMovies({ yearFrom: 2010, yearTo: 2000 })).rejects.toMatchObject({
         fieldErrors: { yearTo: ['The last year is before the first'] },
@@ -242,6 +297,10 @@ describe('movies DAL', () => {
       )
       await expect(listMovies({ yearFrom: 1800 })).rejects.toBeInstanceOf(ValidationError)
       await expect(listMovies({ runtimeMax: 0 })).rejects.toBeInstanceOf(ValidationError)
+      await expect(listMovies({ ratingMin: 4, ratingMax: 2 })).rejects.toMatchObject({
+        fieldErrors: { ratingMax: ['The highest rating is below the lowest'] },
+      })
+      await expect(listMovies({ ratingMin: 3.3 })).rejects.toBeInstanceOf(ValidationError)
     })
 
     it('paginates', async () => {
@@ -266,10 +325,28 @@ describe('movies DAL', () => {
       expect((await listMovies({ q: 'arr' })).totalItems).toBe(1)
       expect((await listMovies({ yearFrom: 2020 })).totalItems).toBe(1)
       expect((await listMovies({ runtimeMax: 500 })).totalItems).toBe(0)
+      expect((await listMovies({ ratingMin: 0.5 })).totalItems).toBe(0)
 
       await signInAsAdmin()
       await createMovie(input)
       expect((await listMovies({})).totalItems).toBe(3)
+    })
+
+    it('re-sorts the cached list when a review changes a rating', async () => {
+      const arrival = await seedMovie({ title: 'Arrival', releaseDate: '2016-11-11' })
+      const dune = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
+      await seedReview({ movieId: dune.id, authorId: (await createUser()).id, rating: 3 })
+      const titles = async () =>
+        (await listMovies({ sort: 'rating' })).items.map((movie) => movie.title)
+      expect(await titles()).toEqual(['Dune', 'Arrival'])
+
+      await signInAs(await createUser())
+      await createReview({ movieId: arrival.id, rating: 4 })
+      expect(await titles()).toEqual(['Arrival', 'Dune'])
+      expect((await listMovies({})).items.map((movie) => movie.rating)).toEqual([
+        { average: 3, count: 1 },
+        { average: 4, count: 1 },
+      ])
     })
   })
 
@@ -310,6 +387,7 @@ describe('movies DAL', () => {
           { id: adventure.id, name: 'Adventure', slug: 'adventure' },
           { id: scifi.id, name: 'Science Fiction', slug: 'science-fiction' },
         ],
+        rating: { average: null, count: 0 },
         createdBy: { id: admin.id, name: 'Ada Admin', username: 'ada', image: null },
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),

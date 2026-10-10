@@ -64,12 +64,42 @@ $ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   padding: 1rem;
 }
 
-.year {
+// The year and the rating sit above the title.
+.eyebrow {
   order: -1;
-  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   letter-spacing: 0.04em;
+}
+
+.year {
+  color: var(--primary);
+}
+
+.rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--foreground);
+
+  svg {
+    width: 0.75rem;
+    height: 0.75rem;
+    color: var(--primary);
+    fill: currentColor;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .title {

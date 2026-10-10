@@ -25,6 +25,7 @@ import {
   type MovieSort,
 } from '@/lib/dto/movies'
 import type { PersonSummary } from '@/lib/dto/people'
+import { RATING_MAX, RATING_MIN, RATING_STEP } from '@/lib/dto/reviews'
 import styles from './styles.module.scss'
 
 export const SORT_LABELS: Record<MovieSort, string> = {
@@ -32,6 +33,7 @@ export const SORT_LABELS: Record<MovieSort, string> = {
   oldest: 'Oldest release',
   title: 'Title A–Z',
   added: 'Recently added',
+  rating: 'Highest rated',
 }
 
 /**
@@ -66,6 +68,7 @@ type Draft = {
   person: PersonSummary | null
   year: Thumbs
   runtime: Thumbs
+  rating: Thumbs
 }
 
 const toSort = (value: string | null): MovieSort => {
@@ -82,6 +85,13 @@ const rangeLabel = (from: number | null, to: number | null, unit = '') =>
       ? `From ${from}${unit}`
       : `Until ${to}${unit}`
 
+const ratingLabel = (min: number | null, max: number | null) =>
+  min !== null && max !== null
+    ? `Rated ${min}–${max}`
+    : min !== null
+      ? `Rated ${min}+`
+      : `Rated up to ${max}`
+
 /** The panel's filters in force, as opposed to the title search that is always shown. */
 const hasPanelFilters = (filters: Filters) =>
   filters.genres.length > 0 ||
@@ -89,7 +99,9 @@ const hasPanelFilters = (filters: Filters) =>
   filters.yearFrom !== null ||
   filters.yearTo !== null ||
   filters.runtimeMin !== null ||
-  filters.runtimeMax !== null
+  filters.runtimeMax !== null ||
+  filters.ratingMin !== null ||
+  filters.ratingMax !== null
 
 /** The chips for the filters in force, each with the patch that lifts it. */
 const chipsOf = (filters: Filters, genres: Genre[], person: PersonSummary | null): Chip[] => {
@@ -118,6 +130,13 @@ const chipsOf = (filters: Filters, genres: Genre[], person: PersonSummary | null
       remove: { runtimeMin: null, runtimeMax: null },
     })
   }
+  if (filters.ratingMin !== null || filters.ratingMax !== null) {
+    chips.push({
+      key: 'rating',
+      label: ratingLabel(filters.ratingMin, filters.ratingMax),
+      remove: { ratingMin: null, ratingMax: null },
+    })
+  }
   if (filters.person) {
     chips.push({ key: 'person', label: person?.name ?? filters.person, remove: { person: '' } })
   }
@@ -133,6 +152,7 @@ const draftOf = (filters: Filters, person: PersonSummary | null): Draft => ({
     RUNTIME_TRACK.min,
     RUNTIME_TRACK.max,
   ),
+  rating: toThumbs({ from: filters.ratingMin, to: filters.ratingMax }, RATING_MIN, RATING_MAX),
 })
 
 /** The slider's readout: the range in words, "Any …" when neither end is bound. */
@@ -142,7 +162,7 @@ const readoutOf = (from: number | null, to: number | null, any: string, unit = '
 /**
  * The movie list's search and filters, IMDb's advanced search beside the page header in one bar:
  * the title search and sort always shown, a card under them (opened by Filters, growing in and
- * pushing the list down) for genres, release year, runtime and person, and a chip per filter in
+ * pushing the list down) for genres, release year, runtime, rating and person, and a chip per filter in
  * force. Everything lives in the URL through `onChange` / `onSortChange`: the title search applies
  * on its button, the card's fields as each choice settles (a genre picked, a slider released).
  */
@@ -170,6 +190,8 @@ export const MovieFilters = ({
     filters.yearTo,
     filters.runtimeMin,
     filters.runtimeMax,
+    filters.ratingMin,
+    filters.ratingMax,
   ])
   const [syncedKey, setSyncedKey] = useState(urlKey)
   if (syncedKey !== urlKey && !disabled) {
@@ -191,6 +213,13 @@ export const MovieFilters = ({
     { from: filters.runtimeMin, to: filters.runtimeMax },
     RUNTIME_TRACK.min,
     RUNTIME_TRACK.max,
+  )
+
+  const ratingBounds = fromThumbs(
+    draft.rating,
+    { from: filters.ratingMin, to: filters.ratingMax },
+    RATING_MIN,
+    RATING_MAX,
   )
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
@@ -322,6 +351,31 @@ export const MovieFilters = ({
                   }
                 }}
               />
+              <RangeFilter
+                label="Average rating (stars)"
+                min={RATING_MIN}
+                max={RATING_MAX}
+                step={RATING_STEP}
+                value={draft.rating}
+                readout={
+                  ratingBounds.from === null && ratingBounds.to === null
+                    ? 'Any rating'
+                    : ratingLabel(ratingBounds.from, ratingBounds.to)
+                }
+                bounds={[String(RATING_MIN), String(RATING_MAX)]}
+                onValueChange={(rating) => setDraft((current) => ({ ...current, rating }))}
+                onValueCommitted={(rating) => {
+                  const next = fromThumbs(
+                    rating,
+                    { from: filters.ratingMin, to: filters.ratingMax },
+                    RATING_MIN,
+                    RATING_MAX,
+                  )
+                  if (next.from !== filters.ratingMin || next.to !== filters.ratingMax) {
+                    onChange({ ratingMin: next.from, ratingMax: next.to })
+                  }
+                }}
+              />
               <PersonFilter
                 value={draft.person}
                 onChange={(next) => {
@@ -343,6 +397,8 @@ export const MovieFilters = ({
                     yearTo: null,
                     runtimeMin: null,
                     runtimeMax: null,
+                    ratingMin: null,
+                    ratingMax: null,
                   })
                 }
               >

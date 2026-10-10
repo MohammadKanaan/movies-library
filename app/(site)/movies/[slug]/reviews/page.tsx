@@ -10,7 +10,7 @@ import { StarRating } from '@/components/Reviews/StarRating'
 import { moviePath, movieReviewsPath } from '@/lib/constants-routes'
 import { getMovieBySlug } from '@/lib/data/movies'
 import { loadPage } from '@/lib/data/page'
-import { getReviewSummary, listReviews } from '@/lib/data/reviews'
+import { listReviews } from '@/lib/data/reviews'
 import { reviewsUrlQuery } from '@/lib/dto/reviews'
 import { toScalarParams } from '@/lib/searchParams'
 import { metaDescription, pagedPath, pagedTitle } from '@/lib/seo'
@@ -45,12 +45,12 @@ const MovieReviewsPage = async ({ params, searchParams }: PageProps<'/movies/[sl
   const { page } = reviewsUrlQuery.parse(toScalarParams(await searchParams))
   const path = movieReviewsPath(slug)
   // The reviews are read by the movie's slug, so they load alongside the movie, not after it.
-  const [movie, summary, reviews] = await Promise.all([
+  const [movie, reviews] = await Promise.all([
     loadMovie(slug),
-    loadPage(() => getReviewSummary(slug), path),
     loadPage(() => listReviews({ movieSlug: slug, page, perPage: PER_PAGE }), path),
   ])
-  const count = `${summary.count} ${summary.count === 1 ? 'rating' : 'ratings'}`
+  const { rating } = movie
+  const count = `${rating.count} ${rating.count === 1 ? 'rating' : 'ratings'}`
 
   return (
     <div className={styles.page}>
@@ -61,13 +61,13 @@ const MovieReviewsPage = async ({ params, searchParams }: PageProps<'/movies/[sl
       <PageHeader
         title={`Reviews of ${movie.title}`}
         description={
-          summary.average === null
+          rating.average === null
             ? 'Nobody has rated this movie yet.'
-            : `${summary.average} out of 5 from ${count}.`
+            : `${rating.average} out of 5 from ${count}.`
         }
         actions={
-          summary.average === null ? undefined : (
-            <StarRating rating={Math.round(summary.average * 2) / 2} size="lg" />
+          rating.average === null ? undefined : (
+            <StarRating rating={Math.round(rating.average * 2) / 2} size="lg" />
           )
         }
       />

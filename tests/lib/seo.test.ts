@@ -31,6 +31,7 @@ const movie = (overrides: Partial<MovieDetail> = {}): MovieDetail => ({
   runtimeMinutes: 116,
   posterUrl: null,
   genres: [],
+  rating: { average: null, count: 0 },
   synopsis: null,
   createdBy: null,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -48,6 +49,7 @@ const credit = (title: string, roles: CreditRole[]) => ({
   runtimeMinutes: null,
   posterUrl: null,
   genres: [],
+  rating: { average: null, count: 0 },
   roles,
 })
 
@@ -71,7 +73,7 @@ const review = (overrides: Partial<ReviewDetail> = {}): ReviewDetail => ({
   createdAt: new Date('2026-02-01T00:00:00.000Z'),
   updatedAt: new Date('2026-02-01T00:00:00.000Z'),
   commentCount: 0,
-  author: { id: 'u1', name: 'Ada', username: 'ada' },
+  author: { id: 'u1', name: 'Ada', username: 'ada', image: null },
   permissions: { update: false, delete: false },
   movie: {
     id: 'm1',

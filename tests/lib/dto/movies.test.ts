@@ -7,9 +7,11 @@ import {
   listMoviesQuery,
   listMoviesUrlQuery,
   MOVIE_CREDITS_MAX,
+  MOVIE_FILTER_KEYS,
   MOVIE_GENRES_MAX,
   MOVIE_RUNTIME_MAX_MINUTES,
   MOVIE_SEARCH_MAX_LENGTH,
+  MOVIE_SORTS,
   MOVIE_SYNOPSIS_MAX_LENGTH,
   MOVIE_TITLE_MAX_LENGTH,
   MOVIE_YEAR_MIN,
@@ -152,8 +154,10 @@ describe('movie list', () => {
   it('defaults the sort to newest and accepts the known sorts only', () => {
     expect(movieSortSchema.parse(undefined)).toBe('newest')
     // `added` orders by when the catalog gained the movie (the admin list's default).
+    expect(MOVIE_SORTS).toEqual(['newest', 'oldest', 'title', 'added', 'rating'])
     expect(listMoviesQuery.parse({})).toEqual({ page: 1, perPage: 10, sort: 'newest' })
-    expect(listMoviesQuery.safeParse({ sort: 'rating' }).success).toBe(false)
+    expect(listMoviesQuery.parse({ sort: 'rating' }).sort).toBe('rating')
+    expect(listMoviesQuery.safeParse({ sort: 'popular' }).success).toBe(false)
   })
 
   it('bounds the search and takes the genre and person filters as slugs', () => {
@@ -227,6 +231,25 @@ describe('movie list', () => {
     expect(listMoviesUrlQuery.safeParse({ yearFrom: 2000, yearTo: 1990 }).success).toBe(false)
   })
 
+  it('takes an average rating range in half stars, open at either end, the lowest not above the highest', () => {
+    expect(listMoviesQuery.parse({ ratingMin: '3.5', ratingMax: 5 })).toMatchObject({
+      ratingMin: 3.5,
+      ratingMax: 5,
+    })
+    expect(listMoviesQuery.parse({ ratingMax: 0.5 })).toMatchObject({ ratingMax: 0.5 })
+    const issuesOf = (input: unknown) =>
+      listMoviesQuery
+        .safeParse(input)
+        .error?.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+    expect(issuesOf({ ratingMin: 0 })).toEqual(['ratingMin: Pick a rating from ½ to 5 stars'])
+    expect(issuesOf({ ratingMax: 5.5 })?.[0]).toMatch(/^ratingMax: /)
+    expect(issuesOf({ ratingMin: 3.2 })?.[0]).toMatch(/^ratingMin: /)
+    expect(issuesOf({ ratingMin: 'good' })?.[0]).toMatch(/^ratingMin: /)
+    expect(issuesOf({ ratingMin: 4, ratingMax: 3 })).toEqual([
+      'ratingMax: The highest rating is below the lowest',
+    ])
+  })
+
   it('parses any URL by falling back per field', () => {
     const empty = {
       page: 1,
@@ -237,6 +260,8 @@ describe('movie list', () => {
       yearTo: null,
       runtimeMin: null,
       runtimeMax: null,
+      ratingMin: null,
+      ratingMax: null,
       sort: 'newest',
     }
     expect(moviesUrlQuery.parse({})).toEqual(empty)
@@ -250,6 +275,8 @@ describe('movie list', () => {
         yearTo: 'soon',
         runtimeMin: '0',
         runtimeMax: '1e9',
+        ratingMin: '0',
+        ratingMax: '4.3',
         sort: 'x',
       }),
     ).toEqual(empty)
@@ -261,7 +288,8 @@ describe('movie list', () => {
         genres: 'sci-fi,drama,sci-fi',
         yearFrom: '1990',
         runtimeMax: '120',
-        sort: 'title',
+        ratingMin: '3.5',
+        sort: 'rating',
       }),
     ).toEqual({
       ...empty,
@@ -270,7 +298,8 @@ describe('movie list', () => {
       genres: ['sci-fi', 'drama'],
       yearFrom: 1990,
       runtimeMax: 120,
-      sort: 'title',
+      ratingMin: 3.5,
+      sort: 'rating',
     })
   })
 
@@ -280,7 +309,19 @@ describe('movie list', () => {
     expect(hasMovieFilters({ ...none, genres: ['drama'] })).toBe(true)
     expect(hasMovieFilters({ ...none, yearTo: 1999 })).toBe(true)
     expect(hasMovieFilters({ ...none, q: 'dune' })).toBe(true)
+    expect(hasMovieFilters({ ...none, ratingMin: 4 })).toBe(true)
     expect(hasMovieFilters(EMPTY_MOVIE_FILTERS)).toBe(false)
+    expect(MOVIE_FILTER_KEYS).toEqual([
+      'q',
+      'genres',
+      'person',
+      'yearFrom',
+      'yearTo',
+      'runtimeMin',
+      'runtimeMax',
+      'ratingMin',
+      'ratingMax',
+    ])
   })
 
   it('turns a URL into the list query, leaving empty filters out and righting a reversed range', () => {
@@ -294,6 +335,8 @@ describe('movie list', () => {
       yearTo: undefined,
       runtimeMin: undefined,
       runtimeMax: undefined,
+      ratingMin: undefined,
+      ratingMax: undefined,
     })
     expect(
       toListMoviesQuery(
@@ -306,6 +349,8 @@ describe('movie list', () => {
           yearTo: '2000',
           runtimeMin: '120',
           runtimeMax: '90',
+          ratingMin: '4',
+          ratingMax: '2.5',
           sort: 'oldest',
         }),
       ),
@@ -319,11 +364,20 @@ describe('movie list', () => {
       yearTo: 2010,
       runtimeMin: 90,
       runtimeMax: 120,
+      ratingMin: 2.5,
+      ratingMax: 4,
     })
     // What the pages pass always parses.
     expect(
       listMoviesQuery.safeParse(
-        toListMoviesQuery(moviesUrlQuery.parse({ yearFrom: '2010', yearTo: '2000' })),
+        toListMoviesQuery(
+          moviesUrlQuery.parse({
+            yearFrom: '2010',
+            yearTo: '2000',
+            ratingMin: '4',
+            ratingMax: '1',
+          }),
+        ),
       ).success,
     ).toBe(true)
   })
@@ -338,6 +392,7 @@ describe('movie outputs', () => {
     runtimeMinutes: 155,
     posterUrl: null,
     genres: [{ id: GENRE_ID, name: 'Science Fiction', slug: 'science-fiction' }],
+    rating: { average: 4.5, count: 2 },
   }
 
   it('revive the release date of a summary after a JSON round trip', () => {
@@ -350,7 +405,7 @@ describe('movie outputs', () => {
         JSON.stringify({
           ...summary,
           synopsis: null,
-          createdBy: { id: PERSON_ID, name: 'Ada Admin', username: 'admin' },
+          createdBy: { id: PERSON_ID, name: 'Ada Admin', username: 'admin', image: null },
           createdAt: new Date('2026-01-01T00:00:00Z'),
           updatedAt: new Date('2026-01-01T00:00:00Z'),
           credits: {

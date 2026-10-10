@@ -15,6 +15,7 @@ const dune: MovieSummary = {
     { id: 'g2', name: 'Science Fiction', slug: 'science-fiction' },
     { id: 'g3', name: 'Drama', slug: 'drama' },
   ],
+  rating: { average: null, count: 0 },
 }
 
 describe('MovieCard', () => {
@@ -23,6 +24,13 @@ describe('MovieCard', () => {
     const link = screen.getByRole('link')
     expect(link).toHaveAttribute('href', '/movies/dune-part-two-2024')
     expect(link).toHaveAccessibleName('Dune: Part Two 2024 2h 46m · Adventure · Science Fiction')
+  })
+
+  it('reads its average rating after the year, to one decimal', () => {
+    render(<MovieCard movie={{ ...dune, rating: { average: 4, count: 2 } }} />)
+    expect(screen.getByRole('link')).toHaveAccessibleName(
+      'Dune: Part Two 2024 Rated 4.0 2h 46m · Adventure · Science Fiction',
+    )
   })
 
   it('shows the poster as decoration, lazily unless it is above the fold', () => {

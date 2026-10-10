@@ -57,6 +57,7 @@ const SORT_LABELS: Record<MovieSort, string> = {
   newest: 'Newest release',
   oldest: 'Oldest release',
   title: 'Title A–Z',
+  rating: 'Highest rated',
 }
 
 const toSort = (value: string | null): MovieSort => {
@@ -171,6 +172,7 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
                 <TableHead>Title</TableHead>
                 <TableHead className={styles.secondary}>Genres</TableHead>
                 <TableHead className={styles.secondary}>Runtime</TableHead>
+                <TableHead>Rating</TableHead>
                 <TableHead className={styles.secondary}>Released</TableHead>
                 <TableHead className={styles.actionsHead}>Actions</TableHead>
               </TableRow>
@@ -206,6 +208,13 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
                       <span className={styles.muted}>—</span>
                     ) : (
                       formatRuntime(movie.runtimeMinutes)
+                    )}
+                  </TableCell>
+                  <TableCell className={styles.nowrap}>
+                    {movie.rating.average === null ? (
+                      <span className={styles.muted}>—</span>
+                    ) : (
+                      `${movie.rating.average.toFixed(1)} (${movie.rating.count})`
                     )}
                   </TableCell>
                   <TableCell className={clsx(styles.nowrap, styles.secondary)}>

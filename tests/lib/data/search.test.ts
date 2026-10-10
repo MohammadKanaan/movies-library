@@ -53,6 +53,7 @@ describe('searchCatalog', () => {
           runtimeMinutes: 155,
           posterUrl: null,
           genres: [{ id: scifi.id, name: 'Science Fiction', slug: 'science-fiction' }],
+          rating: { average: null, count: 0 },
         },
       ],
       totalItems: 1,

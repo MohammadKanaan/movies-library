@@ -27,6 +27,7 @@ const results: SearchSuggestions = {
       runtimeMinutes: 155,
       posterUrl: null,
       genres: [],
+      rating: { average: null, count: 0 },
     },
   ],
   people: [

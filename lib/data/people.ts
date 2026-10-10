@@ -25,7 +25,7 @@ import { invalidateTags, remember } from '@/lib/server/cache'
 import { logger } from '@/lib/server/logger'
 import { keyFromPublicUrl, publicUrl } from '@/lib/server/storage'
 import { getSessionUser, requireAdmin, type SessionUser } from './auth'
-import { CATALOG_TAG } from './cacheTags'
+import { CATALOG_TAG, RATINGS_TAG } from './cacheTags'
 import { db } from './db'
 import { escapeLike } from './escapeLike'
 import { NotFoundError, parseInput, ValidationError } from './errors'
@@ -178,7 +178,7 @@ export const getPersonBySlug = async (slug: string): Promise<PersonDetail> => {
   }
   const record = await remember(
     `person:${parsed.data}`,
-    { ttl: PEOPLE_CACHE_TTL, tags: [CATALOG_TAG], schema: personRecordSchema },
+    { ttl: PEOPLE_CACHE_TTL, tags: [CATALOG_TAG, RATINGS_TAG], schema: personRecordSchema },
     async () => {
       const loaded = await loadPersonRecord({ slug: parsed.data })
       if (!loaded) {

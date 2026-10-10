@@ -8,6 +8,7 @@ import {
 } from './catalog'
 import { pageQuerySchema, permissionsSchema, searchTermSchema } from './common'
 import { genreSchema } from './genres'
+import { ratingSchema, ratingSummarySchema } from './reviews'
 import { uploadKeySchema } from './uploads'
 import { userProfileSchema } from './users'
 
@@ -33,6 +34,7 @@ export const movieSummarySchema = z.object({
   runtimeMinutes: z.number().int().nullable(),
   posterUrl: z.string().nullable(),
   genres: z.array(genreSchema),
+  rating: ratingSummarySchema,
 })
 
 export type MovieSummary = z.infer<typeof movieSummarySchema>
@@ -61,9 +63,10 @@ export type MovieDetail = z.infer<typeof movieDetailSchema>
 
 /**
  * `newest` and `oldest` order by release date, `title` alphabetically, `added` by when the catalog
- * gained the movie (latest first, the admin list's default); `id` breaks every tie.
+ * gained the movie (latest first, the admin list's default), `rating` by the average rating (highest
+ * first, the more rated first among equals, unrated movies last); `id` breaks every tie.
  */
-export const MOVIE_SORTS = ['newest', 'oldest', 'title', 'added'] as const
+export const MOVIE_SORTS = ['newest', 'oldest', 'title', 'added', 'rating'] as const
 export const movieSortSchema = z.enum(MOVIE_SORTS).default('newest')
 
 export type MovieSort = z.output<typeof movieSortSchema>
@@ -87,6 +90,9 @@ export const runtimeBoundSchema = z.coerce
   .min(1, 'Enter at least 1 minute')
   .max(MOVIE_RUNTIME_MAX_MINUTES, `Enter ${MOVIE_RUNTIME_MAX_MINUTES} minutes or fewer`)
 
+/** A rating bound in stars, ½ to 5 in half steps like a rating itself. */
+export const ratingBoundSchema = z.coerce.number().pipe(ratingSchema)
+
 const genreFilterSchema = z
   .array(slugSchema)
   .max(MOVIE_GENRES_MAX, `Pick ${MOVIE_GENRES_MAX} genres or fewer`)
@@ -96,9 +102,10 @@ const isReversed = (from: number | undefined, to: number | undefined) =>
 
 /**
  * The movie list's query: a title search and the filters of the advanced search (every genre
- * named, a release year range, a runtime range, a credited person), paged and sorted. A range may
- * be open at either end; given both ends, the first must not be after the last. `listMoviesQuery`
- * is the typed form callers pass; `listMoviesUrlQuery` is the same shape as a URL carries it.
+ * named, a release year range, a runtime range, an average rating range, a credited person),
+ * paged and sorted. A range may be open at either end; given both ends, the first must not be
+ * after the last. `listMoviesQuery` is the typed form callers pass; `listMoviesUrlQuery` is the
+ * same shape as a URL carries it.
  */
 const listMoviesBase = pageQuerySchema.extend({
   /** Matches the title case-insensitively; at least three characters (the trigram index), bounded above. */
@@ -115,13 +122,20 @@ const listMoviesBase = pageQuerySchema.extend({
   runtimeMin: runtimeBoundSchema.optional(),
   /** Only movies at most this long, in minutes. */
   runtimeMax: runtimeBoundSchema.optional(),
+  /** Only movies rated at least this, in stars (an unrated movie never is). */
+  ratingMin: ratingBoundSchema.optional(),
+  /** Only movies rated at most this, in stars (an unrated movie never is). */
+  ratingMax: ratingBoundSchema.optional(),
   sort: movieSortSchema,
 })
 
 type ListMoviesOutput = z.output<typeof listMoviesBase>
 
-/** The ends of the two ranges, as both wire forms of the list parse them. */
-type RangeEnds = Pick<ListMoviesOutput, 'yearFrom' | 'yearTo' | 'runtimeMin' | 'runtimeMax'>
+/** The ends of the three ranges, as both wire forms of the list parse them. */
+type RangeEnds = Pick<
+  ListMoviesOutput,
+  'yearFrom' | 'yearTo' | 'runtimeMin' | 'runtimeMax' | 'ratingMin' | 'ratingMax'
+>
 
 /** The checks both wire forms of the list share; `.refine` keeps the schema's own output type. */
 const withRangeChecks = <S extends z.ZodType<RangeEnds>>(schema: S): S =>
@@ -133,6 +147,10 @@ const withRangeChecks = <S extends z.ZodType<RangeEnds>>(schema: S): S =>
     .refine((query) => !isReversed(query.runtimeMin, query.runtimeMax), {
       path: ['runtimeMax'],
       error: 'The longest runtime is shorter than the shortest',
+    })
+    .refine((query) => !isReversed(query.ratingMin, query.ratingMax), {
+      path: ['ratingMax'],
+      error: 'The highest rating is below the lowest',
     })
 
 /** The list's query as a typed caller passes it (`lib/data/movies.ts`). */
@@ -156,9 +174,9 @@ export type ListMoviesUrlQuery = z.output<typeof listMoviesUrlQuery>
 
 /**
  * The tolerant URL contract of the movie list: any query string parses, falling back to defaults.
- * Empty filters are `''`, `[]` or `null`, which `useUrlState` leaves out of the URL. The year and
- * runtime ranges are checked per end only: `toListMoviesQuery` puts a reversed range the right way
- * round, so a hand-edited URL still lists instead of failing.
+ * Empty filters are `''`, `[]` or `null`, which `useUrlState` leaves out of the URL. The year,
+ * runtime and rating ranges are checked per end only: `toListMoviesQuery` puts a reversed range the
+ * right way round, so a hand-edited URL still lists instead of failing.
  */
 export const moviesUrlQuery = z.object({
   page: pageQuerySchema.shape.page.catch(1),
@@ -169,6 +187,8 @@ export const moviesUrlQuery = z.object({
   yearTo: releaseYearSchema.nullable().catch(null),
   runtimeMin: runtimeBoundSchema.nullable().catch(null),
   runtimeMax: runtimeBoundSchema.nullable().catch(null),
+  ratingMin: ratingBoundSchema.nullable().catch(null),
+  ratingMax: ratingBoundSchema.nullable().catch(null),
   sort: movieSortSchema.catch('newest'),
 })
 
@@ -183,6 +203,8 @@ export const MOVIE_FILTER_KEYS = [
   'yearTo',
   'runtimeMin',
   'runtimeMax',
+  'ratingMin',
+  'ratingMax',
 ] as const satisfies readonly (keyof MoviesUrlQuery)[]
 
 export type MovieFilterKey = (typeof MOVIE_FILTER_KEYS)[number]
@@ -205,6 +227,8 @@ export const EMPTY_MOVIE_FILTERS: MovieFilters = {
   yearTo: null,
   runtimeMin: null,
   runtimeMax: null,
+  ratingMin: null,
+  ratingMax: null,
 }
 
 const orderedRange = (from: number | null, to: number | null) =>
@@ -223,10 +247,13 @@ export const toListMoviesQuery = ({
   yearTo,
   runtimeMin,
   runtimeMax,
+  ratingMin,
+  ratingMax,
   sort,
 }: MoviesUrlQuery): ListMoviesQuery => {
   const [firstYear, lastYear] = orderedRange(yearFrom, yearTo)
   const [shortest, longest] = orderedRange(runtimeMin, runtimeMax)
+  const [lowest, highest] = orderedRange(ratingMin, ratingMax)
   return {
     page,
     sort,
@@ -237,6 +264,8 @@ export const toListMoviesQuery = ({
     yearTo: lastYear ?? undefined,
     runtimeMin: shortest ?? undefined,
     runtimeMax: longest ?? undefined,
+    ratingMin: lowest ?? undefined,
+    ratingMax: highest ?? undefined,
   }
 }
 

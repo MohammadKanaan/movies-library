@@ -21,6 +21,7 @@ const movie = {
   runtimeMinutes: 155,
   posterUrl: null,
   genres: [],
+  rating: { average: null, count: 0 },
 }
 
 const counts = {

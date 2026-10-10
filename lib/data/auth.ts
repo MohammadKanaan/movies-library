@@ -17,7 +17,7 @@ import { invalidateTags } from '@/lib/server/cache'
 import { logger } from '@/lib/server/logger'
 import { enqueue } from '@/lib/server/queue'
 import { keyFromPublicUrl } from '@/lib/server/storage'
-import { userTag } from './cacheTags'
+import { RATINGS_TAG, userTag } from './cacheTags'
 import { db } from './db'
 import { ForbiddenError, UnauthorizedError } from './errors'
 
@@ -227,9 +227,9 @@ export const auth = betterAuth({
           log.error({ err: error, userId: user.id }, 'avatar not queued for deletion'),
         )
       },
-      // Sessions and accounts cascade: drop the cached viewer.
+      // Sessions, accounts and reviews cascade: drop the cached viewer and the cached ratings.
       afterDelete: async (user) => {
-        await invalidateTags(userTag(user.id))
+        await invalidateTags(userTag(user.id), RATINGS_TAG)
       },
     },
     additionalFields: {

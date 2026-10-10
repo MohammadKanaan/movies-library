@@ -144,6 +144,7 @@ describe('person outputs', () => {
               runtimeMinutes: 155,
               posterUrl: null,
               genres: [{ id: 'g1', name: 'Drama', slug: 'drama' }],
+              rating: { average: 4.5, count: 2 },
               roles: ['DIRECTOR', 'WRITER'],
             },
           ],
@@ -167,6 +168,7 @@ describe('person outputs', () => {
       runtimeMinutes: null,
       posterUrl: null,
       genres: [],
+      rating: { average: null, count: 0 },
       roles: [],
     }
     expect(personDetailSchema.shape.filmography.safeParse([entry]).success).toBe(false)
