@@ -3,6 +3,9 @@
 import { X } from 'lucide-react'
 import { useState, type ComponentProps, type ReactNode } from 'react'
 import { toast } from 'sonner'
+import { ActionButton } from '@/components/ActionButton'
+import { ActionGroup } from '@/components/ActionGroup'
+import { ActionLink } from '@/components/ActionLink'
 import { ConfirmDialog } from '@/components/Admin/ConfirmDialog'
 import { NameDialog } from '@/components/Admin/NameDialog'
 import { StatCard } from '@/components/Admin/StatCard'
@@ -604,6 +607,44 @@ export const UiKitView = () => {
             return { ok: true, data: null }
           }}
         />
+      </Section>
+
+      <Section
+        id="record-actions"
+        eyebrow="Application components"
+        title="ActionButton / ActionLink / ActionGroup"
+        description="A record's actions as icons with tooltips, always view, edit, delete in that order: quiet, neutral, red. ActionGroup pushes them to the end of a header, byline or table row."
+      >
+        <div className={styles.row}>
+          <ActionGroup label="Example actions">
+            <ActionLink action="view" label="View Dune" href="#record-actions" />
+            <ActionButton
+              action="edit"
+              label="Edit Dune"
+              onClick={() => toast.message('Edit clicked')}
+            />
+            <ActionButton
+              action="delete"
+              label="Delete Dune"
+              onClick={() => toast.message('Delete clicked')}
+            />
+          </ActionGroup>
+          <ActionButton
+            action="delete"
+            label="Delete Drama"
+            disabled
+            disabledReason="Remove the genre from its movies first"
+          />
+          <ConfirmDialog
+            trigger="Delete Noir"
+            triggerAction="delete"
+            title="Delete Noir?"
+            description="This cannot be undone."
+            confirmLabel="Delete genre"
+            onConfirm={() => resolveAfter(CONFIRM_OK)}
+            onDone={() => toast.success('Genre deleted')}
+          />
+        </div>
       </Section>
 
       <Section

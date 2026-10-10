@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { deleteReviewAction } from '@/actions/reviews'
+import { ActionButton } from '@/components/ActionButton'
 import { LoadingButton } from '@/components/LoadingButton'
 import { Button } from '@/components/SCN/button'
 import {
@@ -46,9 +47,7 @@ export const DeleteReviewDialog = ({ review, redirectTo }: DeleteReviewDialogPro
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button type="button" variant="destructive" size="sm" />}>
-        Delete
-      </DialogTrigger>
+      <DialogTrigger render={<ActionButton action="delete" label="Delete review" />} />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete this review?</DialogTitle>

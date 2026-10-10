@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { deleteMovieAction } from '@/actions/movies'
+import { ActionButton } from '@/components/ActionButton'
 import { LoadingButton } from '@/components/LoadingButton'
 import { Button } from '@/components/SCN/button'
 import {
@@ -43,7 +44,7 @@ export const DeleteMovieDialog = ({ movie }: DeleteMovieDialogProps) => {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button type="button" variant="destructive" />}>Delete</DialogTrigger>
+      <DialogTrigger render={<ActionButton action="delete" label={`Delete ${movie.title}`} />} />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete {movie.title}?</DialogTitle>

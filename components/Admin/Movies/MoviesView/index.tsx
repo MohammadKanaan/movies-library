@@ -4,6 +4,8 @@ import Link from 'next/link'
 import type { FormEvent } from 'react'
 import { toast } from 'sonner'
 import { deleteMovieAction } from '@/actions/movies'
+import { ActionGroup } from '@/components/ActionGroup'
+import { ActionLink } from '@/components/ActionLink'
 import { ConfirmDialog } from '@/components/Admin/ConfirmDialog'
 import { ButtonLink } from '@/components/ButtonLink'
 import { Empty } from '@/components/Empty'
@@ -160,7 +162,7 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
                 <TableHead>Genres</TableHead>
                 <TableHead>Runtime</TableHead>
                 <TableHead>Released</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className={styles.actionsHead}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -198,22 +200,27 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
                   </TableCell>
                   <TableCell className={styles.nowrap}>{formatDate(movie.releaseDate)}</TableCell>
                   <TableCell>
-                    <div className={styles.actions}>
-                      <ButtonLink href={adminMovieEditPath(movie.slug)} variant="outline" size="sm">
-                        Edit
-                      </ButtonLink>
-                      <ButtonLink href={moviePath(movie.slug)} variant="ghost" size="sm">
-                        View
-                      </ButtonLink>
+                    <ActionGroup label={`${movie.title} actions`}>
+                      <ActionLink
+                        action="view"
+                        label={`View ${movie.title}`}
+                        href={moviePath(movie.slug)}
+                      />
+                      <ActionLink
+                        action="edit"
+                        label={`Edit ${movie.title}`}
+                        href={adminMovieEditPath(movie.slug)}
+                      />
                       <ConfirmDialog
-                        trigger="Delete"
+                        trigger={`Delete ${movie.title}`}
+                        triggerAction="delete"
                         title={`Delete ${movie.title}?`}
                         description="Its credits and genre links go with it. The people and genres stay in the catalog."
                         confirmLabel="Delete movie"
                         onConfirm={() => deleteMovieAction(movie.id)}
                         onDone={() => toast.success(`${movie.title} was deleted`)}
                       />
-                    </div>
+                    </ActionGroup>
                   </TableCell>
                 </TableRow>
               ))}

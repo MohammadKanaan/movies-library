@@ -12,24 +12,30 @@ type CommentItemProps = {
 export const CommentItem = ({ comment }: CommentItemProps) => {
   const isEdited = comment.updatedAt > comment.createdAt
   const body = <p className={styles.body}>{comment.body}</p>
+  const byline = (
+    <p className={styles.meta}>
+      <span className={styles.name}>{comment.author.name}</span>
+      <time dateTime={comment.createdAt.toISOString()}>{formatDate(comment.createdAt)}</time>
+      {isEdited ? <span>edited</span> : null}
+    </p>
+  )
 
   return (
     <article className={styles.comment}>
       <UserAvatar name={comment.author.name} image={null} size="sm" />
       <div className={styles.main}>
-        <p className={styles.meta}>
-          <span className={styles.name}>{comment.author.name}</span>
-          <time dateTime={comment.createdAt.toISOString()}>{formatDate(comment.createdAt)}</time>
-          {isEdited ? <span>edited</span> : null}
-        </p>
         {comment.permissions.update || comment.permissions.delete ? (
           <CommentActions
             comment={{ id: comment.id, body: comment.body, permissions: comment.permissions }}
+            byline={byline}
           >
             {body}
           </CommentActions>
         ) : (
-          body
+          <>
+            {byline}
+            {body}
+          </>
         )}
       </div>
     </article>

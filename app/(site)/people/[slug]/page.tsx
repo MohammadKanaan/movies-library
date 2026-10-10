@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { cache } from 'react'
+import { ActionGroup } from '@/components/ActionGroup'
 import { Empty } from '@/components/Empty'
 import { MovieCard } from '@/components/Movies/MovieCard'
 import { DeletePersonDialog } from '@/components/People/DeletePersonDialog'
@@ -44,7 +45,14 @@ const PersonPage = async ({ params }: PageProps<'/people/[slug]'>) => {
       <header className={styles.header}>
         <Headshot person={person} size="lg" />
         <div className={styles.headerText}>
-          {summary ? <p className={styles.eyebrow}>{summary}</p> : null}
+          <div className={styles.topline}>
+            {summary ? <p className={styles.eyebrow}>{summary}</p> : null}
+            {canDelete ? (
+              <ActionGroup label="Person actions">
+                <DeletePersonDialog person={{ id: person.id, name: person.name }} />
+              </ActionGroup>
+            ) : null}
+          </div>
           <h1 className={styles.name}>{person.name}</h1>
           {person.birthDate ? (
             <p className={styles.born}>
@@ -59,11 +67,6 @@ const PersonPage = async ({ params }: PageProps<'/people/[slug]'>) => {
           ) : (
             <p className={styles.empty}>No biography yet.</p>
           )}
-          {canDelete ? (
-            <div className={styles.actions}>
-              <DeletePersonDialog person={{ id: person.id, name: person.name }} />
-            </div>
-          ) : null}
         </div>
       </header>
 

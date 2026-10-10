@@ -138,7 +138,9 @@ describe('PeopleView', () => {
       },
     })
     render(<PeopleView people={page([amy])} />)
-    await userEvent.click(within(rowOf('Amy Adams')).getByRole('button', { name: 'Rename' }))
+    await userEvent.click(
+      within(rowOf('Amy Adams')).getByRole('button', { name: 'Rename Amy Adams' }),
+    )
     const field = await screen.findByLabelText(/Name/)
     expect(field).toHaveValue('Amy Adams')
     await userEvent.clear(field)
@@ -153,11 +155,15 @@ describe('PeopleView', () => {
   it('deletes an uncredited person after confirmation and disables Delete for a credited one', async () => {
     vi.mocked(deletePersonAction).mockResolvedValue({ ok: true, data: undefined })
     render(<PeopleView people={page([amy, denis])} />)
-    const credited = within(rowOf('Denis Villeneuve')).getByRole('button', { name: 'Delete' })
+    const credited = within(rowOf('Denis Villeneuve')).getByRole('button', {
+      name: 'Delete Denis Villeneuve',
+    })
     expect(credited).toBeDisabled()
-    expect(credited).toHaveAttribute('title', 'Remove the person from their credits first')
+    expect(credited).toHaveAccessibleDescription('Remove the person from their credits first')
 
-    await userEvent.click(within(rowOf('Amy Adams')).getByRole('button', { name: 'Delete' }))
+    await userEvent.click(
+      within(rowOf('Amy Adams')).getByRole('button', { name: 'Delete Amy Adams' }),
+    )
     await userEvent.click(await screen.findByRole('button', { name: 'Delete person' }))
     await vi.waitFor(() => expect(deletePersonAction).toHaveBeenCalledWith(AMY_ID))
     expect(toast.success).toHaveBeenCalledWith('Amy Adams deleted')

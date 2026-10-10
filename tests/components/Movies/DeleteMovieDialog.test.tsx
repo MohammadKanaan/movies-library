@@ -13,7 +13,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const MOVIE = { id: '0190d1a2-0000-7000-8000-000000000001', title: 'Arrival' }
 
 const confirmDelete = async () => {
-  await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Delete Arrival' }))
   await userEvent.click(await screen.findByRole('button', { name: 'Delete movie' }))
 }
 
@@ -28,7 +28,7 @@ describe('DeleteMovieDialog', () => {
   it('asks first, naming the movie', async () => {
     render(<DeleteMovieDialog movie={MOVIE} />)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Arrival' }))
     expect(await screen.findByRole('heading', { name: 'Delete Arrival?' })).toBeInTheDocument()
     expect(deleteMovieAction).not.toHaveBeenCalled()
   })

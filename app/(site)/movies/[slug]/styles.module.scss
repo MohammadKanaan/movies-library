@@ -147,10 +147,12 @@
   letter-spacing: 0.04em;
 }
 
-.actions {
+// The eyebrow, with the movie's actions at the far end.
+.topline {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  align-items: center;
+  gap: 1rem;
+  min-height: 2rem;
 }
 
 /* ── Hero synopsis ──────────────────────────────────── */

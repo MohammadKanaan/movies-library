@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState, type ComponentProps } from 'react'
 import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
+import { ActionButton } from '@/components/ActionButton'
+import type { RecordAction } from '@/components/ActionButton/actions'
 import { Input } from '@/components/Form/Input'
 import { LoadingButton } from '@/components/LoadingButton'
 import { Button } from '@/components/SCN/button'
@@ -29,8 +31,10 @@ type ButtonVariant = ComponentProps<typeof Button>['variant']
 type ButtonSize = ComponentProps<typeof Button>['size']
 
 type NameDialogProps<T> = {
-  /** The text of the button that opens the dialog. */
+  /** The text of the button that opens the dialog; with `triggerAction`, its label. */
   trigger: string
+  /** Makes the trigger a record action's icon button (`ActionButton`) labelled `trigger`. */
+  triggerAction?: RecordAction
   triggerVariant?: ButtonVariant
   triggerSize?: ButtonSize
   title: string
@@ -50,6 +54,7 @@ type NameDialogProps<T> = {
 /** A one-field dialog that creates or renames a genre or a person. */
 export const NameDialog = <T,>({
   trigger,
+  triggerAction,
   triggerVariant = 'outline',
   triggerSize = 'sm',
   title,
@@ -93,13 +98,19 @@ export const NameDialog = <T,>({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
-          <Button type="button" variant={triggerVariant} size={triggerSize} disabled={disabled} />
-        }
-      >
-        {trigger}
-      </DialogTrigger>
+      {triggerAction ? (
+        <DialogTrigger
+          render={<ActionButton action={triggerAction} label={trigger} disabled={disabled} />}
+        />
+      ) : (
+        <DialogTrigger
+          render={
+            <Button type="button" variant={triggerVariant} size={triggerSize} disabled={disabled} />
+          }
+        >
+          {trigger}
+        </DialogTrigger>
+      )}
       <DialogContent>
         <form className={styles.form} onSubmit={submit} noValidate>
           <DialogHeader>

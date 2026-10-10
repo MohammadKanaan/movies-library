@@ -88,10 +88,15 @@
   font-style: italic;
 }
 
-.actions {
+// The eyebrow, with the person's actions at the far end.
+.topline {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
+  align-items: center;
+  gap: 1rem;
+
+  &:empty {
+    display: none;
+  }
 }
 
 /* ── Filmography ────────────────────────────────────── */

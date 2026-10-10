@@ -1,5 +1,7 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { ReviewEditingContext } from '@/components/Reviews/EditReviewAction'
 import { ReviewCard } from '@/components/Reviews/ReviewCard'
 import type { Review } from '@/lib/dto/reviews'
 
@@ -57,5 +59,35 @@ describe('ReviewCard', () => {
     expect(container.querySelector('details')).toBeNull()
     expect(screen.getByText('Comments here')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /comments?$/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('ReviewCard actions', () => {
+  const editable = review({ permissions: { update: true, delete: true } })
+
+  it('puts Edit and Delete as icons at the end of the header, Edit first', () => {
+    render(<ReviewCard review={editable} movieSlug="dune-2021" editHref="/movies/dune-2021#form" />)
+    const group = screen.getByRole('group', { name: 'Review actions' })
+    expect(group.closest('header')).not.toBeNull()
+    const edit = within(group).getByRole('link', { name: 'Edit review' })
+    const remove = within(group).getByRole('button', { name: 'Delete review' })
+    expect(edit).toHaveAttribute('href', '/movies/dune-2021#form')
+    expect(edit.compareDocumentPosition(remove) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('opens the form in place inside the viewer’s review', async () => {
+    const startEditing = vi.fn()
+    render(
+      <ReviewEditingContext value={startEditing}>
+        <ReviewCard review={editable} movieSlug="dune-2021" editHref="#your-review" />
+      </ReviewEditingContext>,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Edit review' }))
+    expect(startEditing).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers nothing to someone who may do nothing', () => {
+    render(<ReviewCard review={review()} movieSlug="dune-2021" editHref="#your-review" />)
+    expect(screen.queryByRole('group', { name: 'Review actions' })).not.toBeInTheDocument()
   })
 })

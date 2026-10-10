@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { ButtonLink } from '@/components/ButtonLink'
+import { ActionGroup } from '@/components/ActionGroup'
 import { DeleteReviewDialog } from '@/components/Reviews/DeleteReviewDialog'
+import { EditReviewAction } from '@/components/Reviews/EditReviewAction'
 import { StarRating } from '@/components/Reviews/StarRating'
 import { UserAvatar } from '@/components/UserAvatar'
 import { reviewPath } from '@/lib/constants-routes'
@@ -15,15 +16,16 @@ type ReviewCardProps = {
   movieSlug: string
   /** In a list: the text is cut short, with a link to the whole review. */
   preview?: boolean
-  /** Offers an Edit link to the author. */
+  /**
+   * Offers Edit to the author: a link here, or, inside `ViewerReview`, the form opened in place.
+   */
   editHref?: string
   /** Where the page goes once the review is deleted. */
   deleteRedirect?: string
   /**
    * What belongs with the review's text, such as its comments. It sits inside the spoiler's
    * `<details>` when the review has one, so a reply cannot give the plot away. A card with children
-   * is the review's own page: its actions come first, so they stay in reach while the text is
-   * closed, and it has no links to itself.
+   * is the review's own page: it has no links to itself.
    */
   children?: ReactNode
 }
@@ -31,8 +33,8 @@ type ReviewCardProps = {
 /**
  * One review: who wrote it, the stars, the date and the text. A review that spoils the movie keeps
  * its text inside a closed `<details>`, which needs no script. The author may edit it and the author
- * or an admin may delete it (`review.permissions`). Without children it links to the review's page,
- * with its number of comments.
+ * or an admin may delete it (`review.permissions`), from the icons at the end of its header. Without
+ * children it links to the review's page, with its number of comments.
  */
 export const ReviewCard = ({
   review,
@@ -54,34 +56,33 @@ export const ReviewCard = ({
       {children}
     </>
   )
-  const canEdit = editHref !== undefined && review.permissions.update
+  const edit =
+    editHref !== undefined && review.permissions.update ? (
+      <EditReviewAction href={editHref} />
+    ) : null
   const date = <time dateTime={review.createdAt.toISOString()}>{formatDate(review.createdAt)}</time>
   const comments = `${review.commentCount} ${review.commentCount === 1 ? 'comment' : 'comments'}`
   const actions =
-    isPage && !canEdit && !review.permissions.delete ? null : (
-      <footer className={styles.actions}>
-        {isPage ? null : (
-          <span className={styles.links}>
-            {preview && review.body ? (
-              <Link href={href} className={styles.more}>
-                Read full review
-              </Link>
-            ) : null}
-            <Link href={`${href}#comments`} className={styles.more}>
-              {comments}
-            </Link>
-          </span>
-        )}
-        {canEdit ? (
-          <ButtonLink href={editHref} variant="outline" size="sm">
-            Edit
-          </ButtonLink>
-        ) : null}
+    edit || review.permissions.delete ? (
+      <ActionGroup label="Review actions">
+        {edit}
         {review.permissions.delete ? (
           <DeleteReviewDialog review={{ id: review.id }} redirectTo={deleteRedirect} />
         ) : null}
-      </footer>
-    )
+      </ActionGroup>
+    ) : null
+  const links = isPage ? null : (
+    <footer className={styles.links}>
+      {preview && review.body ? (
+        <Link href={href} className={styles.more}>
+          Read full review
+        </Link>
+      ) : null}
+      <Link href={`${href}#comments`} className={styles.more}>
+        {comments}
+      </Link>
+    </footer>
+  )
 
   return (
     <article className={styles.card}>
@@ -101,9 +102,8 @@ export const ReviewCard = ({
           </p>
         </div>
         <StarRating rating={review.rating} size="sm" />
+        {actions}
       </header>
-
-      {isPage ? actions : null}
 
       {review.spoiler && review.body ? (
         <details className={styles.spoiler}>
@@ -114,7 +114,7 @@ export const ReviewCard = ({
         content
       )}
 
-      {isPage ? null : actions}
+      {links}
     </article>
   )
 }

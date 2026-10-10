@@ -101,14 +101,14 @@ describe('MoviesView', () => {
     expect(within(rowOf('Heat')).queryByRole('presentation', { hidden: true })).toBeNull()
   })
 
-  it('links Edit to the editor and View to the public page', () => {
+  it('links the edit icon to the editor and the view icon to the public page', () => {
     render(<MoviesView movies={page([dune])} genres={genres} />)
     const row = rowOf('Dune')
-    expect(within(row).getByRole('link', { name: 'Edit' })).toHaveAttribute(
+    expect(within(row).getByRole('link', { name: 'Edit Dune' })).toHaveAttribute(
       'href',
       '/admin/movies/dune-2021/edit',
     )
-    expect(within(row).getByRole('link', { name: 'View' })).toHaveAttribute(
+    expect(within(row).getByRole('link', { name: 'View Dune' })).toHaveAttribute(
       'href',
       '/movies/dune-2021',
     )
@@ -170,7 +170,7 @@ describe('MoviesView', () => {
   it('deletes a movie after confirming and says so', async () => {
     vi.mocked(deleteMovieAction).mockResolvedValue({ ok: true, data: undefined })
     render(<MoviesView movies={page([dune, heat])} genres={genres} />)
-    await userEvent.click(within(rowOf('Dune')).getByRole('button', { name: 'Delete' }))
+    await userEvent.click(within(rowOf('Dune')).getByRole('button', { name: 'Delete Dune' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('heading', { name: 'Delete Dune?' })).toBeInTheDocument()
     expect(
@@ -186,7 +186,7 @@ describe('MoviesView', () => {
 
   it('does not delete when the dialog is cancelled', async () => {
     render(<MoviesView movies={page([dune])} genres={genres} />)
-    await userEvent.click(within(rowOf('Dune')).getByRole('button', { name: 'Delete' }))
+    await userEvent.click(within(rowOf('Dune')).getByRole('button', { name: 'Delete Dune' }))
     const dialog = await screen.findByRole('dialog')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(deleteMovieAction).not.toHaveBeenCalled()

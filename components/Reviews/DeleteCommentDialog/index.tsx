@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { deleteCommentAction } from '@/actions/reviewComments'
+import { ActionButton } from '@/components/ActionButton'
 import { LoadingButton } from '@/components/LoadingButton'
 import { Button } from '@/components/SCN/button'
 import {
@@ -39,9 +40,7 @@ export const DeleteCommentDialog = ({ comment }: DeleteCommentDialogProps) => {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button type="button" variant="ghost" size="sm" />}>
-        Delete
-      </DialogTrigger>
+      <DialogTrigger render={<ActionButton action="delete" label="Delete comment" />} />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete this comment?</DialogTitle>

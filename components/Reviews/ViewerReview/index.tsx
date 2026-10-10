@@ -3,8 +3,8 @@
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { createReviewAction, updateReviewAction } from '@/actions/reviews'
+import { ReviewEditingContext } from '@/components/Reviews/EditReviewAction'
 import { ReviewForm } from '@/components/Reviews/ReviewForm'
-import { Button } from '@/components/SCN/button'
 import type { Review } from '@/lib/dto/reviews'
 import styles from './styles.module.scss'
 
@@ -14,11 +14,11 @@ type ViewerReviewProps = {
   review: Review | null
   /** Opens `review` on its form straight away: the review page's Edit link (`editReviewPath`). */
   startEditing?: boolean
-  /** The server-rendered card of `review`. */
+  /** The server-rendered card of `review`; its Edit action opens the form here. */
   children?: ReactNode
 }
 
-/** The viewer's own review of a movie: the form to write it, or the review with an Edit button. */
+/** The viewer's own review of a movie: the form to write it, or the review, editable in place. */
 export const ViewerReview = ({
   movieId,
   review,
@@ -30,13 +30,8 @@ export const ViewerReview = ({
   if (review && !editing) {
     return (
       <div className={styles.stack}>
-        <div className={styles.header}>
-          <h3 className={styles.title}>Your review</h3>
-          <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
-            Edit
-          </Button>
-        </div>
-        {children}
+        <h3 className={styles.title}>Your review</h3>
+        <ReviewEditingContext value={() => setEditing(true)}>{children}</ReviewEditingContext>
       </div>
     )
   }

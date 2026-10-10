@@ -86,7 +86,7 @@ describe('GenresView', () => {
       data: { ...noir, name: 'Film noir' },
     })
     render(<GenresView genres={[noir]} />)
-    await userEvent.click(within(rowOf('Noir')).getByRole('button', { name: 'Rename' }))
+    await userEvent.click(within(rowOf('Noir')).getByRole('button', { name: 'Rename Noir' }))
     const field = await screen.findByLabelText(/Name/)
     await userEvent.clear(field)
     await userEvent.type(field, 'Film noir')
@@ -100,11 +100,11 @@ describe('GenresView', () => {
   it('deletes an unused genre after confirmation, and refuses to offer it for one in use', async () => {
     vi.mocked(deleteGenreAction).mockResolvedValue({ ok: true, data: undefined })
     render(<GenresView genres={[drama, noir]} />)
-    const inUse = within(rowOf('Drama')).getByRole('button', { name: 'Delete' })
+    const inUse = within(rowOf('Drama')).getByRole('button', { name: 'Delete Drama' })
     expect(inUse).toBeDisabled()
-    expect(inUse).toHaveAttribute('title', 'Remove the genre from its movies first')
+    expect(inUse).toHaveAccessibleDescription('Remove the genre from its movies first')
 
-    await userEvent.click(within(rowOf('Noir')).getByRole('button', { name: 'Delete' }))
+    await userEvent.click(within(rowOf('Noir')).getByRole('button', { name: 'Delete Noir' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Delete genre' }))
     await vi.waitFor(() => expect(deleteGenreAction).toHaveBeenCalledWith(NOIR_ID))
     expect(toast.success).toHaveBeenCalledWith('Noir deleted')

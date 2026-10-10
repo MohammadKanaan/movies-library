@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { EditReviewAction } from '@/components/Reviews/EditReviewAction'
 import { ViewerReview } from '@/components/Reviews/ViewerReview'
 import type { Review } from '@/lib/dto/reviews'
 
@@ -23,15 +24,16 @@ const review: Review = {
 }
 
 describe('ViewerReview', () => {
-  it('shows the review with an Edit button that opens the form', async () => {
+  it('shows the review, whose Edit action opens the form in place', async () => {
     render(
       <ViewerReview movieId={movieId} review={review}>
         <p>The card</p>
+        <EditReviewAction href="#your-review" />
       </ViewerReview>,
     )
     expect(screen.getByRole('heading', { name: 'Your review' })).toBeInTheDocument()
     expect(screen.getByText('The card')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Edit review' }))
     expect(screen.getByRole('heading', { name: 'Edit your review' })).toBeInTheDocument()
     expect(screen.queryByText('The card')).not.toBeInTheDocument()
   })

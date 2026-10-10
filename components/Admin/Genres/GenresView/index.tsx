@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { createGenreAction, deleteGenreAction, updateGenreAction } from '@/actions/genres'
+import { ActionGroup } from '@/components/ActionGroup'
 import { ConfirmDialog } from '@/components/Admin/ConfirmDialog'
 import { NameDialog } from '@/components/Admin/NameDialog'
 import { Empty } from '@/components/Empty'
@@ -80,7 +81,7 @@ export const GenresView = ({ genres }: GenresViewProps) => {
                 <TableHead>Name</TableHead>
                 <TableHead>Slug</TableHead>
                 <TableHead>Movies</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className={styles.actionsHead}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -102,9 +103,10 @@ export const GenresView = ({ genres }: GenresViewProps) => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className={styles.actions}>
+                      <ActionGroup label={`${genre.name} actions`}>
                         <NameDialog
-                          trigger="Rename"
+                          trigger={`Rename ${genre.name}`}
+                          triggerAction="edit"
                           title={`Rename ${genre.name}`}
                           description="The slug, and so the genre's links, stay the same."
                           label="Name"
@@ -115,7 +117,8 @@ export const GenresView = ({ genres }: GenresViewProps) => {
                           onDone={() => toast.success('Genre renamed')}
                         />
                         <ConfirmDialog
-                          trigger="Delete"
+                          trigger={`Delete ${genre.name}`}
+                          triggerAction="delete"
                           title={`Delete ${genre.name}?`}
                           description="Nothing carries this genre, so nothing else changes."
                           confirmLabel="Delete genre"
@@ -126,7 +129,7 @@ export const GenresView = ({ genres }: GenresViewProps) => {
                           onConfirm={() => deleteGenreAction(genre.id)}
                           onDone={() => toast.success(`${genre.name} deleted`)}
                         />
-                      </div>
+                      </ActionGroup>
                     </TableCell>
                   </TableRow>
                 )

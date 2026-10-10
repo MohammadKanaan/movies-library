@@ -2,6 +2,8 @@ import { ArrowLeft } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { cache, Fragment } from 'react'
+import { ActionGroup } from '@/components/ActionGroup'
+import { ActionLink } from '@/components/ActionLink'
 import { ButtonLink } from '@/components/ButtonLink'
 import { DeleteMovieDialog } from '@/components/Movies/DeleteMovieDialog'
 import { GenreTags } from '@/components/Movies/GenreTags'
@@ -12,6 +14,7 @@ import { StarRating } from '@/components/Reviews/StarRating'
 import { ViewerReview } from '@/components/Reviews/ViewerReview'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/SCN/tooltip'
 import {
+  adminMovieEditPath,
   loginPath,
   moviePath,
   movieReviewsPath,
@@ -127,18 +130,36 @@ const MoviePage = async ({ params, searchParams }: PageProps<'/movies/[slug]'>) 
             </div>
 
             <div className={styles.heroText}>
-              <p className={styles.eyebrow}>
-                {/* Focusable so the full date shows on keyboard focus too, not only on hover. */}
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<time className={styles.year} dateTime={releaseDay} tabIndex={0} />}
-                  >
-                    {movie.year}
-                  </TooltipTrigger>
-                  <TooltipContent>Released {formatDate(movie.releaseDate)}</TooltipContent>
-                </Tooltip>
-                {movie.runtimeMinutes === null ? null : ` · ${formatRuntime(movie.runtimeMinutes)}`}
-              </p>
+              <div className={styles.topline}>
+                <p className={styles.eyebrow}>
+                  {/* Focusable so the full date shows on keyboard focus too, not only on hover. */}
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={<time className={styles.year} dateTime={releaseDay} tabIndex={0} />}
+                    >
+                      {movie.year}
+                    </TooltipTrigger>
+                    <TooltipContent>Released {formatDate(movie.releaseDate)}</TooltipContent>
+                  </Tooltip>
+                  {movie.runtimeMinutes === null
+                    ? null
+                    : ` · ${formatRuntime(movie.runtimeMinutes)}`}
+                </p>
+                {movie.permissions.update || movie.permissions.delete ? (
+                  <ActionGroup label="Movie actions">
+                    {movie.permissions.update ? (
+                      <ActionLink
+                        action="edit"
+                        label={`Edit ${movie.title}`}
+                        href={adminMovieEditPath(movie.slug)}
+                      />
+                    ) : null}
+                    {movie.permissions.delete ? (
+                      <DeleteMovieDialog movie={{ id: movie.id, title: movie.title }} />
+                    ) : null}
+                  </ActionGroup>
+                ) : null}
+              </div>
               <h1 className={styles.title}>{movie.title}</h1>
               <p className={styles.rating}>
                 <StarRating rating={Math.round((summary.average ?? 0) * 2) / 2} decorative />
@@ -150,11 +171,6 @@ const MoviePage = async ({ params, searchParams }: PageProps<'/movies/[slug]'>) 
                 <p className={styles.empty}>No synopsis yet.</p>
               )}
               <GenreTags genres={movie.genres} />
-              {movie.permissions.delete ? (
-                <div className={styles.actions}>
-                  <DeleteMovieDialog movie={{ id: movie.id, title: movie.title }} />
-                </div>
-              ) : null}
             </div>
           </div>
         </div>
@@ -240,7 +256,9 @@ const MoviePage = async ({ params, searchParams }: PageProps<'/movies/[slug]'>) 
                 review={viewerReview}
                 startEditing={edit === 'review'}
               >
-                {viewerReview ? <ReviewCard review={viewerReview} movieSlug={slug} /> : null}
+                {viewerReview ? (
+                  <ReviewCard review={viewerReview} movieSlug={slug} editHref="#your-review" />
+                ) : null}
               </ViewerReview>
             ) : (
               <div className={styles.signIn}>

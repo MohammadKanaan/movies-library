@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { FormEvent } from 'react'
 import { toast } from 'sonner'
 import { createPersonAction, deletePersonAction, updatePersonAction } from '@/actions/people'
+import { ActionGroup } from '@/components/ActionGroup'
 import { ConfirmDialog } from '@/components/Admin/ConfirmDialog'
 import { NameDialog } from '@/components/Admin/NameDialog'
 import { Empty } from '@/components/Empty'
@@ -91,7 +92,7 @@ export const PeopleView = ({ people }: PeopleViewProps) => {
                 <TableHead>Slug</TableHead>
                 <TableHead>Credits</TableHead>
                 <TableHead>Added</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className={styles.actionsHead}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -114,9 +115,10 @@ export const PeopleView = ({ people }: PeopleViewProps) => {
                     </TableCell>
                     <TableCell className={styles.nowrap}>{formatDate(person.createdAt)}</TableCell>
                     <TableCell>
-                      <div className={styles.actions}>
+                      <ActionGroup label={`${person.name} actions`}>
                         <NameDialog
-                          trigger="Rename"
+                          trigger={`Rename ${person.name}`}
+                          triggerAction="edit"
                           title={`Rename ${person.name}`}
                           description="The slug, and so the person's links, stay the same."
                           label="Name"
@@ -127,7 +129,8 @@ export const PeopleView = ({ people }: PeopleViewProps) => {
                           onDone={() => toast.success('Person renamed')}
                         />
                         <ConfirmDialog
-                          trigger="Delete"
+                          trigger={`Delete ${person.name}`}
+                          triggerAction="delete"
                           title={`Delete ${person.name}?`}
                           description="They are credited on nothing, so nothing else changes."
                           confirmLabel="Delete person"
@@ -138,7 +141,7 @@ export const PeopleView = ({ people }: PeopleViewProps) => {
                           onConfirm={() => deletePersonAction(person.id)}
                           onDone={() => toast.success(`${person.name} deleted`)}
                         />
-                      </div>
+                      </ActionGroup>
                     </TableCell>
                   </TableRow>
                 )
