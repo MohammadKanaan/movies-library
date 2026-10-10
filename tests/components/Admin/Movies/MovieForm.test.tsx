@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { MovieForm } from '@/components/Admin/Movies/MovieForm'
@@ -77,7 +77,9 @@ describe('MovieForm', () => {
       await userEvent.type(screen.getByLabelText(/Release date/), '2021-10-22')
       await userEvent.type(screen.getByLabelText(/Runtime/), '155')
       await userEvent.type(screen.getByLabelText(/Synopsis/), 'A boy on a desert planet.')
-      await userEvent.click(screen.getByRole('checkbox', { name: 'Drama' }))
+      await userEvent.click(screen.getByRole('combobox', { name: 'Genres' }))
+      await userEvent.click(await screen.findByRole('option', { name: 'Drama' }))
+      await userEvent.keyboard('{Escape}')
       await userEvent.click(screen.getByRole('button', { name: 'Add a cast member' }))
       expect(screen.getByText('Zendaya')).toBeInTheDocument()
       await userEvent.click(screen.getByRole('checkbox', { name: 'Star Zendaya' }))
@@ -153,8 +155,11 @@ describe('MovieForm', () => {
       expect(screen.getByLabelText(/Release date/)).toHaveValue('2021-10-22')
       expect(screen.getByLabelText(/Runtime/)).toHaveValue(155)
       expect(screen.getByLabelText(/Synopsis/)).toHaveValue('A boy on a desert planet.')
-      expect(screen.getByRole('checkbox', { name: 'Drama' })).toBeChecked()
-      expect(screen.getByRole('checkbox', { name: 'Comedy' })).not.toBeChecked()
+      const genreField = screen
+        .getByRole('combobox', { name: 'Genres' })
+        .closest('[data-slot="combobox-chips"]')
+      expect(genreField).toHaveTextContent('Drama')
+      expect(genreField).not.toHaveTextContent('Comedy')
 
       const names = (heading: string) => {
         const section = screen.getByRole('heading', { name: heading }).closest('section')
@@ -216,16 +221,18 @@ describe('MovieForm', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Create movie' }))
     }
 
-    it('shows a genre error under the genres group', async () => {
+    it('shows a genre error on the genres field', async () => {
       const onSubmit = vi.fn(async () =>
         failure('VALIDATION', 'Check the form', { genreIds: ['That genre no longer exists'] }),
       )
       render(<MovieForm genres={genres} onSubmit={onSubmit} />)
       await fillAndSubmit()
 
-      const group = screen.getByRole('group', { name: /Genres/ })
-      expect(await within(group).findByRole('alert')).toHaveTextContent(
-        'That genre no longer exists',
+      const field = screen.getByRole('combobox', { name: 'Genres' })
+      await waitFor(() =>
+        expect(field).toHaveAccessibleDescription(
+          expect.stringContaining('That genre no longer exists'),
+        ),
       )
     })
 
