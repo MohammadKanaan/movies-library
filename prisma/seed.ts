@@ -4,7 +4,7 @@ import { hashPassword } from 'better-auth/crypto'
 import Redis from 'ioredis'
 import { PrismaClient } from '../generated/prisma/client.ts'
 import { slugify } from '../lib/slug.ts'
-import { SEED_GENRES, SEED_MOVIES, seedPeople } from './catalog.ts'
+import { randomlyMarkAsStar, SEED_GENRES, SEED_MOVIES, seedPeople } from './catalog.ts'
 
 /** Dev-only password shared by every seeded account. */
 const SEED_PASSWORD = 'password123'
@@ -190,12 +190,11 @@ try {
     const credits = (['DIRECTOR', 'WRITER', 'ACTOR'] as const).flatMap((role) => {
       const names =
         role === 'DIRECTOR' ? seed.directors : role === 'WRITER' ? seed.writers : seed.cast
-      // The first three billed actors are the stars, as the `credit_star` migration backfilled.
       return names.map((name, position) => ({
         personId: idOf(personIds, name),
         role,
         position,
-        star: role === 'ACTOR' && position < 3,
+        star: randomlyMarkAsStar(role),
       }))
     })
     await db.$transaction(async (tx) => {

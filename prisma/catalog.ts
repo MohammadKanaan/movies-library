@@ -26,6 +26,10 @@ export type SeedMovie = {
   cast: string[]
 }
 
+/** Randomly star half of the seeded actor credits. */
+export const randomlyMarkAsStar = (role: 'DIRECTOR' | 'WRITER' | 'ACTOR') =>
+  role === 'ACTOR' && Math.random() < 0.5
+
 export const SEED_GENRES = [
   'Action',
   'Adventure',
@@ -19915,12 +19919,12 @@ export const SEED_MOVIES: SeedMovie[] = [
 export type SeedPerson = {
   /** `YYYY-MM-DD`, or null where the seed does not record one. */
   birthDate: string | null
-  bio: string
+  bio: string | null
 }
 
 /**
- * The profile of every person credited in `SEED_MOVIES`, by name. Headshots are not seeded: there is
- * no free public source, and one uploaded in development survives a re-seed.
+ * Profiles for selected people credited in `SEED_MOVIES`. Headshots are not seeded: there is no
+ * free public source, and one uploaded in development survives a re-seed.
  */
 export const SEED_PEOPLE: Record<string, SeedPerson> = {
   'Denis Villeneuve': {
@@ -20252,7 +20256,7 @@ export const SEED_PEOPLE: Record<string, SeedPerson> = {
   },
 }
 
-/** Every person credited in `SEED_MOVIES`, once, with their profile from `SEED_PEOPLE`. */
+/** Every person credited in `SEED_MOVIES`, once, with any available profile from `SEED_PEOPLE`. */
 export const seedPeople = (): (SeedPerson & { name: string })[] => {
   const names = new Set<string>()
   for (const movie of SEED_MOVIES) {
@@ -20261,10 +20265,7 @@ export const seedPeople = (): (SeedPerson & { name: string })[] => {
     }
   }
   return [...names].map((name) => {
-    const profile = SEED_PEOPLE[name]
-    if (!profile) {
-      throw new Error(`Seed data has no profile for ${name}`)
-    }
+    const profile = SEED_PEOPLE[name] ?? { birthDate: null, bio: null }
     return { name, ...profile }
   })
 }
