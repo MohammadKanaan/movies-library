@@ -32,8 +32,16 @@ export const movieCreditSchema = movieSummarySchema.extend({
 export type MovieCredit = z.infer<typeof movieCreditSchema>
 
 /**
- * One person with their profile, their filmography (one entry per movie, newest release first) and
- * the viewer's permissions.
+ * How many films a person holds each role on. A writer-director's film counts once for each role;
+ * every role is present, at zero when never held.
+ */
+export const roleCountsSchema = z.record(creditRoleSchema, z.number().int().nonnegative())
+
+export type RoleCounts = z.infer<typeof roleCountsSchema>
+
+/**
+ * One person with their profile, how many films they hold each role on and the viewer's
+ * permissions. The films themselves are a paged list of their own (`listFilmography`).
  */
 export const personDetailSchema = personSummarySchema.extend({
   bio: z.string().nullable(),
@@ -41,13 +49,23 @@ export const personDetailSchema = personSummarySchema.extend({
   birthDate: z.coerce.date().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
-  filmography: z.array(movieCreditSchema),
+  roleCounts: roleCountsSchema,
   permissions: permissionsSchema,
 })
 
 export type PersonDetail = z.infer<typeof personDetailSchema>
 
 export const personSortBySchema = z.enum(['name', 'slug', 'creditCount', 'createdAt'])
+
+/** A page of a person's filmography; a malformed slug reads as not found, like an unknown one. */
+export const listFilmographyQuery = pageQuerySchema.extend({ personSlug: z.string() })
+
+export type ListFilmographyQuery = z.input<typeof listFilmographyQuery>
+
+/** The tolerant URL contract of a person's page: any query string parses. */
+export const filmographyUrlQuery = z.object({
+  page: pageQuerySchema.shape.page.catch(1),
+})
 
 export const listPeopleQuery = pageQuerySchema.extend({
   sortBy: personSortBySchema.default('name'),

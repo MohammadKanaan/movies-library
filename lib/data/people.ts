@@ -1,23 +1,27 @@
 import 'server-only'
 import type { Prisma } from '@/generated/prisma/client'
 import { MINUTE } from '@/lib/constants-time'
-import { catalogIdSchema, creditRoleSchema, slugSchema } from '@/lib/dto/catalog'
+import { catalogIdSchema, slugSchema, type CreditRole } from '@/lib/dto/catalog'
 import { pageSchema, toPage, type Page } from '@/lib/dto/common'
 import {
   attachHeadshotInput,
+  listFilmographyQuery,
   listPeopleQuery,
+  movieCreditSchema,
   personDetailSchema,
   personInput,
   personListItemSchema,
   personSummarySchema,
   updatePersonInput,
   type AttachHeadshotInput,
+  type ListFilmographyQuery,
   type ListPeopleQuery,
   type MovieCredit,
   type PersonDetail,
   type PersonInput,
   type PersonListItem,
   type PersonSummary,
+  type RoleCounts,
   type UpdatePersonInput,
 } from '@/lib/dto/people'
 import { slugify } from '@/lib/slug'
@@ -72,13 +76,17 @@ const personDetailSelect = {
   birthDate: true,
   createdAt: true,
   updatedAt: true,
-  credits: {
-    select: { role: true, movie: { select: movieSummarySelect } },
-    orderBy: [{ movie: { releaseDate: 'desc' } }, { movie: { id: 'desc' } }],
-  },
 } satisfies Prisma.PersonSelect
 
-type PersonDetailRow = Prisma.PersonGetPayload<{ select: typeof personDetailSelect }>
+/**
+ * A filmography row: the movie's summary plus the roles this person holds on it, in `credit_role`
+ * order (PostgreSQL sorts an enum in declaration order: director, writer, actor).
+ */
+const filmographySelect = (personId: string) =>
+  ({
+    ...movieSummarySelect,
+    credits: { where: { personId }, select: { role: true }, orderBy: { role: 'asc' } },
+  }) satisfies Prisma.MovieSelect
 
 /** The detail without `permissions`: the same for every viewer, so this is what gets cached. */
 type PersonRecord = Omit<PersonDetail, 'permissions'>
@@ -89,27 +97,21 @@ const PEOPLE_CACHE_TTL = 5 * MINUTE
 const PERMISSION_ACTIONS = ['update', 'delete'] as const
 const CREATE_ATTEMPTS = 3
 
-const ROLE_ORDER = creditRoleSchema.options
-
 /**
- * One entry per movie, in the rows' order (newest release first), carrying every role the person
- * holds on it in `credit_role` order. A writer-director's film appears once.
+ * Films per role. A credit's key is (movie, person, role), so counting a person's credits by role
+ * counts films; a role never held stays at zero.
  */
-const toPersonRecord = ({ credits, ...person }: PersonDetailRow): PersonRecord => {
-  const byMovie = new Map<string, MovieCredit>()
-  for (const { role, movie } of credits) {
-    const entry = byMovie.get(movie.id)
-    if (entry) {
-      entry.roles.push(role)
-    } else {
-      byMovie.set(movie.id, { ...toMovieSummary(movie), roles: [role] })
-    }
+const readRoleCounts = async (personId: string): Promise<RoleCounts> => {
+  const groups = await db.credit.groupBy({
+    by: ['role'],
+    where: { personId },
+    _count: { _all: true },
+  })
+  const counts: Record<CreditRole, number> = { DIRECTOR: 0, WRITER: 0, ACTOR: 0 }
+  for (const { role, _count } of groups) {
+    counts[role] = _count._all
   }
-  const filmography = [...byMovie.values()].map((entry) => ({
-    ...entry,
-    roles: [...entry.roles].sort((a, b) => ROLE_ORDER.indexOf(a) - ROLE_ORDER.indexOf(b)),
-  }))
-  return { ...person, filmography }
+  return counts
 }
 
 const withPermissions = (record: PersonRecord, viewer: SessionUser | null): PersonDetail => ({
@@ -121,7 +123,7 @@ const loadPersonRecord = async (
   where: Prisma.PersonWhereUniqueInput,
 ): Promise<PersonRecord | null> => {
   const row = await db.person.findUnique({ where, select: personDetailSelect })
-  return row ? toPersonRecord(row) : null
+  return row ? { ...row, roleCounts: await readRoleCounts(row.id) } : null
 }
 
 /** The detail fresh from the database, for the result of a write. */
@@ -170,8 +172,8 @@ export const listPeople = async (query: ListPeopleQuery): Promise<Page<PersonLis
 }
 
 /**
- * Public: one person with their filmography by role (newest release first). A malformed slug is
- * not found, like an unknown one. The record is cached; `permissions` is computed per viewer after.
+ * Public: one person with how many films they hold each role on. A malformed slug is not found,
+ * like an unknown one. The record is cached; `permissions` is computed per viewer after.
  */
 export const getPersonBySlug = async (slug: string): Promise<PersonDetail> => {
   const viewer = await getSessionUser()
@@ -181,7 +183,7 @@ export const getPersonBySlug = async (slug: string): Promise<PersonDetail> => {
   }
   const record = await remember(
     `person:${parsed.data}`,
-    { ttl: PEOPLE_CACHE_TTL, tags: [CATALOG_TAG, RATINGS_TAG], schema: personRecordSchema },
+    { ttl: PEOPLE_CACHE_TTL, tags: [CATALOG_TAG], schema: personRecordSchema },
     async () => {
       const loaded = await loadPersonRecord({ slug: parsed.data })
       if (!loaded) {
@@ -194,9 +196,57 @@ export const getPersonBySlug = async (slug: string): Promise<PersonDetail> => {
 }
 
 /**
+ * Public: a page of a person's films, one entry per movie with every role they hold on it (a
+ * writer-director's film appears once), newest release first (ids break ties). A malformed or
+ * unknown slug is not found. Viewer-independent, so each page is cached under the catalog and
+ * ratings tags (a row shows its movie's rating); an unknown person throws before anything is
+ * written, so only real people get keys.
+ */
+export const listFilmography = async (query: ListFilmographyQuery): Promise<Page<MovieCredit>> => {
+  const { personSlug, page, perPage } = parseInput(listFilmographyQuery, query)
+  const parsed = slugSchema.safeParse(personSlug)
+  if (!parsed.success) {
+    throw new NotFoundError('Person not found')
+  }
+  return remember(
+    `person:${parsed.data}:films:${JSON.stringify([page, perPage])}`,
+    {
+      ttl: PEOPLE_CACHE_TTL,
+      tags: [CATALOG_TAG, RATINGS_TAG],
+      schema: pageSchema(movieCreditSchema),
+    },
+    async () => {
+      const person = await db.person.findUnique({
+        where: { slug: parsed.data },
+        select: { id: true },
+      })
+      if (!person) {
+        throw new NotFoundError('Person not found')
+      }
+      const where = { credits: { some: { personId: person.id } } } satisfies Prisma.MovieWhereInput
+      const [rows, totalItems] = await Promise.all([
+        db.movie.findMany({
+          where,
+          select: filmographySelect(person.id),
+          orderBy: [{ releaseDate: 'desc' }, { id: 'desc' }],
+          skip: (page - 1) * perPage,
+          take: perPage,
+        }),
+        db.movie.count({ where }),
+      ])
+      const items = rows.map(({ credits, ...movie }) => ({
+        ...toMovieSummary(movie),
+        roles: credits.map((credit) => credit.role),
+      }))
+      return toPage(items, totalItems, { page, perPage })
+    },
+  )
+}
+
+/**
  * Public: the summary of one person, for a page that names them without showing their filmography
- * (the movie list's `person` filter). The detail would load every credit for four fields. A malformed
- * slug is not found, like an unknown one; the summary is cached like the detail, viewer-independent.
+ * (the movie list's `person` filter). The detail would also count their credits. A malformed slug
+ * is not found, like an unknown one; the summary is cached like the detail, viewer-independent.
  */
 export const getPersonSummaryBySlug = async (slug: string): Promise<PersonSummary> => {
   const parsed = slugSchema.safeParse(slug)

@@ -82,16 +82,19 @@ export const describeMovie = (movie: MovieDetail): string => {
   )
 }
 
-/** A person's description: their bio, or their credits and latest films when they have none. */
-export const describePerson = (person: PersonDetail): string => {
+/**
+ * A person's description: their bio, or their credits and the first of `films` (the page of their
+ * filmography being shown) when they have none.
+ */
+export const describePerson = (person: PersonDetail, films: { title: string }[]): string => {
   if (person.bio) {
     return metaDescription(person.bio)
   }
-  const summary = summarizeFilmography(person.filmography)
+  const summary = summarizeFilmography(person.roleCounts)
   if (!summary) {
     return `${person.name} on ${env.appName}.`
   }
-  const titles = person.filmography.slice(0, FILM_TITLES).map((movie) => movie.title)
+  const titles = films.slice(0, FILM_TITLES).map((movie) => movie.title)
   return metaDescription(`${person.name}: ${summary}. Films include ${listFormat.format(titles)}.`)
 }
 

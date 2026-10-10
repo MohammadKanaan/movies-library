@@ -121,7 +121,7 @@ describe('PeopleView', () => {
         birthDate: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-        filmography: [],
+        roleCounts: { DIRECTOR: 0, WRITER: 0, ACTOR: 0 },
         permissions: { update: true, delete: true },
       },
     })
@@ -144,7 +144,7 @@ describe('PeopleView', () => {
         bio: null,
         birthDate: null,
         updatedAt: new Date(),
-        filmography: [],
+        roleCounts: { DIRECTOR: 0, WRITER: 0, ACTOR: 0 },
         permissions: { update: true, delete: true },
       },
     })

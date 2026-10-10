@@ -19,13 +19,9 @@ export const creditRoleLabel = (role: CreditRole): string => ROLE_LABELS[role]
  * How many films a person holds each role on, in `credit_role` order: "Directed 3 · Wrote 1 · Acted
  * in 1". A role never held is left out; no credits is an empty string.
  */
-export const summarizeFilmography = (filmography: { roles: CreditRole[] }[]): string => {
+export const summarizeFilmography = (roleCounts: Record<CreditRole, number>): string => {
   return creditRoleSchema.options
-    .map((role) => ({
-      role,
-      count: filmography.filter((film) => film.roles.includes(role)).length,
-    }))
-    .filter(({ count }) => count > 0)
-    .map(({ role, count }) => `${ROLE_VERBS[role]} ${count}`)
+    .filter((role) => roleCounts[role] > 0)
+    .map((role) => `${ROLE_VERBS[role]} ${roleCounts[role]}`)
     .join(' · ')
 }

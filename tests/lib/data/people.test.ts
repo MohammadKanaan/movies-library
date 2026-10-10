@@ -13,6 +13,7 @@ import {
   deletePerson,
   getPersonBySlug,
   getPersonSummaryBySlug,
+  listFilmography,
   listPeople,
   removeHeadshot,
   updatePerson,
@@ -185,8 +186,7 @@ describe('people DAL', () => {
       await expect(getPersonBySlug('')).rejects.toBeInstanceOf(NotFoundError)
     })
 
-    it('lists each film once with every role held on it, newest release first', async () => {
-      const scifi = await seedGenre('Science Fiction')
+    it('returns the profile and how many films they hold each role on', async () => {
       const denis = await db.person.create({
         data: {
           name: 'Denis Villeneuve',
@@ -195,27 +195,21 @@ describe('people DAL', () => {
           birthDate: new Date('1967-10-03T00:00:00.000Z'),
         },
       })
-      const arrival = await seedMovie({
+      await seedMovie({
         title: 'Arrival',
         releaseDate: '2016-11-11',
         credits: [{ personId: denis.id, role: 'DIRECTOR' }],
       })
-      // Credited as writer before director: the roles still come out in `credit_role` order.
-      const dune = await seedMovie({
+      await seedMovie({
         title: 'Dune',
         releaseDate: '2021-10-22',
-        runtimeMinutes: 155,
-        posterUrl: 'https://pub.example/dune.jpg',
-        genreIds: [scifi.id],
         credits: [
           { personId: denis.id, role: 'WRITER' },
           { personId: denis.id, role: 'DIRECTOR' },
         ],
       })
-      await seedReview({ movieId: dune.id, authorId: (await createUser()).id, rating: 4.5 })
 
-      const person = await getPersonBySlug('denis-villeneuve')
-      expect(person).toEqual({
+      expect(await getPersonBySlug('denis-villeneuve')).toEqual({
         id: denis.id,
         slug: 'denis-villeneuve',
         name: 'Denis Villeneuve',
@@ -224,30 +218,7 @@ describe('people DAL', () => {
         birthDate: new Date('1967-10-03T00:00:00.000Z'),
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
-        filmography: [
-          {
-            id: dune.id,
-            slug: 'dune-2021',
-            title: 'Dune',
-            releaseDate: new Date('2021-10-22T00:00:00.000Z'),
-            runtimeMinutes: 155,
-            posterUrl: 'https://pub.example/dune.jpg',
-            genres: [{ id: scifi.id, name: 'Science Fiction', slug: 'science-fiction' }],
-            rating: { average: 4.5, count: 1 },
-            roles: ['DIRECTOR', 'WRITER'],
-          },
-          {
-            id: arrival.id,
-            slug: 'arrival-2016',
-            title: 'Arrival',
-            releaseDate: new Date('2016-11-11T00:00:00.000Z'),
-            runtimeMinutes: null,
-            posterUrl: null,
-            genres: [],
-            rating: { average: null, count: 0 },
-            roles: ['DIRECTOR'],
-          },
-        ],
+        roleCounts: { DIRECTOR: 2, WRITER: 1, ACTOR: 0 },
         permissions: { update: false, delete: false },
       })
     })
@@ -260,7 +231,7 @@ describe('people DAL', () => {
         credits: [{ personId: denis.id, role: 'DIRECTOR' }],
       })
       const ratingOf = async () =>
-        (await getPersonBySlug('denis-villeneuve')).filmography[0]?.rating
+        (await listFilmography({ personSlug: 'denis-villeneuve' })).items[0]?.rating
       expect(await ratingOf()).toEqual({ average: null, count: 0 })
       await signInAs(await createUser())
       await createReview({ movieId: dune.id, rating: 3.5 })
@@ -295,6 +266,99 @@ describe('people DAL', () => {
       await updatePerson({ id: amy.id, name: 'Amy Lou Adams' })
       signOut()
       expect((await getPersonBySlug('amy-adams')).name).toBe('Amy Lou Adams')
+    })
+  })
+
+  describe('listFilmography', () => {
+    const seedFilmography = async () => {
+      const scifi = await seedGenre('Science Fiction')
+      const denis = await seedPerson('Denis Villeneuve')
+      const arrival = await seedMovie({
+        title: 'Arrival',
+        releaseDate: '2016-11-11',
+        credits: [{ personId: denis.id, role: 'DIRECTOR' }],
+      })
+      // Credited as writer before director: the roles still come out in `credit_role` order.
+      const dune = await seedMovie({
+        title: 'Dune',
+        releaseDate: '2021-10-22',
+        runtimeMinutes: 155,
+        posterUrl: 'https://pub.example/dune.jpg',
+        genreIds: [scifi.id],
+        credits: [
+          { personId: denis.id, role: 'WRITER' },
+          { personId: denis.id, role: 'DIRECTOR' },
+        ],
+      })
+      return { scifi, denis, arrival, dune }
+    }
+
+    it('is public and answers not found for an unknown or malformed slug', async () => {
+      await expect(listFilmography({ personSlug: 'nobody' })).rejects.toBeInstanceOf(NotFoundError)
+      await expect(listFilmography({ personSlug: 'Not A Slug' })).rejects.toBeInstanceOf(
+        NotFoundError,
+      )
+    })
+
+    it('lists each film once with every role held on it, newest release first', async () => {
+      const { scifi, arrival, dune } = await seedFilmography()
+      await seedReview({ movieId: dune.id, authorId: (await createUser()).id, rating: 4.5 })
+      expect(await listFilmography({ personSlug: 'denis-villeneuve' })).toEqual({
+        items: [
+          {
+            id: dune.id,
+            slug: 'dune-2021',
+            title: 'Dune',
+            releaseDate: new Date('2021-10-22T00:00:00.000Z'),
+            runtimeMinutes: 155,
+            posterUrl: 'https://pub.example/dune.jpg',
+            genres: [{ id: scifi.id, name: 'Science Fiction', slug: 'science-fiction' }],
+            rating: { average: 4.5, count: 1 },
+            roles: ['DIRECTOR', 'WRITER'],
+          },
+          {
+            id: arrival.id,
+            slug: 'arrival-2016',
+            title: 'Arrival',
+            releaseDate: new Date('2016-11-11T00:00:00.000Z'),
+            runtimeMinutes: null,
+            posterUrl: null,
+            genres: [],
+            rating: { average: null, count: 0 },
+            roles: ['DIRECTOR'],
+          },
+        ],
+        page: 1,
+        perPage: 10,
+        totalItems: 2,
+        totalPages: 1,
+      })
+    })
+
+    it('pages by film, not by credit', async () => {
+      const { arrival } = await seedFilmography()
+      const second = await listFilmography({ personSlug: 'denis-villeneuve', page: 2, perPage: 1 })
+      expect(second).toMatchObject({ page: 2, perPage: 1, totalItems: 2, totalPages: 2 })
+      expect(second.items.map((movie) => movie.id)).toEqual([arrival.id])
+      expect(
+        (await listFilmography({ personSlug: 'denis-villeneuve', page: 3, perPage: 1 })).items,
+      ).toEqual([])
+    })
+
+    it('is cached until a catalog write invalidates it', async () => {
+      const { denis, dune } = await seedFilmography()
+      const titles = async () =>
+        (await listFilmography({ personSlug: 'denis-villeneuve' })).items.map(
+          (movie) => movie.title,
+        )
+      expect(await titles()).toEqual(['Dune', 'Arrival'])
+      await db.movie.update({ where: { id: dune.id }, data: { title: 'Dune: Part One' } })
+      expect(await titles()).toEqual(['Dune', 'Arrival'])
+
+      await signInAsAdmin()
+      await updatePerson({ id: denis.id, name: 'Denis Villeneuve' })
+      signOut()
+      expect(await titles()).toEqual(['Dune: Part One', 'Arrival'])
     })
   })
 
@@ -351,7 +415,7 @@ describe('people DAL', () => {
       await signInAsAdmin()
       const first = await createPerson({ name: ' John Williams ' })
       expect(first).toMatchObject({ slug: 'john-williams', name: 'John Williams' })
-      expect(first.filmography).toEqual([])
+      expect(first.roleCounts).toEqual({ DIRECTOR: 0, WRITER: 0, ACTOR: 0 })
       expect(first).toMatchObject({ bio: null, birthDate: null, headshotUrl: null })
       expect(first.permissions).toEqual({ update: true, delete: true })
 

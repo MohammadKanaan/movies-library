@@ -59,7 +59,7 @@ const personDetail = (overrides: Partial<PersonDetail> = {}): PersonDetail => ({
   birthDate: null,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-  filmography: [],
+  roleCounts: { DIRECTOR: 0, WRITER: 0, ACTOR: 0 },
   permissions: { update: false, delete: false },
   ...overrides,
 })
@@ -160,29 +160,27 @@ describe('describeMovie', () => {
 })
 
 describe('describePerson', () => {
+  const films = [
+    credit('Dune', ['DIRECTOR', 'WRITER']),
+    credit('Arrival', ['DIRECTOR']),
+    credit('Sicario', ['DIRECTOR']),
+    credit('Enemy', ['DIRECTOR']),
+  ]
+
   it('is the bio when there is one', () => {
-    expect(describePerson(personDetail({ bio: 'A Canadian filmmaker.' }))).toBe(
+    expect(describePerson(personDetail({ bio: 'A Canadian filmmaker.' }), films)).toBe(
       'A Canadian filmmaker.',
     )
   })
 
-  it('falls back to their credits and latest films', () => {
+  it('falls back to their credits and the first films shown', () => {
     expect(
-      describePerson(
-        personDetail({
-          filmography: [
-            credit('Dune', ['DIRECTOR', 'WRITER']),
-            credit('Arrival', ['DIRECTOR']),
-            credit('Sicario', ['DIRECTOR']),
-            credit('Enemy', ['DIRECTOR']),
-          ],
-        }),
-      ),
-    ).toBe('Denis Villeneuve: Directed 4 · Wrote 1. Films include Dune, Arrival, and Sicario.')
+      describePerson(personDetail({ roleCounts: { DIRECTOR: 9, WRITER: 1, ACTOR: 0 } }), films),
+    ).toBe('Denis Villeneuve: Directed 9 · Wrote 1. Films include Dune, Arrival, and Sicario.')
   })
 
   it('names the site for someone without credits', () => {
-    expect(describePerson(personDetail())).toBe(`Denis Villeneuve on ${env.appName}.`)
+    expect(describePerson(personDetail(), [])).toBe(`Denis Villeneuve on ${env.appName}.`)
   })
 })
 

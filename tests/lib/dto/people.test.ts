@@ -8,6 +8,8 @@ import {
   PERSON_BIRTH_MIN,
   PERSON_NAME_MAX_LENGTH,
   attachHeadshotInput,
+  filmographyUrlQuery,
+  movieCreditSchema,
   personDetailSchema,
   personInput,
   personListItemSchema,
@@ -146,7 +148,7 @@ describe('person outputs', () => {
     expect(personListItemSchema.safeParse({ ...item, creditCount: 1.5 }).success).toBe(false)
   })
 
-  it('revive dates in the detail and its filmography after a JSON round trip', () => {
+  it('revive dates in the detail after a JSON round trip, with a count for every role', () => {
     const detail = personDetailSchema.parse(
       JSON.parse(
         JSON.stringify({
@@ -155,42 +157,40 @@ describe('person outputs', () => {
           birthDate: new Date('1967-10-03T00:00:00Z'),
           createdAt: new Date('2026-01-01T00:00:00Z'),
           updatedAt: new Date('2026-01-02T00:00:00Z'),
-          filmography: [
-            {
-              id: MOVIE_ID,
-              slug: 'dune-2021',
-              title: 'Dune',
-              releaseDate: new Date('2021-10-22T00:00:00Z'),
-              runtimeMinutes: 155,
-              posterUrl: null,
-              genres: [{ id: 'g1', name: 'Drama', slug: 'drama' }],
-              rating: { average: 4.5, count: 2 },
-              roles: ['DIRECTOR', 'WRITER'],
-            },
-          ],
+          roleCounts: { DIRECTOR: 2, WRITER: 1, ACTOR: 0 },
           permissions: { update: false, delete: false },
         }),
       ),
     )
     expect(detail.createdAt).toBeInstanceOf(Date)
     expect(detail.birthDate).toEqual(new Date('1967-10-03T00:00:00Z'))
-    expect(detail.filmography[0]?.releaseDate).toEqual(new Date('2021-10-22T00:00:00Z'))
-    expect(detail.filmography[0]?.roles).toEqual(['DIRECTOR', 'WRITER'])
-    expect(detail.permissions).toEqual({ update: false, delete: false })
+    expect(detail.roleCounts).toEqual({ DIRECTOR: 2, WRITER: 1, ACTOR: 0 })
+    expect(personDetailSchema.shape.roleCounts.safeParse({ DIRECTOR: 2, WRITER: 1 }).success).toBe(
+      false,
+    )
   })
 
-  it('refuse a filmography entry without a role', () => {
+  it('revive the dates of a filmography page and refuse an entry without a role', () => {
     const entry = {
       id: MOVIE_ID,
       slug: 'dune-2021',
       title: 'Dune',
       releaseDate: new Date('2021-10-22T00:00:00Z'),
-      runtimeMinutes: null,
+      runtimeMinutes: 155,
       posterUrl: null,
-      genres: [],
+      genres: [{ id: 'g1', name: 'Drama', slug: 'drama' }],
       rating: { average: null, count: 0 },
-      roles: [],
+      roles: ['DIRECTOR', 'WRITER'],
     }
-    expect(personDetailSchema.shape.filmography.safeParse([entry]).success).toBe(false)
+    const revived = movieCreditSchema.parse(JSON.parse(JSON.stringify(entry)))
+    expect(revived.releaseDate).toEqual(new Date('2021-10-22T00:00:00Z'))
+    expect(revived.roles).toEqual(['DIRECTOR', 'WRITER'])
+    expect(movieCreditSchema.safeParse({ ...entry, roles: [] }).success).toBe(false)
+  })
+
+  it('read any page of the filmography URL, falling back to the first', () => {
+    expect(filmographyUrlQuery.parse({ page: '3' })).toEqual({ page: 3 })
+    expect(filmographyUrlQuery.parse({ page: 'abc' })).toEqual({ page: 1 })
+    expect(filmographyUrlQuery.parse({})).toEqual({ page: 1 })
   })
 })

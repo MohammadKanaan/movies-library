@@ -100,7 +100,7 @@ describe('personJsonLd', () => {
     birthDate: null,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-    filmography: [],
+    roleCounts: { DIRECTOR: 0, WRITER: 0, ACTOR: 0 },
     permissions: { update: false, delete: false },
   }
 

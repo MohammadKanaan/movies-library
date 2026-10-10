@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { cache } from 'react'
 import { ActionGroup } from '@/components/ActionGroup'
+import { ButtonLink } from '@/components/ButtonLink'
 import { Empty } from '@/components/Empty'
 import { JsonLd } from '@/components/JsonLd'
 import { MovieCard } from '@/components/Movies/MovieCard'
@@ -11,29 +12,43 @@ import { Headshot } from '@/components/People/Headshot'
 import { PEOPLE_LIST_HIDDEN, personPath, ROUTE_PEOPLE_BACK } from '@/lib/constants-routes'
 import { creditRoleLabel, summarizeFilmography } from '@/lib/creditRoles'
 import { loadPage } from '@/lib/data/page'
-import { getPersonBySlug } from '@/lib/data/people'
+import { getPersonBySlug, listFilmography } from '@/lib/data/people'
 import { siteUrl } from '@/lib/data/site'
+import { filmographyUrlQuery } from '@/lib/dto/people'
 import { formatDate } from '@/lib/formatDate'
-import { describePerson, SITE_OPEN_GRAPH } from '@/lib/seo'
+import { toScalarParams } from '@/lib/searchParams'
+import { describePerson, pagedPath, pagedTitle, SITE_OPEN_GRAPH } from '@/lib/seo'
 import { personJsonLd } from '@/lib/structuredData'
+import { FilmographyView } from './view'
 import styles from './styles.module.scss'
 
 /** Roughly the first two rows on a wide screen: their posters load eagerly. */
 const EAGER_POSTERS = 8
+/** Four rows of the grid on a wide screen. */
+const FILMS_PER_PAGE = 24
 
-// `generateMetadata` and the page read the same person: one DAL call per request.
+// `generateMetadata` and the page read the same person and the same page of films: one DAL call
+// each per request.
 const loadPerson = cache((slug: string) => loadPage(() => getPersonBySlug(slug), personPath(slug)))
+const loadFilmography = cache((slug: string, page: number) =>
+  loadPage(
+    () => listFilmography({ personSlug: slug, page, perPage: FILMS_PER_PAGE }),
+    pagedPath(personPath(slug), page),
+  ),
+)
 
 export const generateMetadata = async ({
   params,
+  searchParams,
 }: PageProps<'/people/[slug]'>): Promise<Metadata> => {
   const { slug } = await params
-  const person = await loadPerson(slug)
+  const { page } = filmographyUrlQuery.parse(toScalarParams(await searchParams))
+  const [person, films] = await Promise.all([loadPerson(slug), loadFilmography(slug, page)])
   const path = personPath(slug)
   return {
-    title: person.name,
-    description: describePerson(person),
-    alternates: { canonical: path },
+    title: pagedTitle(person.name, page),
+    description: describePerson(person, films.items),
+    alternates: { canonical: pagedPath(path, page) },
     openGraph: {
       ...SITE_OPEN_GRAPH,
       type: 'profile',
@@ -43,12 +58,14 @@ export const generateMetadata = async ({
   }
 }
 
-const PersonPage = async ({ params }: PageProps<'/people/[slug]'>) => {
+const PersonPage = async ({ params, searchParams }: PageProps<'/people/[slug]'>) => {
   const { slug } = await params
-  const person = await loadPerson(slug)
-  const summary = summarizeFilmography(person.filmography)
+  // A garbled URL falls back to the first page.
+  const { page } = filmographyUrlQuery.parse(toScalarParams(await searchParams))
+  const [person, films] = await Promise.all([loadPerson(slug), loadFilmography(slug, page)])
+  const summary = summarizeFilmography(person.roleCounts)
   // The DAL refuses to delete someone with credits, so the action is only offered without any.
-  const canDelete = person.permissions.delete && person.filmography.length === 0
+  const canDelete = person.permissions.delete && films.totalItems === 0
 
   return (
     <article className={styles.page}>
@@ -90,24 +107,37 @@ const PersonPage = async ({ params }: PageProps<'/people/[slug]'>) => {
         <h2 id="filmography-heading" className={styles.sectionTitle}>
           Filmography
         </h2>
-        {person.filmography.length === 0 ? (
-          <Empty
-            title="No credits yet"
-            description="Films appear here once this person is credited on one."
-          />
-        ) : (
-          <ul className={styles.grid}>
-            {person.filmography.map((movie, index) => (
-              <li key={movie.id}>
-                <MovieCard
-                  movie={movie}
-                  priority={index < EAGER_POSTERS}
-                  details={movie.roles.map(creditRoleLabel)}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
+        <FilmographyView page={films.page} totalPages={films.totalPages}>
+          {films.items.length === 0 ? (
+            <Empty
+              title={page > 1 ? 'No films on this page' : 'No credits yet'}
+              description={
+                page > 1
+                  ? 'The filmography has fewer pages than it did.'
+                  : 'Films appear here once this person is credited on one.'
+              }
+              action={
+                page > 1 ? (
+                  <ButtonLink href={personPath(slug)} variant="outline">
+                    First page
+                  </ButtonLink>
+                ) : undefined
+              }
+            />
+          ) : (
+            <ul className={styles.grid}>
+              {films.items.map((movie, index) => (
+                <li key={movie.id}>
+                  <MovieCard
+                    movie={movie}
+                    priority={page === 1 && index < EAGER_POSTERS}
+                    details={movie.roles.map(creditRoleLabel)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </FilmographyView>
       </section>
     </article>
   )

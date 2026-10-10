@@ -115,6 +115,18 @@
   letter-spacing: var(--font-display-tracking);
 }
 
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  transition: opacity 150ms ease-out;
+
+  // A page change is in flight: dim the grid it is about to replace.
+  &[aria-busy='true'] {
+    opacity: 0.6;
+  }
+}
+
 // The same grid as the movie list, so a filmography reads like a filtered catalog.
 .grid {
   display: grid;
