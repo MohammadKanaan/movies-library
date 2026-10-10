@@ -1,3 +1,4 @@
+import { Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { ActionGroup } from '@/components/ActionGroup'
@@ -32,7 +33,8 @@ type ReviewCardProps = {
 
 /**
  * One review: who wrote it, the stars, the date and the text. A review that spoils the movie keeps
- * its text inside a closed `<details>`, which needs no script. The author may edit it and the author
+ * its text inside a closed `<details>`, which needs no script and slides open where the browser can
+ * animate it. The author may edit it and the author
  * or an admin may delete it (`review.permissions`), from the icons at the end of its header. Without
  * children it links to the review's page, with its number of comments.
  */
@@ -107,8 +109,16 @@ export const ReviewCard = ({
 
       {review.spoiler && review.body ? (
         <details className={styles.spoiler}>
-          <summary className={styles.summary}>Contains spoilers: show</summary>
-          {content}
+          <summary className={styles.summary}>
+            <Eye className={styles.whenClosed} aria-hidden="true" />
+            <EyeOff className={styles.whenOpen} aria-hidden="true" />
+            <span>Contains spoilers</span>
+            <span className={styles.toggle}>
+              <span className={styles.whenClosed}>Show</span>
+              <span className={styles.whenOpen}>Hide</span>
+            </span>
+          </summary>
+          <div className={styles.revealed}>{content}</div>
         </details>
       ) : (
         content
