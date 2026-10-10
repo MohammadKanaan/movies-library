@@ -6,13 +6,13 @@ import {
   listPeopleQuery,
   personDetailSchema,
   personInput,
-  personSummarySchema,
+  personListItemSchema,
   updatePersonInput,
   type ListPeopleQuery,
   type MovieCredit,
   type PersonDetail,
   type PersonInput,
-  type PersonSummary,
+  type PersonListItem,
   type UpdatePersonInput,
 } from '@/lib/dto/people'
 import { slugify } from '@/lib/slug'
@@ -34,6 +34,20 @@ export const personSummarySelect = {
   slug: true,
   name: true,
 } satisfies Prisma.PersonSelect
+
+/** A list row: the summary plus the credit count (a person in two roles on one movie counts twice). */
+const personListItemSelect = {
+  ...personSummarySelect,
+  createdAt: true,
+  _count: { select: { credits: true } },
+} satisfies Prisma.PersonSelect
+
+type PersonListItemRow = Prisma.PersonGetPayload<{ select: typeof personListItemSelect }>
+
+const toPersonListItem = ({ _count, ...person }: PersonListItemRow): PersonListItem => ({
+  ...person,
+  creditCount: _count.credits,
+})
 
 const movieCreditSelect = {
   id: true,
@@ -101,10 +115,11 @@ const readPersonDetail = async (id: string, viewer: SessionUser): Promise<Person
 }
 
 /**
- * Public: people by name, optionally searched (case-insensitive, wildcards literal). Only the plain
- * list is cached: a search is an unbounded key and is always read from the database.
+ * Public: people by name, optionally searched (case-insensitive, wildcards literal), each with their
+ * credit count. Only the plain list is cached: a search is an unbounded key and is always read from
+ * the database.
  */
-export const listPeople = async (query: ListPeopleQuery): Promise<Page<PersonSummary>> => {
+export const listPeople = async (query: ListPeopleQuery): Promise<Page<PersonListItem>> => {
   const { page, perPage, q } = parseInput(listPeopleQuery, query)
   const load = async () => {
     const where: Prisma.PersonWhereInput = q
@@ -113,21 +128,21 @@ export const listPeople = async (query: ListPeopleQuery): Promise<Page<PersonSum
     const [rows, totalItems] = await Promise.all([
       db.person.findMany({
         where,
-        select: personSummarySelect,
+        select: personListItemSelect,
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         skip: (page - 1) * perPage,
         take: perPage,
       }),
       db.person.count({ where }),
     ])
-    return toPage(rows, totalItems, { page, perPage })
+    return toPage(rows.map(toPersonListItem), totalItems, { page, perPage })
   }
   if (q) {
     return load()
   }
   return remember(
     `people:list:${JSON.stringify([page, perPage])}`,
-    { ttl: PEOPLE_CACHE_TTL, tags: [CATALOG_TAG], schema: pageSchema(personSummarySchema) },
+    { ttl: PEOPLE_CACHE_TTL, tags: [CATALOG_TAG], schema: pageSchema(personListItemSchema) },
     load,
   )
 }

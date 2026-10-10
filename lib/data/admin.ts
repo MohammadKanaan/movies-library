@@ -2,6 +2,12 @@ import 'server-only'
 import { APIError } from 'better-auth/api'
 import { headers } from 'next/headers'
 import { Prisma } from '@/generated/prisma/client'
+import {
+  ADMIN_OVERVIEW_RECENT,
+  ADMIN_USER_MOVIES,
+  type AdminOverview,
+  type AdminUserDetail,
+} from '@/lib/dto/admin'
 import { toPage, type Page } from '@/lib/dto/common'
 import {
   banUserInput,
@@ -17,6 +23,7 @@ import { auth, requireAdmin, requireUser, toRole } from './auth'
 import { db } from './db'
 import { escapeLike } from './escapeLike'
 import { ForbiddenError, NotFoundError, parseInput } from './errors'
+import { movieSummarySelect, toMovieSummary } from './movies'
 
 // The admin area. Reads are this app's own queries; writes go through Better Auth's admin plugin
 // (`auth.api.*`), which owns the semantics (a ban revokes the sessions, impersonation opens a
@@ -66,16 +73,18 @@ const readAdminUser = async (id: string): Promise<AdminUser> => {
 
 /**
  * Admin only: every user, newest first, optionally filtered by a search over name, username and
- * email. Never cached: the list carries emails and is restricted to admins, and a shared cache
- * entry would outlive a role change.
+ * email, by role and by status. Never cached: the list carries emails and is restricted to admins,
+ * and a shared cache entry would outlive a role change.
  */
 export const listUsers = async (query: ListUsersQuery): Promise<Page<AdminUser>> => {
   await requireAdmin()
-  const { page, perPage, q } = parseInput(listUsersQuery, query)
+  const { page, perPage, q, role, status } = parseInput(listUsersQuery, query)
   const contains = q ? { contains: escapeLike(q), mode: 'insensitive' as const } : undefined
-  const where: Prisma.UserWhereInput = contains
-    ? { OR: [{ name: contains }, { username: contains }, { email: contains }] }
-    : {}
+  const where: Prisma.UserWhereInput = {
+    ...(contains ? { OR: [{ name: contains }, { username: contains }, { email: contains }] } : {}),
+    ...(role ? { role } : {}),
+    ...(status ? { banned: status === 'banned' } : {}),
+  }
   const [rows, totalItems] = await Promise.all([
     db.user.findMany({
       where,
@@ -87,6 +96,105 @@ export const listUsers = async (query: ListUsersQuery): Promise<Page<AdminUser>>
     db.user.count({ where }),
   ])
   return toPage(rows.map(toAdminUser), totalItems, { page, perPage })
+}
+
+/** The detail's row: the list row plus image, timestamps, live sessions (never the token) and the movie count. */
+const adminUserDetailSelect = (now: Date) =>
+  ({
+    ...adminUserSelect,
+    image: true,
+    updatedAt: true,
+    sessions: {
+      where: { expiresAt: { gt: now } },
+      select: { id: true, userAgent: true, createdAt: true, expiresAt: true },
+      orderBy: { createdAt: 'desc' },
+    },
+    _count: { select: { movies: true } },
+  }) satisfies Prisma.UserSelect
+
+/**
+ * Admin only: one user with their image, unexpired sessions and the newest movies they added. A
+ * malformed id reads as not found, like an unknown one (it is a read, so pages pass the route
+ * param straight in). Never cached, like the list.
+ */
+export const getAdminUser = async (id: string): Promise<AdminUserDetail> => {
+  await requireAdmin()
+  if (!userIdSchema.safeParse(id).success) {
+    throw new NotFoundError('User not found')
+  }
+  const [row, movies] = await Promise.all([
+    db.user.findUnique({ where: { id }, select: adminUserDetailSelect(new Date()) }),
+    db.movie.findMany({
+      where: { createdById: id },
+      select: movieSummarySelect,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: ADMIN_USER_MOVIES,
+    }),
+  ])
+  if (!row) {
+    throw new NotFoundError('User not found')
+  }
+  const { _count, sessions, ...user } = row
+  return {
+    ...toAdminUser(user),
+    image: user.image,
+    updatedAt: user.updatedAt,
+    sessions,
+    movieCount: _count.movies,
+    movies: movies.map(toMovieSummary),
+  }
+}
+
+/**
+ * Admin only: ends every session of the user (they are signed out everywhere, and may sign in
+ * again). The plugin does not check that the user exists, so the DAL does (404).
+ */
+export const revokeUserSessions = async (id: string): Promise<void> => {
+  await requireAdmin()
+  const userId = parseInput(userIdSchema, id)
+  await readAdminUser(userId)
+  await auth.api
+    .revokeUserSessions({ body: { userId }, headers: await headers() })
+    .catch(fromAdminApi)
+}
+
+/** Admin only: the dashboard's counts and the latest additions. Never cached: a few indexed counts. */
+export const getAdminOverview = async (): Promise<AdminOverview> => {
+  await requireAdmin()
+  const [
+    movies,
+    people,
+    genres,
+    users,
+    admins,
+    banned,
+    moviesWithoutPoster,
+    recentMovies,
+    recentUsers,
+  ] = await Promise.all([
+    db.movie.count(),
+    db.person.count(),
+    db.genre.count(),
+    db.user.count(),
+    db.user.count({ where: { role: 'admin' } }),
+    db.user.count({ where: { banned: true } }),
+    db.movie.count({ where: { posterUrl: null } }),
+    db.movie.findMany({
+      select: movieSummarySelect,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: ADMIN_OVERVIEW_RECENT,
+    }),
+    db.user.findMany({
+      select: adminUserSelect,
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      take: ADMIN_OVERVIEW_RECENT,
+    }),
+  ])
+  return {
+    counts: { movies, people, genres, users, admins, banned, moviesWithoutPoster },
+    recentMovies: recentMovies.map(toMovieSummary),
+    recentUsers: recentUsers.map(toAdminUser),
+  }
 }
 
 /**

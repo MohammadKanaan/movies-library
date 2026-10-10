@@ -1,0 +1,62 @@
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.addForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  max-width: 28rem;
+}
+
+.addField {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.formError {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--destructive);
+  font-size: 0.875rem;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.name {
+  font-weight: 500;
+}
+
+.slug {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.countLink {
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.zero {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}

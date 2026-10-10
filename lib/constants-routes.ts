@@ -14,6 +14,20 @@ export const moviePath = (slug: string) => `${ROUTE_MOVIES}/${slug}`
 export const moviesByGenrePath = (genreSlug: string) =>
   `${ROUTE_MOVIES}?${new URLSearchParams({ genre: genreSlug })}`
 
+/** The movie list filtered to one person's credits. */
+export const moviesByPersonPath = (personSlug: string) =>
+  `${ROUTE_MOVIES}?${new URLSearchParams({ person: personSlug })}`
+
+// The admin dashboard (`app/(admin)`): every route under `/admin` is private, see `PUBLIC_ROUTES`.
+export const ROUTE_ADMIN_MOVIES = `${ROUTE_ADMIN}/movies`
+export const ROUTE_ADMIN_MOVIE_NEW = `${ROUTE_ADMIN_MOVIES}/new`
+/** Movie slugs never change, so they are the admin URLs too. */
+export const adminMovieEditPath = (slug: string) => `${ROUTE_ADMIN_MOVIES}/${slug}/edit`
+export const ROUTE_ADMIN_PEOPLE = `${ROUTE_ADMIN}/people`
+export const ROUTE_ADMIN_GENRES = `${ROUTE_ADMIN}/genres`
+export const ROUTE_ADMIN_USERS = `${ROUTE_ADMIN}/users`
+export const adminUserPath = (id: string) => `${ROUTE_ADMIN_USERS}/${id}`
+
 export const loginPath = (next: string) => `${ROUTE_LOGIN}?next=${encodeURIComponent(next)}`
 
 /** Routes a signed-out visitor may open; everything else redirects to login (see `proxy.ts`). */

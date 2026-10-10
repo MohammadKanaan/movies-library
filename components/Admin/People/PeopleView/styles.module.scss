@@ -1,0 +1,72 @@
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.search {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  gap: 0.75rem;
+  min-width: 16rem;
+  max-width: 28rem;
+}
+
+.searchField {
+  flex: 1;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: opacity 150ms ease-out;
+
+  &[aria-busy='true'] {
+    opacity: 0.6;
+  }
+}
+
+.name {
+  font-weight: 500;
+}
+
+.slug {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.countLink {
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.zero {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}

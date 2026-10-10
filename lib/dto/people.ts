@@ -14,6 +14,14 @@ export const personSummarySchema = z.object({
 
 export type PersonSummary = z.infer<typeof personSummarySchema>
 
+/** One row of the people list: the summary plus how many credits they hold and when they were added. */
+export const personListItemSchema = personSummarySchema.extend({
+  creditCount: z.number().int().nonnegative(),
+  createdAt: z.coerce.date(),
+})
+
+export type PersonListItem = z.infer<typeof personListItemSchema>
+
 /** A movie as a person's filmography shows it. */
 export const movieCreditSchema = z.object({
   id: z.string(),

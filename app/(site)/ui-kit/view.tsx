@@ -3,6 +3,9 @@
 import { X } from 'lucide-react'
 import { useState, type ComponentProps, type ReactNode } from 'react'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/Admin/ConfirmDialog'
+import { NameDialog } from '@/components/Admin/NameDialog'
+import { StatCard } from '@/components/Admin/StatCard'
 import { Empty } from '@/components/Empty'
 import { FileUploader } from '@/components/Form/FileUploader'
 import { Input } from '@/components/Form/Input'
@@ -64,7 +67,9 @@ import {
 } from '@/components/SCN/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/SCN/tooltip'
 import { UserAvatar } from '@/components/UserAvatar'
+import { genreInput } from '@/lib/dto/genres'
 import type { CurrentUser } from '@/lib/dto/users'
+import type { ActionResult } from '@/types/api'
 import styles from './styles.module.scss'
 
 type ButtonVariant = NonNullable<ComponentProps<typeof Button>['variant']>
@@ -111,6 +116,25 @@ const SAMPLE_USER: CurrentUser = {
   emailVerified: true,
   image: null,
   role: 'editor',
+}
+
+const resolveAfter = <T,>(value: T, ms = 400) =>
+  new Promise<T>((resolve) => {
+    setTimeout(() => resolve(value), ms)
+  })
+
+const CONFIRM_OK: ActionResult<undefined> = { ok: true, data: undefined }
+const CONFIRM_REFUSED: ActionResult<undefined> = {
+  ok: false,
+  code: 'VALIDATION',
+  message: 'Remove the genre from its 3 movies first',
+}
+const NAME_OK: ActionResult<undefined> = { ok: true, data: undefined }
+const NAME_TAKEN: ActionResult<undefined> = {
+  ok: false,
+  code: 'VALIDATION',
+  message: 'Check the form',
+  fieldErrors: { name: ['That genre already exists'] },
 }
 
 type SectionProps = {
@@ -526,6 +550,91 @@ export const UiKitView = () => {
             return { ok: true, data: null }
           }}
         />
+      </Section>
+
+      <Section
+        id="confirm-dialog"
+        eyebrow="Application components"
+        title="ConfirmDialog"
+        description="Asks before an irreversible write. A refusal is shown inside the dialog, which stays open."
+      >
+        <div className={styles.row}>
+          <ConfirmDialog
+            trigger="Delete"
+            title="Delete this genre?"
+            description="This cannot be undone."
+            confirmLabel="Delete"
+            onConfirm={() => resolveAfter(CONFIRM_OK)}
+            onDone={() => toast.success('Genre deleted')}
+          />
+          <ConfirmDialog
+            trigger="Delete (refused)"
+            title="Delete this genre?"
+            description="The server refuses, and the message appears here."
+            confirmLabel="Delete"
+            onConfirm={() => resolveAfter(CONFIRM_REFUSED)}
+          />
+          <ConfirmDialog
+            trigger="Delete (disabled)"
+            triggerTitle="Remove the genre from its movies first"
+            title="Delete this genre?"
+            description="This cannot be undone."
+            confirmLabel="Delete"
+            disabled
+            onConfirm={() => resolveAfter(CONFIRM_OK)}
+          />
+        </div>
+      </Section>
+
+      <Section
+        id="name-dialog"
+        eyebrow="Application components"
+        title="NameDialog"
+        description="A one-field dialog that creates or renames a genre or a person, validated by the DTO schema."
+      >
+        <div className={styles.row}>
+          <NameDialog
+            trigger="Add genre"
+            title="Add genre"
+            label="Name"
+            schema={genreInput}
+            submitLabel="Create"
+            onSubmit={() => resolveAfter(NAME_OK)}
+            onDone={() => toast.success('Genre created')}
+          />
+          <NameDialog
+            trigger="Rename"
+            title="Rename genre"
+            description="The slug follows the new name."
+            label="Name"
+            schema={genreInput}
+            defaultName="Drama"
+            submitLabel="Save"
+            onSubmit={() => resolveAfter(NAME_OK)}
+            onDone={() => toast.success('Genre renamed')}
+          />
+          <NameDialog
+            trigger="Add genre (name taken)"
+            title="Add genre"
+            label="Name"
+            schema={genreInput}
+            submitLabel="Create"
+            onSubmit={() => resolveAfter(NAME_TAKEN)}
+          />
+        </div>
+      </Section>
+
+      <Section
+        id="stat-card"
+        eyebrow="Application components"
+        title="StatCard"
+        description="One number of the dashboard overview, with an optional hint and link."
+      >
+        <div className={styles.statGrid}>
+          <StatCard label="Movies" value={16} hint="2 without a poster" />
+          <StatCard label="People" value={12345} href="#stat-card" />
+          <StatCard label="Banned" value={0} />
+        </div>
       </Section>
 
       <Section

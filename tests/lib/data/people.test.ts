@@ -39,14 +39,43 @@ describe('people DAL', () => {
   })
 
   describe('listPeople', () => {
-    it('is public and lists people by name as summaries', async () => {
+    it('is public and lists people by name with their credit count and creation date', async () => {
       const denis = await seedPerson('Denis Villeneuve')
-      await seedPerson('Amy Adams')
+      const amy = await seedPerson('Amy Adams')
+      await seedMovie({
+        title: 'Arrival',
+        releaseDate: '2016-11-11',
+        credits: [
+          { personId: denis.id, role: 'DIRECTOR' },
+          { personId: amy.id, role: 'ACTOR' },
+        ],
+      })
+      // Two roles on one movie are two credits.
+      await seedMovie({
+        title: 'Dune',
+        releaseDate: '2021-10-22',
+        credits: [
+          { personId: denis.id, role: 'DIRECTOR' },
+          { personId: denis.id, role: 'WRITER' },
+        ],
+      })
       const page = await listPeople(all)
       expect(page).toMatchObject({ page: 1, perPage: 10, totalItems: 2, totalPages: 1 })
       expect(page.items).toEqual([
-        { id: expect.any(String), slug: 'amy-adams', name: 'Amy Adams' },
-        { id: denis.id, slug: 'denis-villeneuve', name: 'Denis Villeneuve' },
+        {
+          id: amy.id,
+          slug: 'amy-adams',
+          name: 'Amy Adams',
+          creditCount: 1,
+          createdAt: expect.any(Date),
+        },
+        {
+          id: denis.id,
+          slug: 'denis-villeneuve',
+          name: 'Denis Villeneuve',
+          creditCount: 3,
+          createdAt: expect.any(Date),
+        },
       ])
     })
 

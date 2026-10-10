@@ -1,0 +1,77 @@
+import { render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { AdminSidebar } from '@/components/Admin/Shell/AdminSidebar'
+import { SidebarProvider } from '@/components/SCN/sidebar'
+import type { CurrentUser } from '@/lib/dto/users'
+
+const navigation = vi.hoisted(() => ({ pathname: '/admin' }))
+vi.mock('next/navigation', () => ({ usePathname: () => navigation.pathname }))
+// jsdom has no `matchMedia`; the sidebar renders its desktop form.
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
+vi.mock('@/components/Auth/SignOutButton', () => ({
+  SignOutButton: () => <button>Log out</button>,
+}))
+
+const admin: CurrentUser = {
+  id: 'u1',
+  name: 'Ada Lovelace',
+  username: 'ada',
+  email: 'ada@example.com',
+  emailVerified: true,
+  image: null,
+  role: 'admin',
+}
+
+const renderSidebar = () =>
+  render(
+    <SidebarProvider>
+      <AdminSidebar viewer={admin} />
+    </SidebarProvider>,
+  )
+
+describe('AdminSidebar', () => {
+  beforeEach(() => {
+    navigation.pathname = '/admin'
+  })
+
+  it('links to every section of the dashboard', () => {
+    renderSidebar()
+    const hrefs = Object.fromEntries(
+      ['Overview', 'Movies', 'People', 'Genres', 'Users'].map((name) => [
+        name,
+        screen.getByRole('link', { name }).getAttribute('href'),
+      ]),
+    )
+    expect(hrefs).toEqual({
+      Overview: '/admin',
+      Movies: '/admin/movies',
+      People: '/admin/people',
+      Genres: '/admin/genres',
+      Users: '/admin/users',
+    })
+  })
+
+  it('marks the most specific section of the current path as current', () => {
+    navigation.pathname = '/admin/movies/dune-2021/edit'
+    renderSidebar()
+    expect(screen.getByRole('link', { name: 'Movies' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Overview' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: 'People' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('marks the overview as current on the dashboard root only', () => {
+    renderSidebar()
+    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Users' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('shows the signed-in admin with a way to their settings and to sign out', () => {
+    renderSidebar()
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Account settings/ })).toHaveAttribute(
+      'href',
+      '/settings',
+    )
+    expect(screen.getByRole('button', { name: 'Log out' })).toBeInTheDocument()
+  })
+})

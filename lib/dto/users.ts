@@ -79,18 +79,29 @@ export const adminUserSchema = z.object({
 
 export type AdminUser = z.infer<typeof adminUserSchema>
 
+/** Whether a user may sign in: `banned` users are refused until unbanned. */
+export const userStatusSchema = z.enum(['active', 'banned'])
+
+export type UserStatus = z.infer<typeof userStatusSchema>
+
 export const listUsersQuery = pageQuerySchema.extend({
   /** Matches name, username or email, case-insensitively; bounded because it is free text. */
   q: z.string().trim().max(USER_SEARCH_MAX_LENGTH).optional(),
+  role: roleSchema.optional(),
+  status: userStatusSchema.optional(),
 })
 
 export type ListUsersQuery = z.infer<typeof listUsersQuery>
 
-/** The tolerant URL contract of the admin list: any query string parses, falling back to defaults. */
+/** The tolerant URL contract of the admin list: any query string parses, falling back to defaults ('' is "any"). */
 export const usersUrlQuery = z.object({
   page: pageQuerySchema.shape.page.catch(1),
   q: z.string().trim().max(USER_SEARCH_MAX_LENGTH).catch(''),
+  role: roleSchema.or(z.literal('')).catch(''),
+  status: userStatusSchema.or(z.literal('')).catch(''),
 })
+
+export type UsersUrlQuery = z.output<typeof usersUrlQuery>
 
 export const setUserRoleInput = z.object({ id: userIdSchema, role: roleSchema })
 

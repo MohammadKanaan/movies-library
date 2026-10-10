@@ -4,6 +4,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   banUserAction,
   impersonateUserAction,
+  revokeUserSessionsAction,
   setUserRoleAction,
   stopImpersonatingAction,
   unbanUserAction,
@@ -221,6 +222,36 @@ describe('admin actions', () => {
         message: 'You are not impersonating anyone',
       })
       expect(refresh).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('revokeUserSessionsAction', () => {
+    it('requires an admin and does not refresh', async () => {
+      const target = await createUser({})
+      await signInAs(target)
+      expect(await revokeUserSessionsAction(target.id)).toMatchObject({
+        ok: false,
+        code: 'FORBIDDEN',
+      })
+      expect(refresh).not.toHaveBeenCalled()
+      // Sign-up opened one session, the sign-in another.
+      expect(await db.session.count({ where: { userId: target.id } })).toBe(2)
+    })
+
+    it('reports a malformed id as a validation failure', async () => {
+      const admin = await createUser({ role: 'admin' })
+      await signInAs(admin)
+      expect(await revokeUserSessionsAction('a b')).toMatchObject({ ok: false, code: 'VALIDATION' })
+    })
+
+    it('ends the user’s sessions and refreshes', async () => {
+      const target = await createUser({})
+      await signInAs(target)
+      const admin = await createUser({ role: 'admin' })
+      await signInAs(admin)
+      expect(await revokeUserSessionsAction(target.id)).toEqual({ ok: true, data: undefined })
+      expect(refresh).toHaveBeenCalledTimes(1)
+      expect(await db.session.count({ where: { userId: target.id } })).toBe(0)
     })
   })
 })

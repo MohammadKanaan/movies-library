@@ -16,7 +16,7 @@ import {
   removePoster,
   updateMovie,
 } from '@/lib/data/movies'
-import type { MovieInput } from '@/lib/dto/movies'
+import type { MovieInput, MovieSort } from '@/lib/dto/movies'
 import { objectDeleteDelaySeconds } from '@/lib/dto/uploads'
 import { enqueue } from '@/lib/server/queue'
 import { getRedis } from '@/lib/server/redis'
@@ -134,15 +134,17 @@ describe('movies DAL', () => {
       await expect(listMovies({ sort: 'rating' as never })).rejects.toBeInstanceOf(ValidationError)
     })
 
-    it('sorts oldest first and by title', async () => {
+    it('sorts oldest first, by title, and by when the movie was added', async () => {
       await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
       await seedMovie({ title: 'Arrival', releaseDate: '2016-11-11' })
       await seedMovie({ title: 'Blade Runner 2049', releaseDate: '2017-10-06' })
-      const titles = async (sort: 'newest' | 'oldest' | 'title') =>
+      const titles = async (sort: MovieSort) =>
         (await listMovies({ sort })).items.map((movie) => movie.title)
       expect(await titles('oldest')).toEqual(['Arrival', 'Blade Runner 2049', 'Dune'])
       expect(await titles('title')).toEqual(['Arrival', 'Blade Runner 2049', 'Dune'])
       expect(await titles('newest')).toEqual(['Dune', 'Blade Runner 2049', 'Arrival'])
+      // Insertion order reversed, whatever the release dates say.
+      expect(await titles('added')).toEqual(['Blade Runner 2049', 'Arrival', 'Dune'])
     })
 
     it('searches the title case-insensitively and treats wildcards literally', async () => {

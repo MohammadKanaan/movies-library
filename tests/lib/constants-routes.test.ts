@@ -1,5 +1,47 @@
 import { describe, expect, it } from 'vitest'
-import { isPrivateRoute, isPublicRoute, loginPath, safeRedirectPath } from '@/lib/constants-routes'
+import {
+  adminMovieEditPath,
+  adminUserPath,
+  isPrivateRoute,
+  isPublicRoute,
+  loginPath,
+  moviesByPersonPath,
+  ROUTE_ADMIN_GENRES,
+  ROUTE_ADMIN_MOVIE_NEW,
+  ROUTE_ADMIN_MOVIES,
+  ROUTE_ADMIN_PEOPLE,
+  ROUTE_ADMIN_USERS,
+  safeRedirectPath,
+} from '@/lib/constants-routes'
+
+describe('admin routes', () => {
+  it('nest under /admin and are all private', () => {
+    expect([
+      ROUTE_ADMIN_MOVIES,
+      ROUTE_ADMIN_MOVIE_NEW,
+      ROUTE_ADMIN_PEOPLE,
+      ROUTE_ADMIN_GENRES,
+      ROUTE_ADMIN_USERS,
+    ]).toEqual([
+      '/admin/movies',
+      '/admin/movies/new',
+      '/admin/people',
+      '/admin/genres',
+      '/admin/users',
+    ])
+    expect(adminMovieEditPath('dune-2021')).toBe('/admin/movies/dune-2021/edit')
+    expect(adminUserPath('0190d1a2-0000-7000-8000-000000000001')).toBe(
+      '/admin/users/0190d1a2-0000-7000-8000-000000000001',
+    )
+    for (const path of [ROUTE_ADMIN_MOVIES, adminMovieEditPath('dune-2021'), ROUTE_ADMIN_USERS]) {
+      expect(isPrivateRoute(path)).toBe(true)
+    }
+  })
+
+  it('builds the public movie list filtered to one person', () => {
+    expect(moviesByPersonPath('denis-villeneuve')).toBe('/movies?person=denis-villeneuve')
+  })
+})
 
 describe('route helpers', () => {
   it('treats the public pages and their subpaths as public', () => {

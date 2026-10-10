@@ -7,6 +7,7 @@ import {
   PERSON_NAME_MAX_LENGTH,
   personDetailSchema,
   personInput,
+  personListItemSchema,
   personSummarySchema,
   updatePersonInput,
 } from '@/lib/dto/people'
@@ -58,6 +59,21 @@ describe('person outputs', () => {
 
   it('summarise a person as id, slug and name', () => {
     expect(personSummarySchema.parse(summary)).toEqual(summary)
+  })
+
+  it('list a person with how many credits they hold and when they were added', () => {
+    const item = personListItemSchema.parse(
+      JSON.parse(
+        JSON.stringify({ ...summary, creditCount: 3, createdAt: new Date('2026-01-01T00:00:00Z') }),
+      ),
+    )
+    expect(item).toEqual({
+      ...summary,
+      creditCount: 3,
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+    })
+    expect(personListItemSchema.safeParse(summary).success).toBe(false)
+    expect(personListItemSchema.safeParse({ ...item, creditCount: 1.5 }).success).toBe(false)
   })
 
   it('revive dates in the detail and its filmography after a JSON round trip', () => {

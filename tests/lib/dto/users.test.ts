@@ -11,6 +11,7 @@ import {
   updateProfileInput,
   USER_SEARCH_MAX_LENGTH,
   usersUrlQuery,
+  userStatusSchema,
 } from '@/lib/dto/users'
 
 const ID = '0190d1a2-0000-7000-8000-000000000001'
@@ -47,10 +48,24 @@ describe('admin user list', () => {
     expect(listUsersQuery.safeParse({ page: String(MAX_PAGE + 1) }).success).toBe(false)
   })
 
+  it('filters by a known role and by status', () => {
+    expect(listUsersQuery.parse({ role: 'editor', status: 'banned' })).toMatchObject({
+      role: 'editor',
+      status: 'banned',
+    })
+    expect(userStatusSchema.options).toEqual(['active', 'banned'])
+    expect(listUsersQuery.safeParse({ role: 'owner' }).success).toBe(false)
+    expect(listUsersQuery.safeParse({ status: 'deleted' }).success).toBe(false)
+  })
+
   it('parses any URL by falling back per field', () => {
-    expect(usersUrlQuery.parse({})).toEqual({ page: 1, q: '' })
-    expect(usersUrlQuery.parse({ page: 'abc', q: 'a'.repeat(101) })).toEqual({ page: 1, q: '' })
-    expect(usersUrlQuery.parse({ page: '2', q: ' ada ' })).toEqual({ page: 2, q: 'ada' })
+    expect(usersUrlQuery.parse({})).toEqual({ page: 1, q: '', role: '', status: '' })
+    expect(
+      usersUrlQuery.parse({ page: 'abc', q: 'a'.repeat(101), role: 'owner', status: 'x' }),
+    ).toEqual({ page: 1, q: '', role: '', status: '' })
+    expect(usersUrlQuery.parse({ page: '2', q: ' ada ', role: 'admin', status: 'active' })).toEqual(
+      { page: 2, q: 'ada', role: 'admin', status: 'active' },
+    )
   })
 
   it('accepts a user id and a known role only', () => {

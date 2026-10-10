@@ -333,10 +333,11 @@ logged and falls through to the database. Tag versions have no TTL, so Redis mus
 
 ## Layouts
 
-| Route group | Use case                                               |
-| ----------- | ------------------------------------------------------ |
-| `(site)`    | Main pages (NavBar, padded content container)          |
-| `(minimal)` | Auth pages (`/login`, `/signup`; no navigation chrome) |
+| Route group | Use case                                                                                                                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `(site)`    | Main pages (NavBar, padded content container)                                                                                                                                                           |
+| `(minimal)` | Auth pages (`/login`, `/signup`; no navigation chrome)                                                                                                                                                  |
+| `(admin)`   | The admin dashboard (`/admin/**`): shadcn sidebar shell (`components/Admin/Shell`), no NavBar; its layout runs `requireAdmin()` through `loadPage`, and every page still reads admin-only DAL functions |
 
 - The root `app/layout.tsx` owns fonts, global styles, and `Providers` (theme, tooltips, toaster).
 - The `(site)` layout is async: it reads the session once (`getViewer()`, `getSessionUser()`) and

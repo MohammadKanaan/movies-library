@@ -3,8 +3,11 @@ import { APIError } from 'better-auth/api'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   banUser,
+  getAdminOverview,
+  getAdminUser,
   impersonateUser,
   listUsers,
+  revokeUserSessions,
   setUserRole,
   stopImpersonating,
   unbanUser,
@@ -18,8 +21,10 @@ import {
   ValidationError,
 } from '@/lib/data/errors'
 import { getViewer } from '@/lib/data/users'
-import { BAN_REASON_MAX_LENGTH } from '@/lib/dto/users'
+import { ADMIN_OVERVIEW_RECENT, ADMIN_USER_MOVIES } from '@/lib/dto/admin'
+import { BAN_REASON_MAX_LENGTH, type ListUsersQuery } from '@/lib/dto/users'
 import { getRedis } from '@/lib/server/redis'
+import { seedGenre, seedMovie, seedPerson } from '../../helpers/catalog'
 import { cookieJar } from '../../helpers/cookies'
 import { createUser, resetDatabase, signInAs, signOut, TEST_PASSWORD } from '../../helpers/server'
 
@@ -143,6 +148,29 @@ describe('admin DAL', () => {
       expect((await listUsers({ ...all, q: 'example.com' })).totalItems).toBe(3)
       // A blank search is no search.
       expect((await listUsers({ ...all, q: '   ' })).totalItems).toBe(5)
+    })
+
+    it('filters by role and by status, together with the search', async () => {
+      const editor = await createUser({ name: 'Ed', username: 'ed_itor', role: 'editor' })
+      const bannedViewer = await createUser({ name: 'Ben', username: 'ben_v' })
+      await createUser({ name: 'Vera', username: 'vera_v' })
+      const admin = await createUser({ name: 'Root', username: 'root_u', role: 'admin' })
+      await signInAs(admin)
+      await banUser({ id: bannedViewer.id })
+
+      const names = async (query: Partial<ListUsersQuery>) =>
+        (await listUsers({ ...all, ...query })).items.map((user) => user.name).sort()
+      expect(await names({ role: 'editor' })).toEqual(['Ed'])
+      expect(await names({ role: 'viewer' })).toEqual(['Ben', 'Vera'])
+      expect(await names({ status: 'banned' })).toEqual(['Ben'])
+      expect(await names({ status: 'active' })).toEqual(['Ed', 'Root', 'Vera'])
+      expect(await names({ role: 'viewer', status: 'active' })).toEqual(['Vera'])
+      expect(await names({ role: 'viewer', status: 'active', q: 'ben' })).toEqual([])
+      expect(await names({ q: 'ed_' })).toEqual(['Ed'])
+      expect((await listUsers({ ...all, role: 'editor' })).items[0]?.id).toBe(editor.id)
+      await expect(listUsers({ ...all, role: 'owner' as never })).rejects.toBeInstanceOf(
+        ValidationError,
+      )
     })
 
     it('is never served from a cache: a role change or a ban shows at once', async () => {
@@ -458,6 +486,166 @@ describe('admin DAL', () => {
         message: 'You are not impersonating anyone',
       })
       await expect(getSessionUser()).resolves.toMatchObject({ id: user.id })
+    })
+  })
+
+  describe('getAdminUser', () => {
+    it('requires an admin: 401 signed out, 403 for a regular user', async () => {
+      const target = await createUser({})
+      await expect(getAdminUser(target.id)).rejects.toBeInstanceOf(UnauthorizedError)
+      const member = await createUser({})
+      await signInAs(member)
+      await expect(getAdminUser(target.id)).rejects.toBeInstanceOf(ForbiddenError)
+    })
+
+    it('treats a malformed or unknown id as not found', async () => {
+      const admin = await createUser({ role: 'admin' })
+      await signInAs(admin)
+      await expect(getAdminUser('a b')).rejects.toBeInstanceOf(NotFoundError)
+      await expect(getAdminUser(crypto.randomUUID())).rejects.toBeInstanceOf(NotFoundError)
+    })
+
+    it('returns the row with its image, its unexpired sessions (no token) and the newest movies it added', async () => {
+      const target = await createUser({ name: 'Target', username: 'target_u' })
+      await db.user.update({
+        where: { id: target.id },
+        data: { image: 'https://pub.example/avatar.png' },
+      })
+      // Three live sessions (sign-up opened one, plus two sign-ins) and one expired.
+      await signInAs(target)
+      await signInAs(target)
+      await db.session.create({
+        data: {
+          userId: target.id,
+          token: 'expired-token',
+          expiresAt: new Date(Date.now() - 1000),
+          userAgent: 'Old',
+        },
+      })
+      const titles = Array.from({ length: ADMIN_USER_MOVIES + 1 }, (_v, i) => `Movie ${i}`)
+      for (const title of titles) {
+        await seedMovie({ title, releaseDate: '2020-01-01', createdById: target.id })
+      }
+      await seedMovie({ title: 'Someone else’s', releaseDate: '2020-01-01' })
+      const admin = await createUser({ role: 'admin' })
+      await signInAs(admin)
+
+      const detail = await getAdminUser(target.id)
+      expect(detail).toMatchObject({
+        id: target.id,
+        name: 'Target',
+        username: 'target_u',
+        email: target.email,
+        role: 'viewer',
+        banned: false,
+        image: 'https://pub.example/avatar.png',
+        movieCount: ADMIN_USER_MOVIES + 1,
+      })
+      expect(detail.updatedAt).toBeInstanceOf(Date)
+      expect(detail.sessions).toHaveLength(3)
+      expect(detail.sessions[0]).toEqual({
+        id: expect.any(String),
+        userAgent: expect.toBeOneOf([null, expect.any(String)]),
+        createdAt: expect.any(Date),
+        expiresAt: expect.any(Date),
+      })
+      expect(detail.sessions[0]).not.toHaveProperty('token')
+      // Newest added first, capped.
+      expect(detail.movies).toHaveLength(ADMIN_USER_MOVIES)
+      expect(detail.movies[0]?.title).toBe(`Movie ${ADMIN_USER_MOVIES}`)
+      expect(detail.movies.map((movie) => movie.title)).not.toContain('Someone else’s')
+    })
+  })
+
+  describe('revokeUserSessions', () => {
+    it('requires an admin: 401 signed out, 403 for a regular user, sessions kept', async () => {
+      const target = await createUser({})
+      await signInAs(target)
+      await expect(revokeUserSessions(target.id)).rejects.toBeInstanceOf(ForbiddenError)
+      signOut()
+      await expect(revokeUserSessions(target.id)).rejects.toBeInstanceOf(UnauthorizedError)
+      // Sign-up opened one session, the sign-in another.
+      expect(await db.session.count({ where: { userId: target.id } })).toBe(2)
+    })
+
+    it('validates the id and reports a missing user as not found', async () => {
+      const admin = await createUser({ role: 'admin' })
+      await signInAs(admin)
+      await expect(revokeUserSessions('a b')).rejects.toBeInstanceOf(ValidationError)
+      await expect(revokeUserSessions(crypto.randomUUID())).rejects.toBeInstanceOf(NotFoundError)
+    })
+
+    it('ends every session of the user and leaves the admin signed in', async () => {
+      const target = await createUser({})
+      await signInAs(target)
+      await signInAs(target)
+      const admin = await createUser({ role: 'admin' })
+      await signInAs(admin)
+
+      await revokeUserSessions(target.id)
+
+      expect(await db.session.count({ where: { userId: target.id } })).toBe(0)
+      await expect(getSessionUser()).resolves.toMatchObject({ id: admin.id })
+    })
+  })
+
+  describe('getAdminOverview', () => {
+    it('requires an admin: 401 signed out, 403 for a regular user', async () => {
+      await expect(getAdminOverview()).rejects.toBeInstanceOf(UnauthorizedError)
+      const member = await createUser({})
+      await signInAs(member)
+      await expect(getAdminOverview()).rejects.toBeInstanceOf(ForbiddenError)
+    })
+
+    it('counts the catalog and the users, and lists what was added last', async () => {
+      const drama = await seedGenre('Drama')
+      await seedGenre('Comedy')
+      const person = await seedPerson('Denis Villeneuve')
+      for (const n of [1, 2, 3, 4, 5, 6]) {
+        await seedMovie({
+          title: `Movie ${n}`,
+          releaseDate: '2020-01-01',
+          posterUrl: n % 2 === 0 ? 'https://pub.example/p.jpg' : null,
+          genreIds: [drama.id],
+          credits: [{ personId: person.id, role: 'DIRECTOR' }],
+        })
+      }
+      const banned = await createUser({ username: 'banned_u' })
+      await createUser({ username: 'viewer_u' })
+      const admin = await createUser({ username: 'root_u', role: 'admin' })
+      await signInAs(admin)
+      await banUser({ id: banned.id })
+
+      const overview = await getAdminOverview()
+      expect(overview.counts).toEqual({
+        movies: 6,
+        people: 1,
+        genres: 2,
+        users: 3,
+        admins: 1,
+        banned: 1,
+        moviesWithoutPoster: 3,
+      })
+      expect(overview.recentMovies.map((movie) => movie.title)).toEqual(
+        ['Movie 6', 'Movie 5', 'Movie 4', 'Movie 3', 'Movie 2'].slice(0, ADMIN_OVERVIEW_RECENT),
+      )
+      expect(overview.recentMovies[0]?.genres).toEqual([
+        { id: drama.id, name: 'Drama', slug: 'drama' },
+      ])
+      expect(overview.recentUsers.map((user) => user.username)).toEqual([
+        'root_u',
+        'viewer_u',
+        'banned_u',
+      ])
+      expect(overview.recentUsers[2]).toMatchObject({ banned: true })
+    })
+
+    it('is never served from a cache', async () => {
+      const admin = await createUser({ role: 'admin' })
+      await signInAs(admin)
+      expect((await getAdminOverview()).counts.genres).toBe(0)
+      await seedGenre('Drama')
+      expect((await getAdminOverview()).counts.genres).toBe(1)
     })
   })
 })

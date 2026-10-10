@@ -49,8 +49,11 @@ export const movieDetailSchema = movieSummarySchema.extend({
 
 export type MovieDetail = z.infer<typeof movieDetailSchema>
 
-/** `newest` and `oldest` order by release date, `title` alphabetically; `id` breaks every tie. */
-export const MOVIE_SORTS = ['newest', 'oldest', 'title'] as const
+/**
+ * `newest` and `oldest` order by release date, `title` alphabetically, `added` by when the catalog
+ * gained the movie (latest first, the admin list's default); `id` breaks every tie.
+ */
+export const MOVIE_SORTS = ['newest', 'oldest', 'title', 'added'] as const
 export const movieSortSchema = z.enum(MOVIE_SORTS).default('newest')
 
 export type MovieSort = z.output<typeof movieSortSchema>

@@ -41,7 +41,8 @@ import { userProfileSelect } from './users'
 
 const log = logger.child({ module: 'movies' })
 
-const movieSummarySelect = {
+/** Exactly the `MovieSummary` DTO (`toMovieSummary` flattens the genre join); the admin DAL reuses it. */
+export const movieSummarySelect = {
   id: true,
   slug: true,
   title: true,
@@ -88,9 +89,10 @@ const ORDER_BY: Record<MovieSort, Prisma.MovieOrderByWithRelationInput[]> = {
   newest: [{ releaseDate: 'desc' }, { id: 'desc' }],
   oldest: [{ releaseDate: 'asc' }, { id: 'asc' }],
   title: [{ title: 'asc' }, { id: 'asc' }],
+  added: [{ createdAt: 'desc' }, { id: 'desc' }],
 }
 
-const toMovieSummary = ({ genres, ...movie }: MovieSummaryRow): MovieSummary => ({
+export const toMovieSummary = ({ genres, ...movie }: MovieSummaryRow): MovieSummary => ({
   ...movie,
   genres: genres.map(({ genre }) => genre),
 })
