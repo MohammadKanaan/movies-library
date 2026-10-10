@@ -14,9 +14,11 @@ import { ButtonLink } from '@/components/ButtonLink'
 import { LoadingButton } from '@/components/LoadingButton'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { PageHeader } from '@/components/PageHeader'
+import { MoviePoster } from '@/components/Movies/MoviePoster'
 import { Headshot } from '@/components/People/Headshot'
 import { PersonCard } from '@/components/People/PersonCard'
 import { Pagination } from '@/components/Pagination'
+import { ResultRow } from '@/components/Search/ResultRow'
 import { AvatarUploader } from '@/components/Settings/AvatarUploader'
 import { ProfileForm } from '@/components/Settings/ProfileForm'
 import {
@@ -693,6 +695,32 @@ export const UiKitView = () => {
             person={{ ...SAMPLE_PERSON, headshotUrl: AVATAR_SAMPLE_IMAGE, creditCount: 1 }}
           />
         </div>
+      </Section>
+
+      <Section
+        id="result-row"
+        eyebrow="Application components"
+        title="ResultRow"
+        description="A search result: a poster or headshot, the title and a line of details, the whole row a link."
+      >
+        <ul className={styles.stack}>
+          <li>
+            <ResultRow
+              href="#result-row"
+              media={<MoviePoster movie={{ title: 'Cléo from 5 to 7', posterUrl: null }} />}
+              title="Cléo from 5 to 7"
+              details={['1962', 'Drama']}
+            />
+          </li>
+          <li>
+            <ResultRow
+              href="#result-row"
+              media={<Headshot person={SAMPLE_PERSON} size="sm" />}
+              title={SAMPLE_PERSON.name}
+              details={['12 credits']}
+            />
+          </li>
+        </ul>
       </Section>
 
       <Section

@@ -135,18 +135,54 @@ const readMovieDetail = async (id: string, viewer: SessionUser): Promise<MovieDe
   return withPermissions(record, viewer)
 }
 
+/** The first and last day of a year range, as the `date` column holds them (midnight UTC). */
+const releasedBetween = (
+  yearFrom: number | undefined,
+  yearTo: number | undefined,
+): Prisma.DateTimeFilter | undefined => {
+  if (yearFrom === undefined && yearTo === undefined) {
+    return undefined
+  }
+  return {
+    ...(yearFrom === undefined ? {} : { gte: new Date(Date.UTC(yearFrom, 0, 1)) }),
+    ...(yearTo === undefined ? {} : { lte: new Date(Date.UTC(yearTo, 11, 31)) }),
+  }
+}
+
+/** A runtime range; a movie without a runtime never falls in one. */
+const runtimeBetween = (
+  runtimeMin: number | undefined,
+  runtimeMax: number | undefined,
+): Prisma.IntNullableFilter | undefined => {
+  if (runtimeMin === undefined && runtimeMax === undefined) {
+    return undefined
+  }
+  return {
+    ...(runtimeMin === undefined ? {} : { gte: runtimeMin }),
+    ...(runtimeMax === undefined ? {} : { lte: runtimeMax }),
+  }
+}
+
 /**
- * Public: a page of summaries, searched by title (case-insensitive, wildcards literal) and filtered
- * by genre and person slug. Only the unfiltered list is cached: a search or a filter is an
- * unbounded key and is always read from the database.
+ * Public: a page of summaries, searched by title (case-insensitive, wildcards literal) and
+ * filtered by genres (a movie must carry every one named), a credited person, a release year range
+ * and a runtime range. Only the unfiltered list is cached: a search or a filter is an unbounded key
+ * and is always read from the database.
  */
 export const listMovies = async (query: ListMoviesQuery): Promise<Page<MovieSummary>> => {
-  const { page, perPage, q, genre, person, sort } = parseInput(listMoviesQuery, query)
+  const { page, perPage, sort, ...filters } = parseInput(listMoviesQuery, query)
+  const { q, genres, person, yearFrom, yearTo, runtimeMin, runtimeMax } = filters
   const load = async () => {
+    const releaseDate = releasedBetween(yearFrom, yearTo)
+    const runtimeMinutes = runtimeBetween(runtimeMin, runtimeMax)
     const where: Prisma.MovieWhereInput = {
       ...(q ? { title: { contains: escapeLike(q), mode: 'insensitive' } } : {}),
-      ...(genre ? { genres: { some: { genre: { slug: genre } } } } : {}),
+      ...(genres?.length
+        ? { AND: genres.map((slug) => ({ genres: { some: { genre: { slug } } } })) }
+        : {}),
       ...(person ? { credits: { some: { person: { slug: person } } } } : {}),
+      ...(releaseDate ? { releaseDate } : {}),
+      ...(runtimeMinutes ? { runtimeMinutes } : {}),
     }
     const [rows, totalItems] = await Promise.all([
       db.movie.findMany({
@@ -160,7 +196,7 @@ export const listMovies = async (query: ListMoviesQuery): Promise<Page<MovieSumm
     ])
     return toPage(rows.map(toMovieSummary), totalItems, { page, perPage })
   }
-  if (q || genre || person) {
+  if (Object.values(filters).some((value) => value !== undefined && value !== '')) {
     return load()
   }
   return remember(

@@ -30,6 +30,8 @@ import { adminMovieEditPath, moviePath, ROUTE_ADMIN_MOVIE_NEW } from '@/lib/cons
 import type { Page } from '@/lib/dto/common'
 import type { GenreWithCount } from '@/lib/dto/genres'
 import {
+  EMPTY_MOVIE_FILTERS,
+  hasMovieFilters,
   MOVIE_SEARCH_MAX_LENGTH,
   moviesUrlQuery,
   movieSortSchema,
@@ -61,7 +63,9 @@ const toSort = (value: string | null): MovieSort => {
 /** The movie list: search, genre filter and sort in the URL, edit / view / delete per row. */
 export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
   const { state, setState, isPending } = useUrlState(moviesUrlQuery)
-  const isFiltered = Boolean(state.q || state.genre || state.person)
+  const isFiltered = hasMovieFilters(state)
+  // The admin list filters by one genre at a time; the public list's URL can name several.
+  const genre = state.genres[0] ?? ''
   const genreItems: Record<string, string> = {
     '': 'All genres',
     ...Object.fromEntries(genres.map((genre) => [genre.slug, genre.name])),
@@ -95,8 +99,8 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
         <div className={styles.filters}>
           <Select
             items={genreItems}
-            value={state.genre}
-            onValueChange={(value) => setState({ genre: value ?? '', page: 1 })}
+            value={genre}
+            onValueChange={(value) => setState({ genres: value ? [value] : [], page: 1 })}
           >
             <SelectTrigger aria-label="Genre">
               <SelectValue />
@@ -129,7 +133,7 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setState({ q: '', genre: '', person: '', page: 1 })}
+              onClick={() => setState({ ...EMPTY_MOVIE_FILTERS, page: 1 })}
             >
               Clear filters
             </Button>

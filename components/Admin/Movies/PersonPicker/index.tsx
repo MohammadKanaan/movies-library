@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { createPersonAction } from '@/actions/people'
 import {
   Combobox,
@@ -10,13 +10,11 @@ import {
   ComboboxItem,
   ComboboxList,
 } from '@/components/SCN/combobox'
-import { RequestError } from '@/lib/client/errors'
+import { useDebouncedSearch } from '@/hooks/useDebouncedSearch'
 import { searchPeople } from '@/lib/client/people'
 import { SEARCH_MIN_LENGTH } from '@/lib/dto/common'
 import type { PersonListItem, PersonSummary } from '@/lib/dto/people'
 import styles from './styles.module.scss'
-
-const SEARCH_DEBOUNCE_MS = 250
 
 export type PersonPickerProps = {
   /** The accessible name of the input, e.g. "Add a director". */
@@ -30,14 +28,6 @@ export type PersonPickerProps = {
 
 type Option = { kind: 'person'; person: PersonListItem } | { kind: 'create'; name: string }
 
-type Search = { status: 'idle' | 'loading' | 'done'; results: PersonListItem[] }
-
-const IDLE: Search = { status: 'idle', results: [] }
-
-// A DOMException is not always an `Error` (jsdom), so go by its name.
-const isAbort = (error: unknown) =>
-  typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError'
-
 const optionLabel = (option: Option) =>
   option.kind === 'person' ? option.person.name : option.name
 
@@ -50,67 +40,26 @@ const optionKey = (option: Option) =>
  */
 export const PersonPicker = ({ label, excludeIds = [], disabled, onPick }: PersonPickerProps) => {
   const [inputValue, setInputValue] = useState('')
-  const [search, setSearch] = useState<Search>(IDLE)
-  const [message, setMessage] = useState<string | null>(null)
+  const search = useDebouncedSearch(searchPeople)
+  const [createError, setCreateError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const controller = useRef<AbortController | null>(null)
-
-  const cancelSearch = () => {
-    if (timer.current) {
-      clearTimeout(timer.current)
-      timer.current = null
-    }
-    controller.current?.abort()
-    controller.current = null
-  }
-
-  useEffect(() => cancelSearch, [])
-
-  const runSearch = async (term: string) => {
-    const current = new AbortController()
-    controller.current = current
-    try {
-      const page = await searchPeople(term, current.signal)
-      if (controller.current === current) {
-        setSearch({ status: 'done', results: page.items })
-      }
-    } catch (error) {
-      if (current.signal.aborted || isAbort(error) || controller.current !== current) {
-        return
-      }
-      setSearch({ status: 'done', results: [] })
-      setMessage(error instanceof RequestError ? error.message : 'The search failed. Try again.')
-    }
-  }
 
   const handleInputChange = (value: string) => {
     setInputValue(value)
-    setMessage(null)
-    cancelSearch()
-    const term = value.trim()
-    if (term.length < SEARCH_MIN_LENGTH) {
-      setSearch(IDLE)
-      return
-    }
-    setSearch((previous) => ({ ...previous, status: 'loading' }))
-    timer.current = setTimeout(() => {
-      timer.current = null
-      void runSearch(term)
-    }, SEARCH_DEBOUNCE_MS)
+    setCreateError(null)
+    search.setTerm(value)
   }
 
   const finish = (person: PersonSummary) => {
-    cancelSearch()
+    search.reset()
     setInputValue('')
-    setSearch(IDLE)
-    setMessage(null)
+    setCreateError(null)
     onPick(person)
   }
 
   const create = async (name: string) => {
     setCreating(true)
-    setMessage(null)
+    setCreateError(null)
     const result = await createPersonAction({ name })
     setCreating(false)
     if (result.ok) {
@@ -118,7 +67,7 @@ export const PersonPicker = ({ label, excludeIds = [], disabled, onPick }: Perso
       finish({ id, slug, name, headshotUrl })
       return
     }
-    setMessage(result.fieldErrors?.name?.[0] ?? result.message)
+    setCreateError(result.fieldErrors?.name?.[0] ?? result.message)
   }
 
   const handleValueChange = (option: Option | null) => {
@@ -136,12 +85,12 @@ export const PersonPicker = ({ label, excludeIds = [], disabled, onPick }: Perso
   const locked = disabled || creating
   const term = inputValue.trim()
   const searching = term.length >= SEARCH_MIN_LENGTH
-  const hasExactMatch = search.results.some(
-    (person) => person.name.toLowerCase() === term.toLowerCase(),
-  )
+  const results = search.result?.items ?? []
+  const message = createError ?? search.error
+  const hasExactMatch = results.some((person) => person.name.toLowerCase() === term.toLowerCase())
   const options: Option[] = searching
     ? [
-        ...search.results.map((person): Option => ({ kind: 'person', person })),
+        ...results.map((person): Option => ({ kind: 'person', person })),
         ...(hasExactMatch ? [] : [{ kind: 'create', name: term } satisfies Option]),
       ]
     : []
@@ -172,7 +121,7 @@ export const PersonPicker = ({ label, excludeIds = [], disabled, onPick }: Perso
         <ComboboxContent>
           <ComboboxEmpty>Type at least {SEARCH_MIN_LENGTH} letters</ComboboxEmpty>
           {searching && search.status === 'loading' && <p className={styles.status}>Searching…</p>}
-          {searching && search.status === 'done' && search.results.length === 0 && (
+          {searching && search.status === 'done' && results.length === 0 && (
             <p className={styles.status}>No one found</p>
           )}
           <ComboboxList>

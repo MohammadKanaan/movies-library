@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { NavBar } from '@/components/Layout/NavBar'
 import type { CurrentUser } from '@/lib/dto/users'
@@ -8,6 +9,11 @@ vi.mock('@/components/Auth/SignOutButton', () => ({
   SignOutButton: () => <button>Log out</button>,
 }))
 vi.mock('@/components/ThemeToggle', () => ({ ThemeToggle: () => null }))
+vi.mock('@/components/Layout/SiteSearch', () => ({
+  SiteSearch: ({ autoFocus }: { autoFocus?: boolean }) => (
+    <input type="search" aria-label="Search movies and people" autoFocus={autoFocus} />
+  ),
+}))
 
 const user: CurrentUser = {
   id: 'u1',
@@ -88,5 +94,33 @@ describe('NavBar', () => {
       expect(link).toHaveAttribute('href', '/login')
     }
     expect(linksNamed('Log in')).toHaveLength(2)
+  })
+})
+
+describe('NavBar search', () => {
+  it('shows the search box in the desktop bar and opens a second one on small screens', async () => {
+    render(<NavBar user={null} />)
+    expect(screen.getAllByRole('searchbox', { name: 'Search movies and people' })).toHaveLength(1)
+    const toggle = screen.getByRole('button', { name: 'Toggle search' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getAllByRole('searchbox', { name: 'Search movies and people' })).toHaveLength(2)
+    await userEvent.click(toggle)
+    expect(screen.getAllByRole('searchbox', { name: 'Search movies and people' })).toHaveLength(1)
+  })
+
+  it('closes the search bar when the menu opens', async () => {
+    render(<NavBar user={null} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Toggle search' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Toggle navigation menu' }))
+    expect(screen.getByRole('button', { name: 'Toggle search' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    expect(screen.getByRole('button', { name: 'Toggle navigation menu' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
   })
 })

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { catalogIdSchema, creditRoleSchema, SLUG_MAX_LENGTH, slugSchema } from '@/lib/dto/catalog'
+import {
+  catalogIdSchema,
+  creditRoleSchema,
+  SLUG_MAX_LENGTH,
+  slugListParamSchema,
+  slugSchema,
+} from '@/lib/dto/catalog'
 
 const ID = '0190d1a2-0000-7000-8000-000000000001'
 
@@ -23,6 +29,18 @@ describe('slugSchema', () => {
     ]) {
       expect(slugSchema.safeParse(bad).success).toBe(false)
     }
+  })
+})
+
+describe('slugListParamSchema', () => {
+  it('splits a comma-separated list, dropping blanks and duplicates', () => {
+    expect(slugListParamSchema.parse('drama, sci-fi,,drama')).toEqual(['drama', 'sci-fi'])
+    expect(slugListParamSchema.parse('')).toEqual([])
+    expect(slugListParamSchema.parse(',')).toEqual([])
+  })
+
+  it('refuses the whole list when one entry is not a slug', () => {
+    expect(slugListParamSchema.safeParse('drama,Sci Fi').success).toBe(false)
   })
 })
 

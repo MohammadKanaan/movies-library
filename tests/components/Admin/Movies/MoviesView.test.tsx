@@ -136,7 +136,7 @@ describe('MoviesView', () => {
     render(<MoviesView movies={page([dune], { page: 2, totalPages: 3 })} genres={genres} />)
     await userEvent.click(screen.getByRole('combobox', { name: 'Genre' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Drama' }))
-    expect(navigation.replace).toHaveBeenLastCalledWith('/admin/movies?genre=drama', {
+    expect(navigation.replace).toHaveBeenLastCalledWith('/admin/movies?genres=drama', {
       scroll: false,
     })
   })
@@ -151,7 +151,7 @@ describe('MoviesView', () => {
   })
 
   it('shows the filters from the URL and clears them', async () => {
-    navigation.search = 'genre=drama&sort=title&q=dune'
+    navigation.search = 'genres=drama&sort=title&q=dune'
     render(<MoviesView movies={page([dune])} genres={genres} />)
     expect(screen.getByLabelText('Search movies')).toHaveValue('dune')
     expect(screen.getByRole('combobox', { name: 'Genre' })).toHaveTextContent('Drama')

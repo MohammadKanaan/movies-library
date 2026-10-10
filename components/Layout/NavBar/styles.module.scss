@@ -31,11 +31,41 @@
   z-index: 1001;
 }
 
+/* The search box sits between the brand and the links, taking the room they leave */
+.desktopSearch {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+  max-width: 26rem;
+  margin: 0 2rem;
+}
+
+/* The search bar a small screen opens under the header */
+.mobileSearch {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+}
+
 /* Desktop Navigation */
 .desktopNav {
   display: flex;
   align-items: center;
   gap: 2rem;
+  margin-left: auto;
+}
+
+/* The search and menu toggles of a small screen */
+.mobileButtons {
+  display: none;
+  align-items: center;
+  gap: 0.25rem;
   margin-left: auto;
 }
 
@@ -198,22 +228,21 @@
     padding: 0.7rem 1rem;
   }
 
-  .desktopNav {
+  .desktopNav,
+  .desktopSearch {
     display: none;
+  }
+
+  .mobileButtons {
+    display: flex;
   }
 
   .mobileMenuButton {
     display: flex;
-    margin-left: auto;
   }
 
-  .bellSlot {
-    margin-left: auto;
-    margin-right: 0.5rem;
-  }
-
-  .bellSlot + .mobileMenuButton {
-    margin-left: 0;
+  .mobileSearch {
+    display: block;
   }
 
   .mobileNavOverlay {

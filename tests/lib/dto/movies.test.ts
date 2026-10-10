@@ -2,18 +2,24 @@ import { describe, expect, it } from 'vitest'
 import { MAX_PAGE } from '@/lib/dto/common'
 import {
   attachPosterInput,
+  EMPTY_MOVIE_FILTERS,
+  hasMovieFilters,
   listMoviesQuery,
   MOVIE_CREDITS_MAX,
+  MOVIE_FILTER_KEYS,
   MOVIE_GENRES_MAX,
+  MOVIE_RUNTIME_MAX_MINUTES,
   MOVIE_SEARCH_MAX_LENGTH,
   MOVIE_SORTS,
   MOVIE_SYNOPSIS_MAX_LENGTH,
   MOVIE_TITLE_MAX_LENGTH,
+  MOVIE_YEAR_MIN,
   movieDetailSchema,
   movieInput,
   movieSortSchema,
   movieSummarySchema,
   moviesUrlQuery,
+  toListMoviesQuery,
   updateMovieInput,
 } from '@/lib/dto/movies'
 
@@ -152,12 +158,16 @@ describe('movie list', () => {
     expect(listMoviesQuery.safeParse({ sort: 'rating' }).success).toBe(false)
   })
 
-  it('bounds the search and takes genre and person filters as slugs', () => {
+  it('bounds the search and takes the genre and person filters as slugs', () => {
     expect(
-      listMoviesQuery.parse({ q: ' dune ', genre: 'sci-fi', person: 'denis-villeneuve' }),
+      listMoviesQuery.parse({
+        q: ' dune ',
+        genres: ['sci-fi', 'drama'],
+        person: 'denis-villeneuve',
+      }),
     ).toMatchObject({
       q: 'dune',
-      genre: 'sci-fi',
+      genres: ['sci-fi', 'drama'],
       person: 'denis-villeneuve',
     })
     expect(listMoviesQuery.safeParse({ q: 'a'.repeat(MOVIE_SEARCH_MAX_LENGTH + 1) }).success).toBe(
@@ -166,37 +176,151 @@ describe('movie list', () => {
     // The trigram index cannot serve fewer than three characters.
     expect(listMoviesQuery.safeParse({ q: 'du' }).success).toBe(false)
     expect(listMoviesQuery.parse({ q: '  ' }).q).toBe('')
-    expect(listMoviesQuery.safeParse({ genre: 'Sci Fi' }).success).toBe(false)
+    expect(listMoviesQuery.safeParse({ genres: ['Sci Fi'] }).success).toBe(false)
+    expect(
+      listMoviesQuery.safeParse({
+        genres: Array.from({ length: MOVIE_GENRES_MAX + 1 }, (_, i) => `g${i}`),
+      }).success,
+    ).toBe(false)
     expect(listMoviesQuery.safeParse({ page: String(MAX_PAGE + 1) }).success).toBe(false)
   })
 
+  it('takes year and runtime ranges, open at either end, the first not after the last', () => {
+    const thisYear = new Date().getUTCFullYear()
+    expect(
+      listMoviesQuery.parse({ yearFrom: '1990', yearTo: 2000, runtimeMin: '90', runtimeMax: 120 }),
+    ).toMatchObject({ yearFrom: 1990, yearTo: 2000, runtimeMin: 90, runtimeMax: 120 })
+    expect(listMoviesQuery.parse({ yearTo: thisYear, runtimeMin: 1 })).toMatchObject({
+      yearTo: thisYear,
+      runtimeMin: 1,
+    })
+    const issuesOf = (input: unknown) =>
+      listMoviesQuery
+        .safeParse(input)
+        .error?.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+    expect(issuesOf({ yearFrom: MOVIE_YEAR_MIN - 1 })).toEqual([
+      `yearFrom: Enter a year between ${MOVIE_YEAR_MIN} and this year`,
+    ])
+    expect(issuesOf({ yearTo: thisYear + 1 })?.[0]).toMatch(/^yearTo: /)
+    expect(issuesOf({ yearFrom: '19x0' })?.[0]).toMatch(/^yearFrom: /)
+    expect(issuesOf({ runtimeMin: 0 })).toEqual(['runtimeMin: Enter at least 1 minute'])
+    expect(issuesOf({ runtimeMax: MOVIE_RUNTIME_MAX_MINUTES + 1 })?.[0]).toMatch(/^runtimeMax: /)
+    expect(issuesOf({ yearFrom: 2000, yearTo: 1990 })).toEqual([
+      'yearTo: The last year is before the first',
+    ])
+    expect(issuesOf({ runtimeMin: 120, runtimeMax: 90 })).toEqual([
+      'runtimeMax: The longest runtime is shorter than the shortest',
+    ])
+  })
+
   it('parses any URL by falling back per field', () => {
-    expect(moviesUrlQuery.parse({})).toEqual({
+    const empty = {
       page: 1,
       q: '',
-      genre: '',
+      genres: [],
       person: '',
+      yearFrom: null,
+      yearTo: null,
+      runtimeMin: null,
+      runtimeMax: null,
       sort: 'newest',
-    })
+    }
+    expect(moviesUrlQuery.parse({})).toEqual(empty)
     expect(
       moviesUrlQuery.parse({
         page: 'abc',
         q: 'a'.repeat(101),
-        genre: 'Sci Fi',
+        genres: 'Sci Fi',
         person: '!',
+        yearFrom: '',
+        yearTo: 'soon',
+        runtimeMin: '0',
+        runtimeMax: '1e9',
         sort: 'x',
       }),
-    ).toEqual({ page: 1, q: '', genre: '', person: '', sort: 'newest' })
+    ).toEqual(empty)
     expect(moviesUrlQuery.parse({ q: 'du' }).q).toBe('')
     expect(
-      moviesUrlQuery.parse({ page: '2', q: ' dune ', genre: 'sci-fi', sort: 'title' }),
+      moviesUrlQuery.parse({
+        page: '2',
+        q: ' dune ',
+        genres: 'sci-fi,drama,sci-fi',
+        yearFrom: '1990',
+        runtimeMax: '120',
+        sort: 'title',
+      }),
     ).toEqual({
+      ...empty,
       page: 2,
       q: 'dune',
-      genre: 'sci-fi',
-      person: '',
+      genres: ['sci-fi', 'drama'],
+      yearFrom: 1990,
+      runtimeMax: 120,
       sort: 'title',
     })
+  })
+
+  it('tells filters from paging and sort', () => {
+    const none = moviesUrlQuery.parse({ page: '3', sort: 'title' })
+    expect(hasMovieFilters(none)).toBe(false)
+    expect(hasMovieFilters({ ...none, genres: ['drama'] })).toBe(true)
+    expect(hasMovieFilters({ ...none, yearTo: 1999 })).toBe(true)
+    expect(hasMovieFilters({ ...none, q: 'dune' })).toBe(true)
+    expect(hasMovieFilters(EMPTY_MOVIE_FILTERS)).toBe(false)
+    expect(MOVIE_FILTER_KEYS).toEqual([
+      'q',
+      'genres',
+      'person',
+      'yearFrom',
+      'yearTo',
+      'runtimeMin',
+      'runtimeMax',
+    ])
+  })
+
+  it('turns a URL into the list query, leaving empty filters out and righting a reversed range', () => {
+    expect(toListMoviesQuery(moviesUrlQuery.parse({}))).toEqual({
+      page: 1,
+      sort: 'newest',
+      q: undefined,
+      genres: undefined,
+      person: undefined,
+      yearFrom: undefined,
+      yearTo: undefined,
+      runtimeMin: undefined,
+      runtimeMax: undefined,
+    })
+    expect(
+      toListMoviesQuery(
+        moviesUrlQuery.parse({
+          page: '2',
+          q: 'dune',
+          genres: 'drama',
+          person: 'amy-adams',
+          yearFrom: '2010',
+          yearTo: '2000',
+          runtimeMin: '120',
+          runtimeMax: '90',
+          sort: 'oldest',
+        }),
+      ),
+    ).toEqual({
+      page: 2,
+      sort: 'oldest',
+      q: 'dune',
+      genres: ['drama'],
+      person: 'amy-adams',
+      yearFrom: 2000,
+      yearTo: 2010,
+      runtimeMin: 90,
+      runtimeMax: 120,
+    })
+    // What the pages pass always parses.
+    expect(
+      listMoviesQuery.safeParse(
+        toListMoviesQuery(moviesUrlQuery.parse({ yearFrom: '2010', yearTo: '2000' })),
+      ).success,
+    ).toBe(true)
   })
 })
 

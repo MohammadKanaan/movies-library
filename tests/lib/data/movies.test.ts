@@ -130,7 +130,7 @@ describe('movies DAL', () => {
       await expect(listMovies({ q: 'a'.repeat(101) })).rejects.toBeInstanceOf(ValidationError)
       // The trigram index cannot serve fewer than three characters.
       await expect(listMovies({ q: 'du' })).rejects.toBeInstanceOf(ValidationError)
-      await expect(listMovies({ genre: 'Sci Fi' })).rejects.toBeInstanceOf(ValidationError)
+      await expect(listMovies({ genres: ['Sci Fi'] })).rejects.toBeInstanceOf(ValidationError)
       await expect(listMovies({ sort: 'rating' as never })).rejects.toBeInstanceOf(ValidationError)
     })
 
@@ -160,7 +160,7 @@ describe('movies DAL', () => {
       expect(await titles('   ')).toHaveLength(3)
     })
 
-    it('filters by genre slug and by person slug, together with the search', async () => {
+    it('filters by genre slugs and by person slug, together with the search', async () => {
       const scifi = await seedGenre('Science Fiction')
       const drama = await seedGenre('Drama')
       const denis = await seedPerson('Denis Villeneuve')
@@ -188,12 +188,60 @@ describe('movies DAL', () => {
       })
       const titles = async (query: Parameters<typeof listMovies>[0]) =>
         (await listMovies(query)).items.map((m) => m.title)
-      expect(await titles({ genre: 'science-fiction' })).toEqual(['Dune', 'Arrival'])
+      expect(await titles({ genres: ['science-fiction'] })).toEqual(['Dune', 'Arrival'])
       expect(await titles({ person: 'amy-adams' })).toEqual(['Nocturnal Animals', 'Arrival'])
-      expect(await titles({ genre: 'drama', person: 'denis-villeneuve' })).toEqual(['Arrival'])
-      expect(await titles({ genre: 'drama', q: 'noct' })).toEqual(['Nocturnal Animals'])
-      expect(await titles({ genre: 'horror' })).toEqual([])
+      expect(await titles({ genres: ['drama'], person: 'denis-villeneuve' })).toEqual(['Arrival'])
+      expect(await titles({ genres: ['drama'], q: 'noct' })).toEqual(['Nocturnal Animals'])
+      expect(await titles({ genres: ['horror'] })).toEqual([])
       expect((await listMovies({ person: 'nobody' })).totalItems).toBe(0)
+    })
+
+    it('needs every genre named, not any of them', async () => {
+      const scifi = await seedGenre('Science Fiction')
+      const drama = await seedGenre('Drama')
+      await seedMovie({
+        title: 'Arrival',
+        releaseDate: '2016-11-11',
+        genreIds: [scifi.id, drama.id],
+      })
+      await seedMovie({ title: 'Dune', releaseDate: '2021-10-22', genreIds: [scifi.id] })
+      await seedMovie({ title: 'Heat', releaseDate: '1995-12-15', genreIds: [drama.id] })
+      const titles = async (genres: string[]) =>
+        (await listMovies({ genres })).items.map((m) => m.title)
+      expect(await titles(['science-fiction'])).toEqual(['Dune', 'Arrival'])
+      expect(await titles(['drama'])).toEqual(['Arrival', 'Heat'])
+      expect(await titles(['science-fiction', 'drama'])).toEqual(['Arrival'])
+      expect(await titles([])).toHaveLength(3)
+    })
+
+    it('filters by release year range and runtime range, open at either end', async () => {
+      await seedMovie({ title: 'Heat', releaseDate: '1995-12-15', runtimeMinutes: 170 })
+      await seedMovie({ title: 'Arrival', releaseDate: '2016-11-11', runtimeMinutes: 116 })
+      await seedMovie({ title: 'Dune', releaseDate: '2021-10-22', runtimeMinutes: 155 })
+      await seedMovie({ title: 'Short', releaseDate: '2021-01-01', runtimeMinutes: null })
+      const titles = async (query: Parameters<typeof listMovies>[0]) =>
+        (await listMovies(query)).items.map((m) => m.title)
+      // Year bounds take the whole calendar year, both ends included.
+      expect(await titles({ yearFrom: 2016, yearTo: 2021 })).toEqual(['Dune', 'Short', 'Arrival'])
+      expect(await titles({ yearFrom: 1995, yearTo: 1995 })).toEqual(['Heat'])
+      expect(await titles({ yearFrom: 2021 })).toEqual(['Dune', 'Short'])
+      expect(await titles({ yearTo: 2016 })).toEqual(['Arrival', 'Heat'])
+      // A movie without a runtime is never within a runtime range.
+      expect(await titles({ runtimeMin: 150 })).toEqual(['Dune', 'Heat'])
+      expect(await titles({ runtimeMax: 155 })).toEqual(['Dune', 'Arrival'])
+      expect(await titles({ runtimeMin: 116, runtimeMax: 116 })).toEqual(['Arrival'])
+      expect(await titles({ yearFrom: 2000, runtimeMax: 120 })).toEqual(['Arrival'])
+    })
+
+    it('refuses a reversed range and an impossible year as validation errors', async () => {
+      await expect(listMovies({ yearFrom: 2010, yearTo: 2000 })).rejects.toMatchObject({
+        fieldErrors: { yearTo: ['The last year is before the first'] },
+      })
+      await expect(listMovies({ runtimeMin: 120, runtimeMax: 90 })).rejects.toBeInstanceOf(
+        ValidationError,
+      )
+      await expect(listMovies({ yearFrom: 1800 })).rejects.toBeInstanceOf(ValidationError)
+      await expect(listMovies({ runtimeMax: 0 })).rejects.toBeInstanceOf(ValidationError)
     })
 
     it('paginates', async () => {
@@ -211,11 +259,13 @@ describe('movies DAL', () => {
       const { input, scifi } = await fixtures()
       await seedMovie({ title: 'Dune', releaseDate: '2021-10-22', genreIds: [scifi.id] })
       expect((await listMovies({})).totalItems).toBe(1)
-      expect((await listMovies({ genre: 'science-fiction' })).totalItems).toBe(1)
+      expect((await listMovies({ genres: ['science-fiction'] })).totalItems).toBe(1)
       await seedMovie({ title: 'Arrival', releaseDate: '2016-11-11', genreIds: [scifi.id] })
       expect((await listMovies({})).totalItems).toBe(1)
-      expect((await listMovies({ genre: 'science-fiction' })).totalItems).toBe(2)
+      expect((await listMovies({ genres: ['science-fiction'] })).totalItems).toBe(2)
       expect((await listMovies({ q: 'arr' })).totalItems).toBe(1)
+      expect((await listMovies({ yearFrom: 2020 })).totalItems).toBe(1)
+      expect((await listMovies({ runtimeMax: 500 })).totalItems).toBe(0)
 
       await signInAsAdmin()
       await createMovie(input)

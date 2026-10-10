@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { catalogIdSchema, creditRoleSchema, slugSchema } from './catalog'
+import { catalogIdSchema, creditRoleSchema, slugListParamSchema, slugSchema } from './catalog'
 import { pageQuerySchema, permissionsSchema, searchTermSchema } from './common'
 import { genreSchema } from './genres'
 import { personSummarySchema } from './people'
@@ -63,28 +63,151 @@ export const movieSortSchema = z.enum(MOVIE_SORTS).default('newest')
 
 export type MovieSort = z.output<typeof movieSortSchema>
 
-export const listMoviesQuery = pageQuerySchema.extend({
-  /** Matches the title case-insensitively; at least three characters (the trigram index), bounded above. */
-  q: searchTermSchema(MOVIE_SEARCH_MAX_LENGTH).optional(),
-  /** Only movies carrying this genre (by slug). */
-  genre: slugSchema.optional(),
-  /** Only movies this person is credited on (by slug). */
-  person: slugSchema.optional(),
-  sort: movieSortSchema,
-})
+/** The year of `MOVIE_RELEASE_MIN`; a year filter runs from here to the current year. */
+export const MOVIE_YEAR_MIN = Number(MOVIE_RELEASE_MIN.slice(0, 4))
+const currentYear = () => new Date().getUTCFullYear()
+
+/** A release year a filter can name (a query string carries it as text, so it is coerced). */
+export const releaseYearSchema = z.coerce
+  .number()
+  .int('Enter a year')
+  .refine((year) => year >= MOVIE_YEAR_MIN && year <= currentYear(), {
+    error: `Enter a year between ${MOVIE_YEAR_MIN} and this year`,
+  })
+
+/** A runtime bound in minutes, within the range a movie's runtime can take. */
+export const runtimeBoundSchema = z.coerce
+  .number()
+  .int('Enter whole minutes')
+  .min(1, 'Enter at least 1 minute')
+  .max(MOVIE_RUNTIME_MAX_MINUTES, `Enter ${MOVIE_RUNTIME_MAX_MINUTES} minutes or fewer`)
+
+const genreFilterSchema = z
+  .array(slugSchema)
+  .max(MOVIE_GENRES_MAX, `Pick ${MOVIE_GENRES_MAX} genres or fewer`)
+
+const isReversed = (from: number | undefined, to: number | undefined) =>
+  from !== undefined && to !== undefined && from > to
+
+/**
+ * The movie list's query: a title search and the filters of the advanced search (every genre named,
+ * a release year range, a runtime range, a credited person), paged and sorted. A range may be open
+ * at either end; given both ends, the first must not be after the last.
+ */
+export const listMoviesQuery = pageQuerySchema
+  .extend({
+    /** Matches the title case-insensitively; at least three characters (the trigram index), bounded above. */
+    q: searchTermSchema(MOVIE_SEARCH_MAX_LENGTH).optional(),
+    /** Only movies carrying every one of these genres (by slug). */
+    genres: genreFilterSchema.optional(),
+    /** Only movies this person is credited on (by slug). */
+    person: slugSchema.optional(),
+    /** Only movies released in or after this year. */
+    yearFrom: releaseYearSchema.optional(),
+    /** Only movies released in or before this year. */
+    yearTo: releaseYearSchema.optional(),
+    /** Only movies at least this long, in minutes. */
+    runtimeMin: runtimeBoundSchema.optional(),
+    /** Only movies at most this long, in minutes. */
+    runtimeMax: runtimeBoundSchema.optional(),
+    sort: movieSortSchema,
+  })
+  .refine((query) => !isReversed(query.yearFrom, query.yearTo), {
+    path: ['yearTo'],
+    error: 'The last year is before the first',
+  })
+  .refine((query) => !isReversed(query.runtimeMin, query.runtimeMax), {
+    path: ['runtimeMax'],
+    error: 'The longest runtime is shorter than the shortest',
+  })
 
 export type ListMoviesQuery = z.input<typeof listMoviesQuery>
 
-/** The tolerant URL contract of the movie list: any query string parses, falling back to defaults. */
+/**
+ * The tolerant URL contract of the movie list: any query string parses, falling back to defaults.
+ * Empty filters are `''`, `[]` or `null`, which `useUrlState` leaves out of the URL. The year and
+ * runtime ranges are checked per end only: `toListMoviesQuery` puts a reversed range the right way
+ * round, so a hand-edited URL still lists instead of failing.
+ */
 export const moviesUrlQuery = z.object({
   page: pageQuerySchema.shape.page.catch(1),
   q: searchTermSchema(MOVIE_SEARCH_MAX_LENGTH).catch(''),
-  genre: slugSchema.catch(''),
+  genres: slugListParamSchema.pipe(genreFilterSchema).catch([]),
   person: slugSchema.catch(''),
+  yearFrom: releaseYearSchema.nullable().catch(null),
+  yearTo: releaseYearSchema.nullable().catch(null),
+  runtimeMin: runtimeBoundSchema.nullable().catch(null),
+  runtimeMax: runtimeBoundSchema.nullable().catch(null),
   sort: movieSortSchema.catch('newest'),
 })
 
 export type MoviesUrlQuery = z.output<typeof moviesUrlQuery>
+
+/** The filters of `moviesUrlQuery`, as opposed to its paging and sort. */
+export const MOVIE_FILTER_KEYS = [
+  'q',
+  'genres',
+  'person',
+  'yearFrom',
+  'yearTo',
+  'runtimeMin',
+  'runtimeMax',
+] as const satisfies readonly (keyof MoviesUrlQuery)[]
+
+export type MovieFilterKey = (typeof MOVIE_FILTER_KEYS)[number]
+
+export type MovieFilters = Pick<MoviesUrlQuery, MovieFilterKey>
+
+const isSet = (value: MoviesUrlQuery[MovieFilterKey]) =>
+  Array.isArray(value) ? value.length > 0 : value !== '' && value !== null
+
+/** Whether the URL narrows the list at all (paging and sort do not count). */
+export const hasMovieFilters = (query: MovieFilters) =>
+  MOVIE_FILTER_KEYS.some((key) => isSet(query[key]))
+
+/** The filters of `query`, every one of them empty: what "clear all" writes to the URL. */
+export const EMPTY_MOVIE_FILTERS: MovieFilters = {
+  q: '',
+  genres: [],
+  person: '',
+  yearFrom: null,
+  yearTo: null,
+  runtimeMin: null,
+  runtimeMax: null,
+}
+
+const orderedRange = (from: number | null, to: number | null) =>
+  from !== null && to !== null && from > to ? [to, from] : [from, to]
+
+/**
+ * The query a page passes to `listMovies` for a parsed URL: empty filters are left out, and a
+ * reversed range is put the right way round. The caller adds `perPage`.
+ */
+export const toListMoviesQuery = ({
+  page,
+  q,
+  genres,
+  person,
+  yearFrom,
+  yearTo,
+  runtimeMin,
+  runtimeMax,
+  sort,
+}: MoviesUrlQuery): ListMoviesQuery => {
+  const [firstYear, lastYear] = orderedRange(yearFrom, yearTo)
+  const [shortest, longest] = orderedRange(runtimeMin, runtimeMax)
+  return {
+    page,
+    sort,
+    q: q || undefined,
+    genres: genres.length > 0 ? genres : undefined,
+    person: person || undefined,
+    yearFrom: firstYear ?? undefined,
+    yearTo: lastYear ?? undefined,
+    runtimeMin: shortest ?? undefined,
+    runtimeMax: longest ?? undefined,
+  }
+}
 
 const hasDuplicate = <T>(values: T[], keyOf: (value: T) => string) => {
   const seen = new Set<string>()

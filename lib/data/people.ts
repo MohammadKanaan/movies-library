@@ -45,8 +45,11 @@ export const personSummarySelect = {
   headshotUrl: true,
 } satisfies Prisma.PersonSelect
 
-/** A list row: the summary plus the credit count (a person in two roles on one movie counts twice). */
-const personListItemSelect = {
+/**
+ * A list row: the summary plus the credit count (a person in two roles on one movie counts twice).
+ * Exactly the `PersonListItem` DTO; the search DAL reuses it with `toPersonListItem`.
+ */
+export const personListItemSelect = {
   ...personSummarySelect,
   createdAt: true,
   _count: { select: { credits: true } },
@@ -54,7 +57,7 @@ const personListItemSelect = {
 
 type PersonListItemRow = Prisma.PersonGetPayload<{ select: typeof personListItemSelect }>
 
-const toPersonListItem = ({ _count, ...person }: PersonListItemRow): PersonListItem => ({
+export const toPersonListItem = ({ _count, ...person }: PersonListItemRow): PersonListItem => ({
   ...person,
   creditCount: _count.credits,
 })

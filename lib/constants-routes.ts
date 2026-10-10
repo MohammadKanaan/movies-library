@@ -8,12 +8,22 @@ export const ROUTE_ADMIN = '/admin'
 export const ROUTE_UI_KIT = '/ui-kit'
 export const ROUTE_MOVIES = '/movies'
 export const ROUTE_PEOPLE = '/people'
+export const ROUTE_SEARCH = '/search'
 
 export const moviePath = (slug: string) => `${ROUTE_MOVIES}/${slug}`
 
-/** The movie list filtered to one genre. */
+/** The search page for a term: movies and people together. */
+export const searchPath = (q: string) => `${ROUTE_SEARCH}?${new URLSearchParams({ q })}`
+
+/** The movie list searched by title. */
+export const moviesByTitlePath = (q: string) => `${ROUTE_MOVIES}?${new URLSearchParams({ q })}`
+
+/** The people list searched by name. */
+export const peopleByNamePath = (q: string) => `${ROUTE_PEOPLE}?${new URLSearchParams({ q })}`
+
+/** The movie list filtered to one genre (`genres` takes a comma-separated list; this names one). */
 export const moviesByGenrePath = (genreSlug: string) =>
-  `${ROUTE_MOVIES}?${new URLSearchParams({ genre: genreSlug })}`
+  `${ROUTE_MOVIES}?${new URLSearchParams({ genres: genreSlug })}`
 
 /** The movie list filtered to one person's credits. */
 export const moviesByPersonPath = (personSlug: string) =>
@@ -44,6 +54,7 @@ export const PUBLIC_ROUTES = [
   ROUTE_UI_KIT,
   ROUTE_MOVIES,
   ROUTE_PEOPLE,
+  ROUTE_SEARCH,
 ] as const
 
 export const isPublicRoute = (path: string): boolean =>

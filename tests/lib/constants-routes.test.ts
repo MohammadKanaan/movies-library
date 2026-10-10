@@ -5,14 +5,19 @@ import {
   isPrivateRoute,
   isPublicRoute,
   loginPath,
+  moviesByGenrePath,
   moviesByPersonPath,
+  moviesByTitlePath,
+  peopleByNamePath,
   personPath,
   ROUTE_ADMIN_GENRES,
   ROUTE_ADMIN_MOVIE_NEW,
   ROUTE_ADMIN_MOVIES,
   ROUTE_ADMIN_PEOPLE,
   ROUTE_ADMIN_USERS,
+  ROUTE_SEARCH,
   safeRedirectPath,
+  searchPath,
 } from '@/lib/constants-routes'
 
 describe('admin routes', () => {
@@ -43,6 +48,17 @@ describe('admin routes', () => {
     expect(moviesByPersonPath('denis-villeneuve')).toBe('/movies?person=denis-villeneuve')
   })
 
+  it('builds the public movie list filtered to one genre, under the list parameter', () => {
+    expect(moviesByGenrePath('science-fiction')).toBe('/movies?genres=science-fiction')
+  })
+
+  it('builds the search pages for a term, encoded', () => {
+    expect(ROUTE_SEARCH).toBe('/search')
+    expect(searchPath('dune: part two')).toBe('/search?q=dune%3A+part+two')
+    expect(moviesByTitlePath('dune')).toBe('/movies?q=dune')
+    expect(peopleByNamePath('amy adams')).toBe('/people?q=amy+adams')
+  })
+
   it('builds a person page from the slug', () => {
     expect(personPath('denis-villeneuve')).toBe('/people/denis-villeneuve')
   })
@@ -62,6 +78,7 @@ describe('route helpers', () => {
       '/movies/dune-2021',
       '/people',
       '/people/denis-villeneuve',
+      '/search',
     ]) {
       expect(isPublicRoute(path)).toBe(true)
     }

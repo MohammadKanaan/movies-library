@@ -1,0 +1,50 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-lg);
+  color: var(--foreground);
+  text-decoration: none;
+  transition: background-color 120ms ease-out;
+
+  &:hover {
+    background: var(--muted);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+// A poster-shaped slot; a round headshot sits centred in it so every row is the same height.
+.media {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.title {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.details {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}

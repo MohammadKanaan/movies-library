@@ -1,0 +1,88 @@
+.form {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  min-width: 0;
+
+  // The combobox's input group takes the room the button leaves.
+  > [data-slot='input-group'] {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.status {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.suggestion {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+// A 2:3 poster thumbnail, the row's full height.
+.poster {
+  display: block;
+  flex-shrink: 0;
+  width: 2rem;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+// Keeps a person's row the same height as a movie's.
+.headshot {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  aspect-ratio: 2 / 3;
+
+  > * {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.75rem;
+  }
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.title {
+  overflow: hidden;
+  color: var(--foreground);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.all {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  color: var(--foreground);
+  font-weight: 500;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+    color: var(--muted-foreground);
+  }
+}

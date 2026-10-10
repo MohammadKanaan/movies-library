@@ -6,7 +6,7 @@ import { requireAdmin } from '@/lib/data/auth'
 import { listGenres } from '@/lib/data/genres'
 import { listMovies } from '@/lib/data/movies'
 import { loadPage } from '@/lib/data/page'
-import { moviesUrlQuery } from '@/lib/dto/movies'
+import { moviesUrlQuery, toListMoviesQuery } from '@/lib/dto/movies'
 import { toScalarParams } from '@/lib/searchParams'
 import styles from './styles.module.scss'
 
@@ -18,19 +18,12 @@ export const metadata: Metadata = {
 
 const AdminMoviesPage = async ({ searchParams }: PageProps<'/admin/movies'>) => {
   // A garbled URL falls back to the defaults; empty filters are left out of the query.
-  const { page, q, genre, person, sort } = moviesUrlQuery.parse(toScalarParams(await searchParams))
+  const url = moviesUrlQuery.parse(toScalarParams(await searchParams))
   const { movies, genres } = await loadPage(async () => {
     // The movie and genre lists are public reads; the page is not, so the admin check comes first.
     await requireAdmin()
     const [movies, genres] = await Promise.all([
-      listMovies({
-        page,
-        perPage: PER_PAGE,
-        q: q || undefined,
-        genre: genre || undefined,
-        person: person || undefined,
-        sort,
-      }),
+      listMovies({ ...toListMoviesQuery(url), perPage: PER_PAGE }),
       listGenres(),
     ])
     return { movies, genres }

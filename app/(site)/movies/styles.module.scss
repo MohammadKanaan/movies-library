@@ -7,6 +7,12 @@
   margin: 0 auto;
 }
 
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 .results {
   display: flex;
   flex-direction: column;

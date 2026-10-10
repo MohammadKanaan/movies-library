@@ -15,11 +15,11 @@ describe('GenreTags', () => {
     expect(screen.getByRole('list', { name: 'Genres' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Drama' })).toHaveAttribute(
       'href',
-      '/movies?genre=drama',
+      '/movies?genres=drama',
     )
     expect(screen.getByRole('link', { name: 'Science Fiction' })).toHaveAttribute(
       'href',
-      '/movies?genre=science-fiction',
+      '/movies?genres=science-fiction',
     )
   })
 

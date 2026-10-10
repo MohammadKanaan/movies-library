@@ -48,7 +48,7 @@ describe('GenresView', () => {
     expect(within(row).getByText('drama')).toBeInTheDocument()
     expect(within(row).getByRole('link', { name: '3' })).toHaveAttribute(
       'href',
-      '/movies?genre=drama',
+      '/movies?genres=drama',
     )
     expect(within(rowOf('Noir')).getByText('0')).toBeInTheDocument()
   })
