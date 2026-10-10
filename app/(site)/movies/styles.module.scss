@@ -47,3 +47,10 @@
     gap: 0.75rem;
   }
 }
+
+// Keep the smaller cards from fitting a fourth column before the desktop minimum takes over.
+@media ($breakpoint-sm <= width < $breakpoint-md) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
