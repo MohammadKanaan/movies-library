@@ -47,7 +47,7 @@ describe('presentMovieDetail', () => {
     expect(presented.credits.directors).toHaveLength(2)
   })
 
-  it('puts everyone after the leads on the rail, cast first, labelled by role and billing', () => {
+  it('puts everyone after the leads on the rail, cast first, labelled by role', () => {
     const movie = movieWith({
       directors: people('director', 1),
       writers: people('writer', 3),
@@ -56,9 +56,9 @@ describe('presentMovieDetail', () => {
     const [, second, , fourth, fifth] = people('cast', 5)
 
     expect(presentMovieDetail(movie).supporting).toEqual([
-      { person: second, role: 'cast', label: 'Cast · #2' },
-      { person: fourth, role: 'cast', label: 'Cast · #4' },
-      { person: fifth, role: 'cast', label: 'Cast · #5' },
+      { person: second, role: 'cast', label: 'Cast' },
+      { person: fourth, role: 'cast', label: 'Cast' },
+      { person: fifth, role: 'cast', label: 'Cast' },
       { person: movie.credits.writers[2], role: 'writer', label: 'Writer' },
     ])
   })
@@ -69,7 +69,7 @@ describe('presentMovieDetail', () => {
     const presented = presentMovieDetail(movie)
 
     expect(presented.starring).toEqual([])
-    expect(presented.supporting.map(({ label }) => label)).toEqual(['Cast · #1', 'Cast · #2'])
+    expect(presented.supporting.map(({ label }) => label)).toEqual(['Cast', 'Cast'])
   })
 
   it('leaves the rail empty when the leads are everyone', () => {
