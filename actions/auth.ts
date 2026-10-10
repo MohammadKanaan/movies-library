@@ -14,11 +14,10 @@ import { auth, isGoogleAuthEnabled, requireUser } from '@/lib/data/auth'
 import { parseInput, toActionFailure, ValidationError } from '@/lib/data/errors'
 import { consumeRateLimit, getClientIp } from '@/lib/data/rateLimit'
 import { revokeOtherSessions, revokeSession } from '@/lib/data/sessions'
-import { getCurrentUser, isUsernameTaken } from '@/lib/data/users'
+import { deleteAccount, getCurrentUser, isUsernameTaken } from '@/lib/data/users'
 import {
   changeEmailInput,
   changePasswordInput,
-  deleteAccountInput,
   requestPasswordResetInput,
   resetPasswordInput,
   signInInput,
@@ -38,6 +37,8 @@ export const signInAction = async (input: SignInInput): Promise<ActionResult<nul
     const body = parseInput(signInInput, input)
     const ip = await getClientIp()
     await consumeRateLimit(`sign-in:ip:${ip}`, { max: 10, windowMs: 60_000 })
+    // Known trade-off: the per-address limit slows a password guess against one account, and in
+    // exchange five failed attempts by anyone block that account's password sign-in for a minute.
     await consumeRateLimit(`sign-in:email:${body.email}`, { max: 5, windowMs: 60_000 })
     await auth.api.signInEmail({ body, headers: await headers() })
     refresh()
@@ -81,6 +82,15 @@ export const signUpAction = async (input: SignUpInput): Promise<ActionResult<nul
       return toActionFailure(
         new ValidationError({ email: ['An account with this email already exists'] }),
       )
+    }
+    // Better Auth wraps the insert's failure. A username taken between the check above and the
+    // insert (a race with another sign-up) is the one case to name; the rest stays generic.
+    if (
+      error instanceof APIError &&
+      error.body?.code === 'FAILED_TO_CREATE_USER' &&
+      (await isUsernameTaken(input.username))
+    ) {
+      return toActionFailure(new ValidationError({ username: ['That username is taken'] }))
     }
     if (error instanceof APIError) {
       return { ok: false, code: 'VALIDATION', message: 'Could not create your account. Try again.' }
@@ -296,21 +306,19 @@ export const revokeOtherSessionsAction = async (): Promise<ActionResult<null>> =
   }
 }
 
-/** Deletes the viewer's account (sessions and avatar with it); needs the password. */
+/**
+ * Deletes the viewer's account (sessions, reviews and avatar with it); needs the password. The
+ * DAL (`deleteAccount`) owns the checks and the cache invalidation; Better Auth's own failures
+ * (an account without a password, for one) read as a generic message.
+ */
 export const deleteAccountAction = async (
   input: DeleteAccountInput,
 ): Promise<ActionResult<null>> => {
   try {
-    const viewer = await requireUser()
-    const body = parseInput(deleteAccountInput, input)
-    await consumeRateLimit(`delete-account:user:${viewer.id}`, { max: 3, windowMs: 60_000 })
-    await auth.api.deleteUser({ body: { password: body.password }, headers: await headers() })
+    await deleteAccount(input)
     refresh()
     return { ok: true, data: null }
   } catch (error) {
-    if (error instanceof APIError && error.body?.code === 'INVALID_PASSWORD') {
-      return toActionFailure(new ValidationError({ password: ['Password is incorrect'] }))
-    }
     if (error instanceof APIError) {
       return { ok: false, code: 'VALIDATION', message: 'Could not delete your account. Try again.' }
     }

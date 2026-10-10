@@ -408,6 +408,23 @@ describe('people DAL', () => {
       expect(await db.person.count()).toBe(1)
     })
 
+    it('reports a credit added between the count and the delete as a field error', async () => {
+      const amy = await seedPerson('Amy Adams')
+      await seedMovie({
+        title: 'Arrival',
+        releaseDate: '2016-11-11',
+        credits: [{ personId: amy.id, role: 'ACTOR' }],
+      })
+      await signInAsAdmin()
+      // A stale count of zero stands in for a credit written right after the DAL's own count.
+      vi.spyOn(db.movie, 'count').mockResolvedValueOnce(0)
+      await expect(deletePerson(amy.id)).rejects.toMatchObject({
+        code: 'VALIDATION',
+        fieldErrors: { base: ['Remove the person from the credits of 1 movie first'] },
+      })
+      expect(await db.person.count()).toBe(1)
+    })
+
     it('deletes an uncredited person and forgets the cached detail', async () => {
       const amy = await seedPerson('Amy Adams')
       expect((await getPersonBySlug('amy-adams')).id).toBe(amy.id)

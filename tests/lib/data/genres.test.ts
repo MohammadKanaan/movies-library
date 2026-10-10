@@ -167,6 +167,24 @@ describe('genres DAL', () => {
       expect(await db.genre.count()).toBe(1)
     })
 
+    it('reports a movie given the genre between the count and the delete as a field error', async () => {
+      const genre = await seedGenre('Drama')
+      await seedMovie({ title: 'Dune', releaseDate: '2021-10-22', genreIds: [genre.id] })
+      await signInAsAdmin()
+      // The DAL counts the genre's movies from the row it reads first; a stale count stands in for
+      // a movie that gained the genre right after that read.
+      const read = db.genre.findUnique.bind(db.genre)
+      vi.spyOn(db.genre, 'findUnique').mockImplementationOnce((async (args: unknown) => {
+        const row = await read(args as never)
+        return row ? { ...row, _count: { movies: 0 } } : row
+      }) as never)
+      await expect(deleteGenre(genre.id)).rejects.toMatchObject({
+        code: 'VALIDATION',
+        fieldErrors: { base: ['Remove the genre from its 1 movie first'] },
+      })
+      expect(await db.genre.count()).toBe(1)
+    })
+
     it('deletes an unused genre and drops it from the cached list', async () => {
       const genre = await seedGenre('Drama')
       expect(await listGenres()).toHaveLength(1)

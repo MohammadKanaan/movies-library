@@ -3,7 +3,10 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { auth } from '@/lib/data/auth'
 import { db } from '@/lib/data/db'
 import { UnauthorizedError, ValidationError } from '@/lib/data/errors'
+import { getMovieBySlug } from '@/lib/data/movies'
+import { getReviewSummary } from '@/lib/data/reviews'
 import {
+  deleteAccount,
   getCurrentUser,
   getViewer,
   hasPassword,
@@ -11,9 +14,10 @@ import {
   updateProfile,
 } from '@/lib/data/users'
 import { getRedis } from '@/lib/server/redis'
+import { seedMovie, seedReview } from '../../helpers/catalog'
 import { cookieJar } from '../../helpers/cookies'
 import { clearMail, flushMail, sentMailsWithSubject, tokenOf } from '../../helpers/mail'
-import { createUser, resetDatabase, signInAs } from '../../helpers/server'
+import { createUser, resetDatabase, signInAs, TEST_PASSWORD } from '../../helpers/server'
 
 const { cookieStore, requestHeaders } = await vi.hoisted(
   async () => import('../../helpers/cookies'),
@@ -191,6 +195,62 @@ describe('users DAL', () => {
       await updateProfile({ name: 'After', username: 'after_name' })
 
       expect(await getViewer()).toMatchObject({ name: 'After', username: 'after_name' })
+    })
+
+    it('refreshes the cached movie details that name the viewer as their creator', async () => {
+      const admin = await createUser({ role: 'admin', name: 'Before', username: 'before_name' })
+      await seedMovie({ title: 'Dune', releaseDate: '2021-10-22', createdById: admin.id })
+      expect((await getMovieBySlug('dune-2021')).createdBy).toMatchObject({ name: 'Before' })
+      await signInAs(admin)
+
+      await updateProfile({ name: 'After', username: 'after_name' })
+
+      expect((await getMovieBySlug('dune-2021')).createdBy).toMatchObject({
+        name: 'After',
+        username: 'after_name',
+      })
+    })
+  })
+
+  describe('deleteAccount', () => {
+    it('requires a session before looking at the input', async () => {
+      await expect(deleteAccount({ password: '' })).rejects.toBeInstanceOf(UnauthorizedError)
+    })
+
+    it('validates the password and puts a wrong one on its field, keeping the account', async () => {
+      const user = await createUser()
+      await signInAs(user)
+      await expect(deleteAccount({ password: '' })).rejects.toMatchObject({
+        code: 'VALIDATION',
+        fieldErrors: { password: ['Password is required'] },
+      })
+      await expect(deleteAccount({ password: 'not-the-password' })).rejects.toMatchObject({
+        code: 'VALIDATION',
+        fieldErrors: { password: ['Password is incorrect'] },
+      })
+      expect(await db.user.count({ where: { id: user.id } })).toBe(1)
+    })
+
+    it('deletes the account and drops every cache that embedded the user', async () => {
+      const user = await createUser({ role: 'admin', name: 'Gone' })
+      const movie = await seedMovie({
+        title: 'Dune',
+        releaseDate: '2021-10-22',
+        createdById: user.id,
+      })
+      await seedReview({ movieId: movie.id, authorId: user.id, rating: 4 })
+      expect((await getMovieBySlug('dune-2021')).createdBy).toMatchObject({ name: 'Gone' })
+      expect(await getReviewSummary('dune-2021')).toEqual({ average: 4, count: 1 })
+      await signInAs(user)
+      expect(await getViewer()).toMatchObject({ name: 'Gone' })
+
+      await deleteAccount({ password: TEST_PASSWORD })
+
+      expect(await db.user.count({ where: { id: user.id } })).toBe(0)
+      expect(await db.session.count({ where: { userId: user.id } })).toBe(0)
+      expect((await getMovieBySlug('dune-2021')).createdBy).toBeNull()
+      expect(await getReviewSummary('dune-2021')).toEqual({ average: null, count: 0 })
+      expect(await getViewer()).toBeNull()
     })
   })
 })

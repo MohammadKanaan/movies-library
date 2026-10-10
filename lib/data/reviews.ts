@@ -1,5 +1,5 @@
 import 'server-only'
-import { Prisma } from '@/generated/prisma/client'
+import type { Prisma } from '@/generated/prisma/client'
 import { MINUTE } from '@/lib/constants-time'
 import { slugSchema } from '@/lib/dto/catalog'
 import { toPage, type Page } from '@/lib/dto/common'
@@ -23,6 +23,7 @@ import { db } from './db'
 import { NotFoundError, parseInput, ValidationError } from './errors'
 import { reviewPolicy, type ReviewRecord } from './policies/review'
 import { authorize, permissionsFor } from './policy'
+import { isUniqueViolation } from './prismaErrors'
 import { consumeRateLimit } from './rateLimit'
 import { userProfileSelect } from './users'
 
@@ -77,9 +78,6 @@ const toReviewDetail = (
   { movie, ...row }: ReviewDetailRow,
   viewer: SessionUser | null,
 ): ReviewDetail => ({ ...toReview(row, viewer), movie })
-
-const isUniqueViolation = (error: unknown) =>
-  error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
 
 const assertMovieExists = async (movieId: string) => {
   const movie = await db.movie.findUnique({ where: { id: movieId }, select: { id: true } })
@@ -220,7 +218,7 @@ export const createReview = async (input: ReviewInput): Promise<Review> => {
     await invalidateTags(reviewsTag(movieId))
     return toReview(row, viewer)
   } catch (error) {
-    if (isUniqueViolation(error)) {
+    if (isUniqueViolation(error, 'reviews_movie_id_author_id_key')) {
       throw new ValidationError(
         { base: ['You have already reviewed this movie'] },
         'You have already reviewed this movie',
@@ -230,21 +228,26 @@ export const createReview = async (input: ReviewInput): Promise<Review> => {
   }
 }
 
-/** Signed in → input valid → exists (404) → the author (403) → the rating, text and flag replaced. */
+/**
+ * Signed in → input valid → exists (404) → the author (403) → the rating, text and flag replaced.
+ * A resubmission that changes nothing writes nothing, so `updatedAt` (the "edited" marker) moves
+ * only when the review did.
+ */
 export const updateReview = async (input: UpdateReviewInput): Promise<Review> => {
   const viewer = await requireUser()
   const { id, rating, body, spoiler } = parseInput(updateReviewInput, input)
-  const record = await db.review.findUnique({
-    where: { id },
-    select: { movieId: true, authorId: true },
-  })
+  const record = await db.review.findUnique({ where: { id }, select: reviewSelect })
   if (!record) {
     throw new NotFoundError('Review not found')
   }
-  authorize(reviewPolicy.update, viewer, record)
+  authorize(reviewPolicy.update, viewer, recordOf(record))
+  const halfStars = rating * 2
+  if (record.halfStars === halfStars && record.body === body && record.spoiler === spoiler) {
+    return toReview(record, viewer)
+  }
   const row = await db.review.update({
     where: { id },
-    data: { halfStars: rating * 2, body, spoiler },
+    data: { halfStars, body, spoiler },
     select: reviewSelect,
   })
   await invalidateTags(reviewsTag(record.movieId))

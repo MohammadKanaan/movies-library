@@ -95,7 +95,8 @@ browser renderer pinned to `@scalar/api-reference@1.73.1`. Both documentation ro
 all environments. The spec URL and API server URL are relative so requests stay on the current
 origin; Scalar's external request proxy and telemetry are disabled.
 
-The spec covers the existing public `GET /api/v1/people` and `GET /api/health` handlers. The generator
+The spec covers every public handler: `GET /api/v1/movies`, `GET /api/v1/people`,
+`GET /api/v1/search` and `GET /api/health`; adding a handler means adding its path. The generator
 imports DTOs only, so reading documentation does not initialize auth, PostgreSQL, or Redis. Numeric
 query schemas use their parsed output representation for integer bounds and defaults, while retaining
 the original input optionality. Response dates are documented as ISO date-time strings to match JSON

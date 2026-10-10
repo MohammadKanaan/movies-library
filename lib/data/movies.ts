@@ -1,6 +1,6 @@
 import 'server-only'
 import { z } from 'zod'
-import { Prisma } from '@/generated/prisma/client'
+import type { Prisma } from '@/generated/prisma/client'
 import { MINUTE } from '@/lib/constants-time'
 import { catalogIdSchema, slugSchema, type CreditRole } from '@/lib/dto/catalog'
 import { pageSchema, toPage, type Page } from '@/lib/dto/common'
@@ -32,6 +32,7 @@ import { movieSummarySelect, toMovieSummary } from './movieSummary'
 import { personSummarySelect } from './people'
 import { moviePolicy } from './policies/movie'
 import { authorize, permissionsFor } from './policy'
+import { isForeignKeyViolation, isUniqueViolation } from './prismaErrors'
 import { uniqueSlug } from './slugs'
 import { deleteObjectAfterTicket, requireOwnKey, verifyStoredObject } from './uploads'
 import { userProfileSelect } from './users'
@@ -256,8 +257,19 @@ const scalarData = (data: ParsedMovieInput) => ({
   runtimeMinutes: data.runtimeMinutes,
 })
 
-const isUniqueViolation = (error: unknown) =>
-  error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
+/**
+ * A genre or person that `assertReferencesExist` saw but that was deleted before the write landed:
+ * the same field error as if it had never existed, instead of a 500.
+ */
+const fromReferenceViolation = (error: unknown): never => {
+  if (isForeignKeyViolation(error, 'movie_genres_genre_id_fkey')) {
+    throw new ValidationError({ genreIds: ['A genre does not exist'] })
+  }
+  if (isForeignKeyViolation(error, 'credits_person_id_fkey')) {
+    throw new ValidationError({ credits: ['A person does not exist'] })
+  }
+  throw error
+}
 
 /**
  * Admin only → input valid → genres and people exist → slug from title and year, numbered when
@@ -292,8 +304,8 @@ export const createMovie = async (input: MovieInput): Promise<MovieDetail> => {
       await invalidateTags(CATALOG_TAG)
       return readMovieDetail(movie.id, viewer)
     } catch (error) {
-      if (!isUniqueViolation(error) || attempt >= CREATE_ATTEMPTS) {
-        throw error
+      if (!isUniqueViolation(error, 'movies_slug_key') || attempt >= CREATE_ATTEMPTS) {
+        fromReferenceViolation(error)
       }
     }
   }
@@ -315,15 +327,19 @@ export const updateMovie = async (input: UpdateMovieInput): Promise<MovieDetail>
   }
   authorize(moviePolicy.update, viewer, record)
   await assertReferencesExist(data)
-  await db.$transaction([
-    db.movie.update({ where: { id }, data: scalarData(data) }),
-    db.movieGenre.deleteMany({ where: { movieId: id } }),
-    db.movieGenre.createMany({ data: data.genreIds.map((genreId) => ({ movieId: id, genreId })) }),
-    db.credit.deleteMany({ where: { movieId: id } }),
-    db.credit.createMany({
-      data: toCreditRows(data.credits).map((credit) => ({ movieId: id, ...credit })),
-    }),
-  ])
+  await db
+    .$transaction([
+      db.movie.update({ where: { id }, data: scalarData(data) }),
+      db.movieGenre.deleteMany({ where: { movieId: id } }),
+      db.movieGenre.createMany({
+        data: data.genreIds.map((genreId) => ({ movieId: id, genreId })),
+      }),
+      db.credit.deleteMany({ where: { movieId: id } }),
+      db.credit.createMany({
+        data: toCreditRows(data.credits).map((credit) => ({ movieId: id, ...credit })),
+      }),
+    ])
+    .catch(fromReferenceViolation)
   await invalidateTags(CATALOG_TAG)
   return readMovieDetail(id, viewer)
 }
@@ -364,6 +380,19 @@ export const deleteMovie = async (id: string): Promise<void> => {
 }
 
 /**
+ * Sets the movie's poster URL and returns the one it replaced, in one transaction that first locks
+ * the movie row: two writes to one movie's poster run one after the other, so the later one sees
+ * (and replaces) what the earlier one set instead of losing track of it.
+ */
+const replacePoster = (id: string, posterUrl: string | null) =>
+  db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT 1 FROM movies WHERE id = ${id}::uuid FOR UPDATE`
+    const previous = await tx.movie.findUnique({ where: { id }, select: { posterUrl: true } })
+    await tx.movie.update({ where: { id }, data: { posterUrl } })
+    return previous?.posterUrl ?? null
+  })
+
+/**
  * Makes an uploaded `poster` object the movie's poster. Admin → input valid (422) → the key is the
  * admin's own and a poster (403; not even another admin's object) → the movie exists (404) → allowed
  * → the stored object is checked against the rule (an object that broke it is deleted at once) → in
@@ -383,16 +412,7 @@ export const attachPoster = async (input: AttachPosterInput): Promise<MovieDetai
   }
   authorize(moviePolicy.update, viewer, record)
   await verifyStoredObject(ownKey, 'poster')
-
-  const replaced = await db.$transaction(async (tx) => {
-    // Two attaches to one movie run one after the other, so the later one sees (and replaces) the
-    // earlier poster instead of losing track of it.
-    await tx.$queryRaw`SELECT 1 FROM movies WHERE id = ${id}::uuid FOR UPDATE`
-    const previous = await tx.movie.findUnique({ where: { id }, select: { posterUrl: true } })
-    await tx.movie.update({ where: { id }, data: { posterUrl: publicUrl(ownKey) } })
-    return previous?.posterUrl ?? null
-  })
-
+  const replaced = await replacePoster(id, publicUrl(ownKey))
   await invalidateTags(CATALOG_TAG)
   if (keyFromPublicUrl(replaced) !== ownKey) {
     queuePosterDeletion(replaced)
@@ -400,20 +420,24 @@ export const attachPoster = async (input: AttachPosterInput): Promise<MovieDetai
   return readMovieDetail(id, viewer)
 }
 
-/** Admin only → id valid → exists → allowed → the poster is cleared and its object queued for deletion. */
+/**
+ * Admin only → id valid → exists → allowed → the poster is cleared under the same row lock as
+ * `attachPoster` (so a poster attached meanwhile is the one cleared and queued, never orphaned)
+ * and its object queued for deletion.
+ */
 export const removePoster = async (id: string): Promise<MovieDetail> => {
   const viewer = await requireAdmin()
   const movieId = parseInput(catalogIdSchema, id)
   const record = await db.movie.findUnique({
     where: { id: movieId },
-    select: { id: true, createdById: true, posterUrl: true },
+    select: { id: true, createdById: true },
   })
   if (!record) {
     throw new NotFoundError('Movie not found')
   }
   authorize(moviePolicy.update, viewer, record)
-  await db.movie.update({ where: { id: movieId }, data: { posterUrl: null } })
+  const replaced = await replacePoster(movieId, null)
   await invalidateTags(CATALOG_TAG)
-  queuePosterDeletion(record.posterUrl)
+  queuePosterDeletion(replaced)
   return readMovieDetail(movieId, viewer)
 }

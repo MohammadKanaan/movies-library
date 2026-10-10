@@ -2,14 +2,24 @@
 import { describe, expect, it } from 'vitest'
 import { generateOpenApi } from '@/lib/openapi'
 
+const parameterNamed = (path: string, name: string) => {
+  const spec = generateOpenApi()
+  const parameters = spec.paths?.[path]?.get?.parameters ?? []
+  return parameters.find((parameter) => 'name' in parameter && parameter.name === name)
+}
+
 describe('generated OpenAPI document', () => {
-  it('documents only the public people and health HTTP operations', () => {
+  it('documents every public HTTP operation and nothing else', () => {
     const spec = generateOpenApi()
-    expect(Object.keys(spec.paths ?? {}).sort()).toEqual(['/api/health', '/api/v1/people'])
-    expect(Object.keys(spec.paths?.['/api/v1/people']?.get?.responses ?? {})).toEqual([
-      '200',
-      '422',
+    expect(Object.keys(spec.paths ?? {}).sort()).toEqual([
+      '/api/health',
+      '/api/v1/movies',
+      '/api/v1/people',
+      '/api/v1/search',
     ])
+    for (const path of ['/api/v1/movies', '/api/v1/people', '/api/v1/search']) {
+      expect(Object.keys(spec.paths?.[path]?.get?.responses ?? {})).toEqual(['200', '422'])
+    }
     expect(Object.keys(spec.paths?.['/api/health']?.get?.responses ?? {})).toEqual(['200', '503'])
     expect(spec.security).toBeUndefined()
     expect(spec.components?.securitySchemes).toBeUndefined()
@@ -55,6 +65,77 @@ describe('generated OpenAPI document', () => {
     })
     const searchSchema = q && 'schema' in q ? q.schema : undefined
     expect(searchSchema).not.toHaveProperty('minLength')
+  })
+
+  it('documents the movie list’s filters as the URL carries them', () => {
+    const spec = generateOpenApi()
+    const names = (spec.paths?.['/api/v1/movies']?.get?.parameters ?? []).map((parameter) =>
+      'name' in parameter ? parameter.name : '',
+    )
+    expect(names.sort()).toEqual([
+      'genres',
+      'page',
+      'perPage',
+      'person',
+      'q',
+      'runtimeMax',
+      'runtimeMin',
+      'sort',
+      'yearFrom',
+      'yearTo',
+    ])
+    for (const parameter of spec.paths?.['/api/v1/movies']?.get?.parameters ?? []) {
+      expect(parameter).not.toHaveProperty('required', true)
+    }
+    expect(parameterNamed('/api/v1/movies', 'genres')).toMatchObject({
+      schema: expect.objectContaining({ type: 'string' }),
+    })
+    expect(parameterNamed('/api/v1/movies', 'sort')).toMatchObject({
+      schema: expect.objectContaining({
+        enum: ['newest', 'oldest', 'title', 'added'],
+        default: 'newest',
+      }),
+    })
+    expect(parameterNamed('/api/v1/movies', 'yearFrom')).toMatchObject({
+      schema: expect.objectContaining({ type: 'integer' }),
+    })
+    expect(parameterNamed('/api/v1/movies', 'runtimeMax')).toMatchObject({
+      schema: expect.objectContaining({ type: 'integer', minimum: 1, maximum: 1000 }),
+    })
+    expect(spec.paths?.['/api/v1/movies']?.get?.responses?.['200']).toMatchObject({
+      content: { 'application/json': { schema: { $ref: '#/components/schemas/MoviesPage' } } },
+    })
+    expect(spec.components?.schemas?.MoviesPage).toMatchObject({
+      properties: {
+        items: {
+          items: {
+            required: expect.arrayContaining(['slug', 'title', 'releaseDate', 'genres']),
+            properties: { releaseDate: { type: 'string', format: 'date-time' } },
+          },
+        },
+      },
+    })
+  })
+
+  it('documents the search term as required and the limit with its bounds', () => {
+    const spec = generateOpenApi()
+    expect(parameterNamed('/api/v1/search', 'q')).toMatchObject({
+      required: true,
+      schema: expect.objectContaining({ type: 'string', maxLength: 100 }),
+    })
+    expect(parameterNamed('/api/v1/search', 'limit')).toMatchObject({
+      schema: expect.objectContaining({
+        type: 'integer',
+        exclusiveMinimum: 0,
+        maximum: 25,
+        default: 10,
+      }),
+    })
+    expect(parameterNamed('/api/v1/search', 'limit')).not.toHaveProperty('required', true)
+    expect(spec.components?.schemas?.SearchSuggestions).toMatchObject({
+      required: ['q', 'movies', 'people'],
+      properties: { movies: { type: 'array' }, people: { type: 'array' } },
+    })
   })
 
   it('publishes paginated person DTOs with ISO date-time strings on the wire', () => {

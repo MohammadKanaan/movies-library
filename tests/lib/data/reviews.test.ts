@@ -174,6 +174,24 @@ describe('reviews DAL', () => {
       expect(cleared).toMatchObject({ body: null, spoiler: false })
     })
 
+    it('writes nothing for a resubmission that changes nothing, so the review stays unedited', async () => {
+      const author = await createUser()
+      const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })
+      const review = await seedReview({
+        movieId: movie.id,
+        authorId: author.id,
+        rating: 3,
+        body: 'Fine.',
+      })
+      await signInAs(author)
+      const same = await updateReview({ id: review.id, rating: 3, body: 'Fine.', spoiler: false })
+      expect(same).toMatchObject({ id: review.id, rating: 3, body: 'Fine.', spoiler: false })
+      expect(same.updatedAt.getTime()).toBe(review.updatedAt.getTime())
+      expect(
+        (await db.review.findUniqueOrThrow({ where: { id: review.id } })).updatedAt.getTime(),
+      ).toBe(review.updatedAt.getTime())
+    })
+
     it('is 403 for anyone else, an admin and an editor included', async () => {
       const author = await createUser()
       const movie = await seedMovie({ title: 'Dune', releaseDate: '2021-10-22' })

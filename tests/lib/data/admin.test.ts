@@ -236,12 +236,26 @@ describe('admin DAL', () => {
       const admin = await createUser({ role: 'admin' })
       await signInAs(admin)
 
-      const promoted = await setUserRole({ id: target.id, role: 'admin' })
-      expect(promoted).toMatchObject({ id: target.id, name: 'Target', role: 'admin' })
-      expect(await userRow(target.id)).toMatchObject({ role: 'admin' })
+      const editor = await setUserRole({ id: target.id, role: 'editor' })
+      expect(editor).toMatchObject({ id: target.id, name: 'Target', role: 'editor' })
+      expect(await userRow(target.id)).toMatchObject({ role: 'editor' })
 
       expect((await setUserRole({ id: target.id, role: 'viewer' })).role).toBe('viewer')
       expect(await userRow(target.id)).toMatchObject({ role: 'viewer' })
+
+      expect((await setUserRole({ id: target.id, role: 'admin' })).role).toBe('admin')
+      expect(await userRow(target.id)).toMatchObject({ role: 'admin' })
+    })
+
+    it('refuses to change another admin’s role: admins are peers', async () => {
+      const peer = await createUser({ role: 'admin' })
+      const admin = await createUser({ role: 'admin' })
+      await signInAs(admin)
+      await expect(setUserRole({ id: peer.id, role: 'viewer' })).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+        message: 'Another admin’s role cannot be changed',
+      })
+      expect(await userRow(peer.id)).toMatchObject({ role: 'admin' })
     })
 
     it('applies on the target’s next request and refreshes their cached viewer', async () => {
@@ -297,9 +311,27 @@ describe('admin DAL', () => {
     it('refuse to ban the admin’s own account', async () => {
       const admin = await createUser({ role: 'admin' })
       await signInAs(admin)
-      await expect(banUser({ id: admin.id, reason: 'oops' })).rejects.toBeInstanceOf(ForbiddenError)
+      await expect(banUser({ id: admin.id, reason: 'oops' })).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+        message: 'You cannot ban your own account',
+      })
       expect(await userRow(admin.id)).toMatchObject({ banned: false })
       await expect(requireAdmin()).resolves.toMatchObject({ id: admin.id })
+    })
+
+    it('refuse to ban another admin, who keeps their sessions', async () => {
+      const peer = await createUser({ role: 'admin' })
+      await signInAs(peer)
+      const admin = await createUser({ role: 'admin' })
+      await signInAs(admin)
+      await expect(banUser({ id: peer.id, reason: 'rivalry' })).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+        message: 'Another admin cannot be banned',
+      })
+      expect(await userRow(peer.id)).toMatchObject({ banned: false, banReason: null })
+      expect(await db.session.count({ where: { userId: peer.id } })).toBeGreaterThan(0)
+      // Lifting a ban is not managing a peer: it only ever restores access.
+      await expect(unbanUser(peer.id)).resolves.toMatchObject({ id: peer.id, banned: false })
     })
 
     it('ban: signs the user out everywhere and refuses their sign-in with the reason', async () => {

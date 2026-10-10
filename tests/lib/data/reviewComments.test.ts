@@ -144,6 +144,20 @@ describe('review comments DAL', () => {
       expect(updated.updatedAt.getTime()).toBeGreaterThan(updated.createdAt.getTime())
     })
 
+    it('writes nothing for the same text again, so the comment stays unedited', async () => {
+      const { review } = await seedReviewed()
+      const author = await createUser()
+      const comment = await seedComment({
+        reviewId: review.id,
+        authorId: author.id,
+        body: 'Fine.',
+      })
+      await signInAs(author)
+      const same = await updateComment({ id: comment.id, body: '  Fine. ' })
+      expect(same).toMatchObject({ id: comment.id, body: 'Fine.' })
+      expect(same.updatedAt.getTime()).toBe(comment.updatedAt.getTime())
+    })
+
     it('is 403 for anyone else, an admin and an editor included', async () => {
       const { review } = await seedReviewed()
       const comment = await seedComment({

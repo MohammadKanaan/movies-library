@@ -379,6 +379,19 @@ describe('movies DAL', () => {
   })
 
   describe('createMovie', () => {
+    it('reports a genre deleted between the check and the write as a field error', async () => {
+      const { input, scifi } = await fixtures()
+      await signInAsAdmin()
+      // A stale count stands in for a genre deleted right after the DAL's own existence check.
+      vi.spyOn(db.genre, 'count').mockResolvedValueOnce(input.genreIds.length)
+      await db.genre.delete({ where: { id: scifi.id } })
+      await expect(createMovie(input)).rejects.toMatchObject({
+        code: 'VALIDATION',
+        fieldErrors: { genreIds: ['A genre does not exist'] },
+      })
+      expect(await db.movie.count()).toBe(0)
+    })
+
     it('requires an admin: 401 signed out, 403 for a viewer or an editor', async () => {
       const { input } = await fixtures()
       await expect(createMovie(input)).rejects.toBeInstanceOf(UnauthorizedError)

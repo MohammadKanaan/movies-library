@@ -1,6 +1,6 @@
 import 'server-only'
 import { z } from 'zod'
-import { Prisma } from '@/generated/prisma/client'
+import type { Prisma } from '@/generated/prisma/client'
 import { MINUTE } from '@/lib/constants-time'
 import { catalogIdSchema } from '@/lib/dto/catalog'
 import {
@@ -19,6 +19,7 @@ import { db } from './db'
 import { NotFoundError, parseInput, ValidationError } from './errors'
 import { genrePolicy } from './policies/genre'
 import { authorize } from './policy'
+import { isForeignKeyViolation, isUniqueViolation } from './prismaErrors'
 
 // Genres are reference data: public to read, admin-only to write, cached as one list.
 
@@ -46,10 +47,15 @@ const genreTaken = () => new ValidationError({ name: ['That genre already exists
 
 /** Both `name` and `slug` are unique; either collision means the genre exists. */
 const fromUniqueViolation = (error: unknown): never => {
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+  if (isUniqueViolation(error)) {
     throw genreTaken()
   }
   throw error
+}
+
+const stillInUse = (count: number) => {
+  const message = `Remove the genre from its ${count} ${count === 1 ? 'movie' : 'movies'} first`
+  return new ValidationError({ base: [message] }, message)
 }
 
 const readGenre = async (id: string): Promise<GenreWithCount> => {
@@ -109,7 +115,8 @@ export const updateGenre = async (input: UpdateGenreInput): Promise<GenreWithCou
 
 /**
  * Admin only → id valid → exists → allowed → not in use: the foreign key is `Restrict`, and this
- * turns that into a message instead of a database error.
+ * turns that into a message instead of a database error, also for a movie given the genre between
+ * the count and the delete.
  */
 export const deleteGenre = async (id: string): Promise<void> => {
   const viewer = await requireAdmin()
@@ -122,11 +129,14 @@ export const deleteGenre = async (id: string): Promise<void> => {
     throw new NotFoundError('Genre not found')
   }
   authorize(genrePolicy.delete, viewer, record)
-  const inUse = record._count.movies
-  if (inUse > 0) {
-    const message = `Remove the genre from its ${inUse} ${inUse === 1 ? 'movie' : 'movies'} first`
-    throw new ValidationError({ base: [message] }, message)
+  if (record._count.movies > 0) {
+    throw stillInUse(record._count.movies)
   }
-  await db.genre.delete({ where: { id: genreId } })
+  await db.genre.delete({ where: { id: genreId } }).catch(async (error: unknown) => {
+    if (isForeignKeyViolation(error, 'movie_genres_genre_id_fkey')) {
+      throw stillInUse(Math.max(1, await db.movieGenre.count({ where: { genreId } })))
+    }
+    throw error
+  })
   await invalidateTags(CATALOG_TAG)
 }

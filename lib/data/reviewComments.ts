@@ -100,15 +100,21 @@ export const createComment = async (input: CommentInput): Promise<ReviewComment>
   return toComment(row, viewer)
 }
 
-/** Signed in → input valid → exists (404) → the author (403) → the text replaced. */
+/**
+ * Signed in → input valid → exists (404) → the author (403) → the text replaced. The same text
+ * again writes nothing, so `updatedAt` (the "edited" marker) moves only when the comment did.
+ */
 export const updateComment = async (input: UpdateCommentInput): Promise<ReviewComment> => {
   const viewer = await requireUser()
   const { id, body } = parseInput(updateCommentInput, input)
-  const record = await db.reviewComment.findUnique({ where: { id }, select: { authorId: true } })
+  const record = await db.reviewComment.findUnique({ where: { id }, select: commentSelect })
   if (!record) {
     throw new NotFoundError('Comment not found')
   }
-  authorize(reviewCommentPolicy.update, viewer, record)
+  authorize(reviewCommentPolicy.update, viewer, recordOf(record))
+  if (record.body === body) {
+    return toComment(record, viewer)
+  }
   const row = await db.reviewComment.update({
     where: { id },
     data: { body },

@@ -1,5 +1,5 @@
 import 'server-only'
-import { Prisma } from '@/generated/prisma/client'
+import type { Prisma } from '@/generated/prisma/client'
 import { MINUTE } from '@/lib/constants-time'
 import { catalogIdSchema, creditRoleSchema, slugSchema } from '@/lib/dto/catalog'
 import { pageSchema, toPage, type Page } from '@/lib/dto/common'
@@ -32,6 +32,7 @@ import { NotFoundError, parseInput, ValidationError } from './errors'
 import { movieSummarySelect, toMovieSummary } from './movieSummary'
 import { personPolicy } from './policies/person'
 import { authorize, permissionsFor } from './policy'
+import { isForeignKeyViolation, isUniqueViolation } from './prismaErrors'
 import { uniqueSlug } from './slugs'
 import { deleteObjectAfterTicket, requireOwnKey, verifyStoredObject } from './uploads'
 
@@ -251,8 +252,7 @@ export const createPerson = async (input: PersonInput): Promise<PersonDetail> =>
       await invalidateTags(CATALOG_TAG)
       return readPersonDetail(person.id, viewer)
     } catch (error) {
-      const raced = error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
-      if (!raced || attempt >= CREATE_ATTEMPTS) {
+      if (!isUniqueViolation(error, 'people_slug_key') || attempt >= CREATE_ATTEMPTS) {
         throw error
       }
     }
@@ -297,9 +297,15 @@ const queueHeadshotDeletion = (headshotUrl: string | null) => {
   )
 }
 
+const stillCredited = (count: number) => {
+  const message = `Remove the person from the credits of ${count} ${count === 1 ? 'movie' : 'movies'} first`
+  return new ValidationError({ base: [message] }, message)
+}
+
 /**
  * Admin only → id valid → exists → allowed → not credited: the foreign key is `Restrict`, and this
- * turns that into a message instead of a database error. The headshot's object is queued after.
+ * turns that into a message instead of a database error, also for a credit added between the count
+ * and the delete. The headshot's object is queued after.
  */
 export const deletePerson = async (id: string): Promise<void> => {
   const viewer = await requireAdmin()
@@ -312,15 +318,33 @@ export const deletePerson = async (id: string): Promise<void> => {
     throw new NotFoundError('Person not found')
   }
   authorize(personPolicy.delete, viewer, record)
-  const count = await db.movie.count({ where: { credits: { some: { personId } } } })
+  const creditedMovies = () => db.movie.count({ where: { credits: { some: { personId } } } })
+  const count = await creditedMovies()
   if (count > 0) {
-    const message = `Remove the person from the credits of ${count} ${count === 1 ? 'movie' : 'movies'} first`
-    throw new ValidationError({ base: [message] }, message)
+    throw stillCredited(count)
   }
-  await db.person.delete({ where: { id: personId } })
+  await db.person.delete({ where: { id: personId } }).catch(async (error: unknown) => {
+    if (isForeignKeyViolation(error, 'credits_person_id_fkey')) {
+      throw stillCredited(Math.max(1, await creditedMovies()))
+    }
+    throw error
+  })
   await invalidateTags(CATALOG_TAG)
   queueHeadshotDeletion(record.headshotUrl)
 }
+
+/**
+ * Sets the person's headshot URL and returns the one it replaced, under a row lock like
+ * `replacePoster` in `lib/data/movies.ts`: two writes to one person's headshot run one after the
+ * other, so the later one sees (and replaces) what the earlier one set.
+ */
+const replaceHeadshot = (id: string, headshotUrl: string | null) =>
+  db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT 1 FROM people WHERE id = ${id}::uuid FOR UPDATE`
+    const previous = await tx.person.findUnique({ where: { id }, select: { headshotUrl: true } })
+    await tx.person.update({ where: { id }, data: { headshotUrl } })
+    return previous?.headshotUrl ?? null
+  })
 
 /**
  * Makes an uploaded `headshot` object the person's headshot, the way `attachPoster` does for a
@@ -339,16 +363,7 @@ export const attachHeadshot = async (input: AttachHeadshotInput): Promise<Person
   }
   authorize(personPolicy.update, viewer, record)
   await verifyStoredObject(ownKey, 'headshot')
-
-  const replaced = await db.$transaction(async (tx) => {
-    // Two attaches to one person run one after the other, so the later one sees (and replaces) the
-    // earlier headshot instead of losing track of it.
-    await tx.$queryRaw`SELECT 1 FROM people WHERE id = ${id}::uuid FOR UPDATE`
-    const previous = await tx.person.findUnique({ where: { id }, select: { headshotUrl: true } })
-    await tx.person.update({ where: { id }, data: { headshotUrl: publicUrl(ownKey) } })
-    return previous?.headshotUrl ?? null
-  })
-
+  const replaced = await replaceHeadshot(id, publicUrl(ownKey))
   await invalidateTags(CATALOG_TAG)
   if (keyFromPublicUrl(replaced) !== ownKey) {
     queueHeadshotDeletion(replaced)
@@ -356,20 +371,21 @@ export const attachHeadshot = async (input: AttachHeadshotInput): Promise<Person
   return readPersonDetail(id, viewer)
 }
 
-/** Admin only → id valid → exists → allowed → the headshot is cleared and its object queued for deletion. */
+/**
+ * Admin only → id valid → exists → allowed → the headshot is cleared under the same row lock as
+ * `attachHeadshot` (so a headshot attached meanwhile is the one cleared and queued, never
+ * orphaned) and its object queued for deletion.
+ */
 export const removeHeadshot = async (id: string): Promise<PersonDetail> => {
   const viewer = await requireAdmin()
   const personId = parseInput(catalogIdSchema, id)
-  const record = await db.person.findUnique({
-    where: { id: personId },
-    select: { id: true, headshotUrl: true },
-  })
+  const record = await db.person.findUnique({ where: { id: personId }, select: { id: true } })
   if (!record) {
     throw new NotFoundError('Person not found')
   }
   authorize(personPolicy.update, viewer, record)
-  await db.person.update({ where: { id: personId }, data: { headshotUrl: null } })
+  const replaced = await replaceHeadshot(personId, null)
   await invalidateTags(CATALOG_TAG)
-  queueHeadshotDeletion(record.headshotUrl)
+  queueHeadshotDeletion(replaced)
   return readPersonDetail(personId, viewer)
 }
