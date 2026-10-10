@@ -1,0 +1,30 @@
+import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
+import { safeRedirectPath } from '@/lib/constants-routes'
+import { isGoogleAuthEnabled } from '@/lib/data/auth'
+import { getViewer } from '@/lib/data/users'
+import { LoginView } from './view'
+
+export const metadata: Metadata = {
+  title: 'Log in',
+}
+
+const LoginPage = async ({ searchParams }: PageProps<'/login'>) => {
+  const { next, error } = await searchParams
+  const nextPath = safeRedirectPath(typeof next === 'string' ? next : undefined)
+
+  // A real session (not just a cookie) has nothing to do here.
+  if (await getViewer()) {
+    redirect(nextPath)
+  }
+
+  // Better Auth sends a failed provider sign-in back here with `?error=<code>`. Only whether it is
+  // there is used; the value is never shown.
+  const failed = typeof error === 'string' && error !== ''
+
+  return (
+    <LoginView nextPath={nextPath} googleEnabled={isGoogleAuthEnabled()} signInFailed={failed} />
+  )
+}
+
+export default LoginPage

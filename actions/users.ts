@@ -1,0 +1,26 @@
+'use server'
+
+import { refresh, revalidatePath } from 'next/cache'
+import { ROUTE_POSTS } from '@/lib/constants-routes'
+import { requireUser } from '@/lib/data/auth'
+import { toActionFailure } from '@/lib/data/errors'
+import { consumeRateLimit } from '@/lib/data/rateLimit'
+import { updateProfile } from '@/lib/data/users'
+import type { CurrentUser, UpdateProfileInput } from '@/lib/dto/users'
+import type { ActionResult } from '@/types/api'
+
+export const updateProfileAction = async (
+  input: UpdateProfileInput,
+): Promise<ActionResult<CurrentUser>> => {
+  try {
+    const viewer = await requireUser()
+    await consumeRateLimit(`update-profile:user:${viewer.id}`, { max: 10, windowMs: 60_000 })
+    const user = await updateProfile(input)
+    // The name and username also show on post cards and details.
+    revalidatePath(ROUTE_POSTS, 'layout')
+    refresh()
+    return { ok: true, data: user }
+  } catch (error) {
+    return toActionFailure(error)
+  }
+}

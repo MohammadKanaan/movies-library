@@ -1,0 +1,63 @@
+// @vitest-environment node
+import { describe, expect, it, vi } from 'vitest'
+import { ForbiddenError, NotFoundError, UnauthorizedError } from '@/lib/data/errors'
+import { loadPage } from '@/lib/data/page'
+
+const connection = vi.hoisted(() => vi.fn(async () => {}))
+vi.mock('next/server', () => ({ connection }))
+vi.mock('next/navigation', () => ({
+  redirect: (url: string) => {
+    throw new Error(`REDIRECT ${url}`)
+  },
+  notFound: () => {
+    throw new Error('NOT_FOUND')
+  },
+}))
+
+describe('loadPage', () => {
+  it('returns the loaded value', async () => {
+    expect(await loadPage(async () => 42, '/x')).toBe(42)
+  })
+
+  it('waits for a request before running the read', async () => {
+    const order: string[] = []
+    connection.mockImplementationOnce(async () => {
+      order.push('connection')
+    })
+    await loadPage(async () => order.push('load'), '/x')
+    expect(order).toEqual(['connection', 'load'])
+  })
+
+  it('redirects signed-out users to login with the page as next', async () => {
+    await expect(
+      loadPage(async () => {
+        throw new UnauthorizedError()
+      }, '/posts/new'),
+    ).rejects.toThrow('REDIRECT /login?next=%2Fposts%2Fnew')
+  })
+
+  it('renders not-found for missing records', async () => {
+    await expect(
+      loadPage(async () => {
+        throw new NotFoundError()
+      }, '/x'),
+    ).rejects.toThrow('NOT_FOUND')
+  })
+
+  it('renders not-found for a page the viewer may not see, so the admin area stays hidden', async () => {
+    await expect(
+      loadPage(async () => {
+        throw new ForbiddenError()
+      }, '/admin'),
+    ).rejects.toThrow('NOT_FOUND')
+  })
+
+  it('lets other errors through', async () => {
+    const error = new Error('database down')
+    await expect(
+      loadPage(async () => {
+        throw error
+      }, '/x'),
+    ).rejects.toBe(error)
+  })
+})

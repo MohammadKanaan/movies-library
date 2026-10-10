@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+build
+coverage
+bun.lock
+next-env.d.ts
+generated
+docs/superpowers
+prisma/contract.d.ts
+prisma/contract.json
+prisma/migrations

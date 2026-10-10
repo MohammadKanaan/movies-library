@@ -1,0 +1,19 @@
+node_modules
+.next
+generated
+.env*
+.git
+.github
+docs
+tests
+# Manual test pages (git-ignored); they must not ship as routes in an image built from a working copy.
+app/test
+.agents
+.claude
+.cursor
+.devin
+*.tsbuildinfo
+next-env.d.ts
+Dockerfile
+.dockerignore
+docker-compose.yml

@@ -1,0 +1,126 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../generated/prisma"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Better Auth's user, plus the fields of its `admin` plugin (`role`, `banned`, `banReason`,
+/// `banExpires`) and this app's own `username` and `website`.
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false) @map("email_verified")
+  image         String?
+  username      String    @unique
+  website       String?
+  /// `user` or `admin` (`roleSchema` in `lib/dto/users.ts`); the admin plugin stores roles as text.
+  role          String    @default("user")
+  banned        Boolean   @default(false)
+  banReason     String?   @map("ban_reason")
+  banExpires    DateTime? @map("ban_expires") @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions      Session[]
+  accounts      Account[]
+  posts         Post[]
+  uploads       Upload[]
+
+  @@map("users")
+}
+
+model Session {
+  id             String   @id
+  token          String   @unique
+  expiresAt      DateTime @map("expires_at") @db.Timestamptz(3)
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  userId         String   @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The admin who opened this session through the admin plugin's impersonation, if any.
+  impersonatedBy String?  @map("impersonated_by")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(3)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+/// The example resource. Only published posts are public; a draft is visible to its author and admins.
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String
+  body      String
+  published Boolean  @default(false)
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([published, id])
+  @@map("posts")
+}
+
+enum UploadPurpose {
+  avatar
+}
+
+enum UploadStatus {
+  pending
+  attached
+}
+
+/// Every object the app asked the browser to upload to R2, so abandoned `pending` rows and replaced
+/// files can be cleaned up by jobs instead of leaking in the bucket.
+model Upload {
+  id          String        @id @default(uuid())
+  key         String        @unique
+  userId      String        @map("user_id")
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose     UploadPurpose
+  contentType String        @map("content_type")
+  size        Int
+  status      UploadStatus  @default(pending)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([userId, purpose, status])
+  @@index([status, createdAt])
+  @@map("uploads")
+}

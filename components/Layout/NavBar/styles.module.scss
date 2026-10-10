@@ -1,0 +1,279 @@
+.header {
+  padding: 0.7rem 1.2rem;
+  border-bottom: 1px solid var(--border);
+  width: 100%;
+  height: 4rem;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  background: var(--background);
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  max-width: 100%;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--foreground);
+  gap: 0.7rem;
+  padding: 0;
+  text-decoration: none;
+  white-space: nowrap;
+  z-index: 1001;
+}
+
+/* Desktop Navigation */
+.desktopNav {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  margin-left: auto;
+}
+
+/* Filled by the account area (sign in / user menu) */
+.accountArea {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.profileLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-md);
+
+  &:hover .userName {
+    color: var(--foreground);
+  }
+}
+
+.userName {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Account controls at the bottom of the mobile menu */
+.mobileAccountArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Mobile Menu Button */
+.mobileMenuButton {
+  display: none;
+  justify-content: center;
+  align-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: none;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  padding: 0.5rem;
+  z-index: 1001;
+
+  svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+/* Mobile Navigation Overlay */
+.mobileNavOverlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: rgb(0 0 0 / 50%);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+
+  &.active {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* Mobile Navigation Menu */
+.mobileNav {
+  display: none;
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 80%;
+  max-width: 300px;
+  height: 100vh;
+  background: var(--background);
+  z-index: 1000;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+
+  &.active {
+    right: 0;
+  }
+}
+
+.mobileNavHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1.5rem 1.5rem 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--foreground);
+  border-bottom: 1px solid var(--border);
+}
+
+.mobileNavLinks {
+  width: 100%;
+  padding: 1rem 0;
+}
+
+.mobileNavLink {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 1rem 1.5rem;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--muted);
+    color: var(--primary);
+  }
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+
+  span {
+    font-size: 1rem;
+    font-weight: 400;
+  }
+
+  &:hover {
+    color: var(--foreground);
+  }
+}
+
+.navLinkActive {
+  color: var(--foreground);
+}
+
+/* Responsive Media Queries */
+@media (width < $breakpoint-md) {
+  .header {
+    padding: 0.7rem 1rem;
+  }
+
+  .desktopNav {
+    display: none;
+  }
+
+  .mobileMenuButton {
+    display: flex;
+    margin-left: auto;
+  }
+
+  .bellSlot {
+    margin-left: auto;
+    margin-right: 0.5rem;
+  }
+
+  .bellSlot + .mobileMenuButton {
+    margin-left: 0;
+  }
+
+  .mobileNavOverlay {
+    display: block;
+  }
+
+  .mobileNav {
+    display: block;
+  }
+}
+
+@media (width <= $breakpoint-xs) {
+  .header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .mobileNav {
+    width: 90%;
+    max-width: 280px;
+  }
+
+  .mobileNavHeader {
+    padding: 1.25rem 1rem 0.75rem;
+    font-size: 1.1rem;
+  }
+
+  .mobileNavLink {
+    padding: 0.875rem 1rem;
+    font-size: 0.95rem;
+  }
+}
+
+/* Ensure proper spacing for mobile devices */
+@media (width <= $breakpoint-narrow) {
+  .header {
+    padding: 0.5rem;
+    height: 3.5rem;
+  }
+
+  .brand {
+    gap: 0.5rem;
+  }
+
+  .mobileMenuButton {
+    width: 2rem;
+    height: 2rem;
+  }
+}
+
+/* Tablet adjustments */
+@media ($breakpoint-md <= width <= $breakpoint-lg) {
+  .brand {
+    padding: 0 1rem;
+  }
+
+  .desktopNav {
+    gap: 1.5rem;
+  }
+
+  .navLink span {
+    font-size: 0.9rem;
+  }
+}
