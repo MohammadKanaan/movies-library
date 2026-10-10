@@ -19,8 +19,8 @@ export const MOVIE_GENRES_MAX = 10
 export const MOVIE_CREDITS_MAX = 100
 export const MOVIE_SEARCH_MAX_LENGTH = 100
 /**
- * The first films date from the late 1880s, and the catalog holds released films only
- * (`docs/DECISIONS.md`, "Release date"), so a release date is never after today (UTC).
+ * The first films date from the late 1880s, and the catalog holds released films only, so a
+ * release date is never after today (UTC).
  */
 export const MOVIE_RELEASE_MIN = '1888-01-01'
 const today = () => new Date().toISOString().slice(0, 10)

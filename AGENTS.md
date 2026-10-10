@@ -109,7 +109,7 @@ generated/               # Generated Prisma client (git-ignored; `postinstall` r
 styles/                  # global.css: official shadcn theme tokens and Tailwind base styles
 proxy.ts                 # Optimistic auth redirects and the per-request CSP nonce (lib/csp.ts)
 tests/                   # Vitest tests mirroring the source structure
-docs/DECISIONS.md        # Framework and library choices, with reasons; what was removed and why
+docs/DECISIONS.md        # Key decisions with reasons, and what I'd add before production
 ```
 
 ## TypeScript

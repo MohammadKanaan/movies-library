@@ -122,8 +122,8 @@ model Movie {
   slug           String   @unique
   title          String
   synopsis       String?
-  // NOT NULL on purpose: the catalog holds released films only (docs/DECISIONS.md, "Release date"),
-  // so every row sorts by a real date and there are no NULLS FIRST surprises.
+  // NOT NULL on purpose: the catalog holds released films only, so every row sorts by a real date
+  // and there are no NULLS FIRST surprises.
   releaseDate    DateTime @map("release_date") @db.Date
   runtimeMinutes Int?     @map("runtime_minutes")
   posterUrl      String?  @map("poster_url")
