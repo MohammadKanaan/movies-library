@@ -57,6 +57,9 @@ const ReviewPage = async ({ params, searchParams }: PageProps<'/movies/[slug]/re
       ]),
     path,
   )
+  // Comments read oldest first, so a new one closes the list: on the last page, or on a fresh
+  // one when the last is full. Counted from this render; a comment posted meanwhile shifts it.
+  const landingPage = Math.ceil((comments.totalItems + 1) / COMMENTS_PER_PAGE)
 
   return (
     <div className={styles.page}>
@@ -88,7 +91,7 @@ const ReviewPage = async ({ params, searchParams }: PageProps<'/movies/[slug]/re
             <span className={styles.commentCount}>{comments.totalItems}</span>
           </h2>
           {viewer ? (
-            <NewComment reviewId={review.id} />
+            <NewComment reviewId={review.id} landingPage={landingPage} />
           ) : (
             <p className={styles.signIn}>
               <span>Sign in to join the conversation.</span>

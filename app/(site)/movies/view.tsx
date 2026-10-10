@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react'
 import { LoadingButton } from '@/components/LoadingButton'
 import { MovieCard } from '@/components/Movies/MovieCard'
 import { MovieFilters } from '@/components/Movies/MovieFilters'
@@ -50,7 +50,7 @@ const MoviesResults = ({
   const hasMore = batch.page < Math.min(batch.totalPages, MAX_PAGE)
   const loaded = initialIds.length + batch.items.length
 
-  const loadMore = useCallback(async () => {
+  const loadMore = async () => {
     // The ref locks synchronously, before React renders the loading state.
     if (!hasMore || request.current) {
       return
@@ -89,9 +89,14 @@ const MoviesResults = ({
         request.current = null
       }
     }
-  }, [hasMore, batch.page, perPage, query, initialIds])
+  }
 
   useEffect(() => () => request.current?.abort(), [])
+
+  // The observer is wired once per idle stretch; the event reads the latest `loadMore`.
+  const onSentinelVisible = useEffectEvent(() => {
+    void loadMore()
+  })
 
   useEffect(() => {
     if (!hasMore || status !== 'idle' || !sentinel.current || !window.IntersectionObserver) {
@@ -101,7 +106,7 @@ const MoviesResults = ({
     const observer = new IntersectionObserver(
       (entries) => {
         if (active && entries.some((entry) => entry.isIntersecting)) {
-          void loadMore()
+          onSentinelVisible()
         }
       },
       { rootMargin: '400px' },
@@ -111,7 +116,7 @@ const MoviesResults = ({
       active = false
       observer.disconnect()
     }
-  }, [hasMore, status, loadMore])
+  }, [hasMore, status])
 
   return (
     <div className={styles.results}>
