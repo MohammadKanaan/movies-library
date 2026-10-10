@@ -1,3 +1,66 @@
-.minimalContent {
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
   min-height: 100vh;
+  background: var(--background);
+
+  /* Narrow screens keep a band of the wall above the form instead of losing it. */
+  @media (width < $breakpoint-lg) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 11rem auto;
+  }
+}
+
+/* The brand on top, the form centred in the room left; the empty last row balances the first. */
+.formSide {
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  gap: 2rem;
+  padding: 2rem clamp(1.5rem, 5vw, 4rem);
+}
+
+.brand {
+  align-self: start;
+  justify-self: start;
+  color: var(--foreground);
+  font-family: var(--font-display-family);
+  font-size: 1.125rem;
+  font-weight: var(--font-display-weight);
+  letter-spacing: var(--font-display-tracking);
+  text-decoration: none;
+}
+
+/* The wall fills its cell; on narrow screens it moves above the form. */
+.wall {
+  display: grid;
+
+  @media (width < $breakpoint-lg) {
+    order: -1;
+  }
+}
+
+.content {
+  width: 100%;
+  max-width: 23rem;
+  margin: 0 auto;
+  animation: rise 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content {
+    animation-name: fade;
+  }
 }

@@ -2,11 +2,10 @@
 
 import { useRouter } from 'next/navigation'
 import { signUpAction } from '@/actions/auth'
+import { AuthHeader } from '@/components/Auth/AuthHeader'
 import { GoogleButton } from '@/components/Auth/GoogleButton'
 import { SignUpForm } from '@/components/Auth/SignUpForm'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/SCN/card'
 import type { SignUpInput } from '@/lib/dto/auth'
-import styles from '../login/styles.module.scss'
 
 type SignUpViewProps = {
   nextPath: string
@@ -32,19 +31,13 @@ export const SignUpView = ({ nextPath, googleEnabled }: SignUpViewProps) => {
   }
 
   return (
-    <div className={styles.page}>
-      <div className={styles.card}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Create an account</CardTitle>
-            <CardDescription>Sign up with your email and a password.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <SignUpForm onSubmit={handleSubmit} />
-            {googleEnabled && <GoogleButton nextPath={nextPath} />}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <>
+      <AuthHeader
+        title="Join the library"
+        description="Rate what you watch, review it, and reply to other critics."
+      />
+      <SignUpForm onSubmit={handleSubmit} />
+      {googleEnabled && <GoogleButton nextPath={nextPath} />}
+    </>
   )
 }

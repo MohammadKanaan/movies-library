@@ -2,9 +2,9 @@
 
 import { useRouter } from 'next/navigation'
 import { signInAction } from '@/actions/auth'
+import { AuthHeader } from '@/components/Auth/AuthHeader'
 import { GoogleButton } from '@/components/Auth/GoogleButton'
 import { LoginForm } from '@/components/Auth/LoginForm'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/SCN/card'
 import type { SignInInput } from '@/lib/dto/auth'
 import styles from './styles.module.scss'
 
@@ -34,24 +34,18 @@ export const LoginView = ({ nextPath, googleEnabled, signInFailed }: LoginViewPr
   }
 
   return (
-    <div className={styles.page}>
-      <div className={styles.card}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Log in</CardTitle>
-            <CardDescription>Use your email and password.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {signInFailed && (
-              <p className={styles.error} role="alert">
-                Sign-in with Google could not be completed. Try again or use your password.
-              </p>
-            )}
-            <LoginForm onSubmit={handleSubmit} />
-            {googleEnabled && <GoogleButton nextPath={nextPath} />}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <>
+      <AuthHeader
+        title="Welcome back"
+        description="Log in to rate films, write reviews and join the conversation."
+      />
+      {signInFailed && (
+        <p className={styles.error} role="alert">
+          Sign-in with Google could not be completed. Try again or use your password.
+        </p>
+      )}
+      <LoginForm onSubmit={handleSubmit} />
+      {googleEnabled && <GoogleButton nextPath={nextPath} />}
+    </>
   )
 }

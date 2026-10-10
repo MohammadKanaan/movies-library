@@ -112,9 +112,10 @@ publishes no ports, and Coolify generates the database password and the auth sec
    `https://movies.example.com:3000` (the `:3000` is the container port, not part of the public
    URL). Point the DNS record at the Coolify server first.
 3. **`BETTER_AUTH_URL`** (required). Enter the same origin without the port or a trailing slash:
-   `https://movies.example.com`. Coolify blocks the deploy until it is set. It is the origin of
-   verification and reset links, and production boot refuses to start `web` without an absolute
-   URL, so change it together with the domain.
+   `https://movies.example.com`. Coolify marks it required but still deploys without it, and then
+   `web` stays unhealthy (production boot refuses to start without an absolute URL), so set it
+   before the first deploy. It is also the origin of verification and reset links; change it
+   together with the domain.
 4. **Environment variables** (all optional, set them before the first deploy):
 
    | Variable                                           | When                                                                                                 |

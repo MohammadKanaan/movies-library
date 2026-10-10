@@ -26,10 +26,10 @@ x-app-env: &app-env
   # Rotating it signs every user out.
   BETTER_AUTH_SECRET: ${SERVICE_PASSWORD_64_AUTHSECRET}
   # The public origin, scheme included and no trailing slash (https://movies.example.com): the
-  # same domain you give `web` in Coolify. Required, so Coolify asks for it before the deploy;
-  # verification and reset links are built from it and production boot refuses it empty. It is
-  # entered by hand because Coolify only fills a SERVICE_URL_* value in once a domain is set on the
-  # service, and an empty one stops `web` at boot.
+  # same domain you give `web` in Coolify. Verification and reset links are built from it, and
+  # production boot refuses it empty, so `web` never turns healthy without it. Coolify lists it as
+  # required but still deployed with it unset, so set it BEFORE the first deploy. It is entered by
+  # hand because Coolify only fills a SERVICE_URL_* value in once a domain is set on the service.
   BETTER_AUTH_URL: ${BETTER_AUTH_URL:?}
   # Proxies in front of the app that append to x-forwarded-for: Coolify's Traefik is one. Put 2 if
   # a CDN (Cloudflare) sits in front of it, or every per-IP rate limit keys on the wrong address.

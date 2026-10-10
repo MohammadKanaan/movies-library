@@ -1,0 +1,78 @@
+.wall {
+  position: relative;
+  overflow: hidden;
+  /* Always dark, like a cinema, whatever the theme. */
+  background: oklch(0.1 0.01 286);
+  animation: fade 400ms ease-out both;
+
+  /* A soft vignette, so the wall recedes behind its edges. */
+  &::after {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(to bottom, oklch(0.1 0.01 286 / 0.85), transparent 18%),
+      linear-gradient(to top, oklch(0.1 0.01 286 / 0.85), transparent 18%),
+      linear-gradient(to right, oklch(0.1 0.01 286 / 0.6), transparent 25%);
+    content: '';
+    pointer-events: none;
+  }
+}
+
+.columns {
+  position: absolute;
+  inset: -20% -10%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  transform: rotate(-8deg);
+}
+
+.track {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: drift 90s linear infinite;
+}
+
+/* Neighbouring columns run in opposite directions, each at its own pace. */
+.column:nth-child(even) .track {
+  animation-direction: reverse;
+}
+
+.column:nth-child(2) .track {
+  animation-duration: 110s;
+}
+
+.column:nth-child(3) .track {
+  animation-duration: 80s;
+}
+
+.column:nth-child(4) .track {
+  animation-duration: 100s;
+}
+
+.poster {
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 10px 30px oklch(0 0 0 / 0.35);
+}
+
+@keyframes drift {
+  to {
+    /* Half the track plus half a gap: the second copy starts exactly where the first did. */
+    transform: translateY(calc(-50% - 0.5rem));
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    animation: none;
+  }
+}
