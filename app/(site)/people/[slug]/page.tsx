@@ -8,7 +8,7 @@ import { JsonLd } from '@/components/JsonLd'
 import { MovieCard } from '@/components/Movies/MovieCard'
 import { DeletePersonDialog } from '@/components/People/DeletePersonDialog'
 import { Headshot } from '@/components/People/Headshot'
-import { personPath, ROUTE_PEOPLE } from '@/lib/constants-routes'
+import { PEOPLE_LIST_HIDDEN, personPath, ROUTE_PEOPLE_BACK } from '@/lib/constants-routes'
 import { creditRoleLabel, summarizeFilmography } from '@/lib/creditRoles'
 import { loadPage } from '@/lib/data/page'
 import { getPersonBySlug } from '@/lib/data/people'
@@ -53,9 +53,9 @@ const PersonPage = async ({ params }: PageProps<'/people/[slug]'>) => {
   return (
     <article className={styles.page}>
       <JsonLd data={personJsonLd(person, siteUrl())} />
-      <Link href={ROUTE_PEOPLE} className={styles.back}>
+      <Link href={ROUTE_PEOPLE_BACK} className={styles.back}>
         <ArrowLeft aria-hidden="true" />
-        All people
+        {PEOPLE_LIST_HIDDEN ? 'All movies' : 'All people'}
       </Link>
 
       <header className={styles.header}>

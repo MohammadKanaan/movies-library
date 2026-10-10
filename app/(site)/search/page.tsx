@@ -10,6 +10,7 @@ import { SearchForm } from '@/components/Search/SearchForm'
 import {
   moviePath,
   moviesByTitlePath,
+  PEOPLE_LIST_HIDDEN,
   peopleByNamePath,
   personPath,
   searchPath,
@@ -71,9 +72,11 @@ const SearchPage = async ({ searchParams }: PageProps<'/search'>) => {
             <Link href={moviesByTitlePath(q)} className={styles.scope}>
               Movies <span className={styles.count}>{results.movies.totalItems}</span>
             </Link>
-            <Link href={peopleByNamePath(q)} className={styles.scope}>
-              People <span className={styles.count}>{results.people.totalItems}</span>
-            </Link>
+            {PEOPLE_LIST_HIDDEN ? null : (
+              <Link href={peopleByNamePath(q)} className={styles.scope}>
+                People <span className={styles.count}>{results.people.totalItems}</span>
+              </Link>
+            )}
           </nav>
 
           {found === 0 ? (
@@ -128,7 +131,7 @@ const SearchPage = async ({ searchParams }: PageProps<'/search'>) => {
                   </li>
                 ))}
               </ul>
-              {results.people.totalItems > results.people.items.length ? (
+              {!PEOPLE_LIST_HIDDEN && results.people.totalItems > results.people.items.length ? (
                 <ButtonLink href={peopleByNamePath(q)} variant="outline">
                   See all {plural(results.people.totalItems, 'person', 'people')}
                 </ButtonLink>

@@ -17,13 +17,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/SCN/dialog'
-import { ROUTE_PEOPLE } from '@/lib/constants-routes'
+import { ROUTE_PEOPLE_BACK } from '@/lib/constants-routes'
 
 type DeletePersonDialogProps = {
   person: { id: string; name: string }
 }
 
-/** Asks before deleting an uncredited person, then returns to the people list. */
+/** Asks before deleting an uncredited person, then leaves their page (`ROUTE_PEOPLE_BACK`). */
 export const DeletePersonDialog = ({ person }: DeletePersonDialogProps) => {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -38,7 +38,7 @@ export const DeletePersonDialog = ({ person }: DeletePersonDialogProps) => {
       }
       setOpen(false)
       toast.success(`${person.name} was deleted`)
-      router.push(ROUTE_PEOPLE)
+      router.push(ROUTE_PEOPLE_BACK)
     })
   }
 

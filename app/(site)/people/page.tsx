@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 import { Empty } from '@/components/Empty'
 import { PageHeader } from '@/components/PageHeader'
 import { PersonCard } from '@/components/People/PersonCard'
-import { ROUTE_PEOPLE } from '@/lib/constants-routes'
+import { PEOPLE_LIST_HIDDEN, ROUTE_PEOPLE, ROUTE_SEARCH, searchPath } from '@/lib/constants-routes'
 import { loadPage } from '@/lib/data/page'
 import { listPeople } from '@/lib/data/people'
 import { peopleUrlQuery } from '@/lib/dto/people'
@@ -31,6 +32,10 @@ export const generateMetadata = async ({
 const PeoplePage = async ({ searchParams }: PageProps<'/people'>) => {
   // A garbled URL falls back to the defaults; an empty search is left out of the query.
   const { q, page } = peopleUrlQuery.parse(toScalarParams(await searchParams))
+  // Hidden (`PEOPLE_LIST_HIDDEN`): an old link or bookmark lands on the search, keeping its term.
+  if (PEOPLE_LIST_HIDDEN) {
+    redirect(q ? searchPath(q) : ROUTE_SEARCH)
+  }
   const people = await loadPage(
     () => listPeople({ page, perPage: PER_PAGE, q: q || undefined }),
     ROUTE_PEOPLE,

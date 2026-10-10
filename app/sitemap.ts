@@ -3,6 +3,7 @@ import { connection } from 'next/server'
 import {
   moviePath,
   moviesByGenrePath,
+  PEOPLE_LIST_HIDDEN,
   personPath,
   ROUTE_HOME,
   ROUTE_MOVIES,
@@ -14,7 +15,7 @@ import { getSitemapCatalog } from '@/lib/data/sitemap'
 
 /**
  * `/sitemap.xml`: the pages worth indexing, which are the ones with a canonical URL: home, the
- * movie and people lists, each genre that has films, and every movie and person page. Built per
+ * movie and people lists (while the people list is shown), each genre that has films, and every movie and person page. Built per
  * request, so `next build` needs no database and the sitemap never lags the catalog (the DAL caches
  * it). One sitemap holds 50,000 URLs; past that, split it with `generateSitemaps`.
  */
@@ -27,7 +28,7 @@ const sitemap = async (): Promise<MetadataRoute.Sitemap> => {
   return [
     { url: url(ROUTE_HOME) },
     { url: url(ROUTE_MOVIES) },
-    { url: url(ROUTE_PEOPLE) },
+    ...(PEOPLE_LIST_HIDDEN ? [] : [{ url: url(ROUTE_PEOPLE) }]),
     ...genres
       .filter((genre) => genre.movieCount > 0)
       .map((genre) => ({ url: url(moviesByGenrePath(genre.slug)) })),

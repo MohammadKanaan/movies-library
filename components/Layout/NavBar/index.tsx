@@ -16,6 +16,7 @@ import {
   ROUTE_ADMIN,
   ROUTE_HOME,
   ROUTE_LOGIN,
+  PEOPLE_LIST_HIDDEN,
   ROUTE_MOVIES,
   ROUTE_PEOPLE,
   ROUTE_SETTINGS,
@@ -30,7 +31,7 @@ const MOBILE_SEARCH_ID = 'mobile-search'
 
 const NAV_LINKS = [
   { label: 'Movies', href: ROUTE_MOVIES },
-  { label: 'People', href: ROUTE_PEOPLE },
+  ...(PEOPLE_LIST_HIDDEN ? [] : [{ label: 'People', href: ROUTE_PEOPLE }]),
 ]
 
 /** Only for admins; the page itself is guarded by the DAL, this just hides the link. */

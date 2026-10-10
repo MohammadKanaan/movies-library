@@ -10,6 +10,16 @@ export const ROUTE_MOVIES = '/movies'
 export const ROUTE_PEOPLE = '/people'
 export const ROUTE_SEARCH = '/search'
 
+/**
+ * The people list is hidden (not removed): the site search finds people well enough. While it is
+ * set, `/people` redirects to the search and nothing links to it (the navigation, the sitemap, the
+ * search page, a person's page); each person's own page stays. Set it to `false` to bring it back.
+ */
+export const PEOPLE_LIST_HIDDEN: boolean = true
+
+/** Where a person's page leads back to: the people list, or the movies while that is hidden. */
+export const ROUTE_PEOPLE_BACK = PEOPLE_LIST_HIDDEN ? ROUTE_MOVIES : ROUTE_PEOPLE
+
 export const moviePath = (slug: string) => `${ROUTE_MOVIES}/${slug}`
 
 /** A movie's reviews, newest first. */

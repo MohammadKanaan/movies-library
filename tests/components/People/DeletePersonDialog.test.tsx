@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { deletePersonAction } from '@/actions/people'
 import { DeletePersonDialog } from '@/components/People/DeletePersonDialog'
+import { ROUTE_PEOPLE_BACK } from '@/lib/constants-routes'
 
 const push = vi.fn()
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
@@ -33,11 +34,11 @@ describe('DeletePersonDialog', () => {
     expect(deletePersonAction).not.toHaveBeenCalled()
   })
 
-  it('deletes, confirms with a toast and returns to the list', async () => {
+  it('deletes, confirms with a toast and leaves their page', async () => {
     vi.mocked(deletePersonAction).mockResolvedValue({ ok: true, data: undefined })
     render(<DeletePersonDialog person={PERSON} />)
     await confirmDelete()
-    await waitFor(() => expect(push).toHaveBeenCalledWith('/people'))
+    await waitFor(() => expect(push).toHaveBeenCalledWith(ROUTE_PEOPLE_BACK))
     expect(deletePersonAction).toHaveBeenCalledWith(PERSON.id)
     expect(toast.success).toHaveBeenCalledWith('Amy Adams was deleted')
   })
