@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { Input } from '@/components/Form/Input'
 import { LoadingButton } from '@/components/LoadingButton'
+import { Button } from '@/components/SCN/button'
 import { ROUTE_FORGOT_PASSWORD, ROUTE_SIGNUP } from '@/lib/constants-routes'
 import { signInInput, type SignInInput } from '@/lib/dto/auth'
 import { applyActionErrors } from '@/lib/formErrors'
@@ -21,6 +22,7 @@ export const LoginForm = ({ onSubmit }: LoginFormProps) => {
   const {
     register,
     handleSubmit,
+    setValue,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<SignInInput>({
@@ -65,9 +67,28 @@ export const LoginForm = ({ onSubmit }: LoginFormProps) => {
         Sign in
       </LoadingButton>
       {process.env.NODE_ENV !== 'production' && (
-        <p className={styles.hint}>
-          Dev login: leanne@example.com / password123 (admin: admin@example.com).
-        </p>
+        <div className={styles.devLogins}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setValue('email', 'leanne@example.com')
+              setValue('password', 'password123')
+            }}
+          >
+            User
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setValue('email', 'admin@example.com')
+              setValue('password', 'password123')
+            }}
+          >
+            Admin
+          </Button>
+        </div>
       )}
       <p className={styles.footer}>
         No account? <Link href={ROUTE_SIGNUP}>Sign up</Link>
