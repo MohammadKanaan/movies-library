@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Plus, Search } from 'lucide-react'
 import type { FormEvent } from 'react'
 import { toast } from 'sonner'
 import { deleteMovieAction } from '@/actions/movies'
@@ -94,8 +95,8 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
               maxLength={MOVIE_SEARCH_MAX_LENGTH}
             />
           </div>
-          <Button type="submit" variant="secondary">
-            Search
+          <Button type="submit" variant="secondary" size="icon" aria-label="Search">
+            <Search aria-hidden="true" />
           </Button>
         </form>
         <div className={styles.filters}>
@@ -141,7 +142,10 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
             </Button>
           )}
         </div>
-        <ButtonLink href={ROUTE_ADMIN_MOVIE_NEW}>Add movie</ButtonLink>
+        <ButtonLink href={ROUTE_ADMIN_MOVIE_NEW}>
+          <Plus data-icon="inline-start" aria-hidden="true" />
+          Add movie
+        </ButtonLink>
       </div>
 
       {movies.items.length === 0 ? (
@@ -149,7 +153,12 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
           title="No movies found"
           description={isFiltered ? 'No movie matches your filters.' : 'Add the first movie.'}
           action={
-            isFiltered ? undefined : <ButtonLink href={ROUTE_ADMIN_MOVIE_NEW}>Add movie</ButtonLink>
+            isFiltered ? undefined : (
+              <ButtonLink href={ROUTE_ADMIN_MOVIE_NEW}>
+                <Plus data-icon="inline-start" aria-hidden="true" />
+                Add movie
+              </ButtonLink>
+            )
           }
         />
       ) : (

@@ -1,5 +1,6 @@
 'use client'
 
+import { LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { LoadingButton } from '@/components/LoadingButton'
 import { Badge } from '@/components/SCN/badge'
@@ -75,6 +76,7 @@ export const SessionList = ({ sessions, onRevoke, onRevokeOthers }: SessionListP
                     type="button"
                     variant="outline"
                     size="sm"
+                    icon={LogOut}
                     loading={pending === session.id}
                     disabled={pending !== null}
                     onClick={() => run(session.id, () => onRevoke(session.id))}
@@ -97,6 +99,7 @@ export const SessionList = ({ sessions, onRevoke, onRevokeOthers }: SessionListP
           <LoadingButton
             type="button"
             variant="outline"
+            icon={LogOut}
             loading={pending === OTHERS}
             disabled={pending !== null}
             onClick={() => run(OTHERS, onRevokeOthers)}

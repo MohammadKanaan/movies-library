@@ -1,5 +1,6 @@
 'use client'
 
+import { CircleCheck, LogOut, UserRoundCog } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -125,6 +126,7 @@ export const UserActions = ({
         <>
           {user.banned ? (
             <Button type="button" size="sm" variant="outline" disabled={held} onClick={handleUnban}>
+              <CircleCheck data-icon="inline-start" aria-hidden="true" />
               Unban
             </Button>
           ) : (
@@ -138,6 +140,7 @@ export const UserActions = ({
               disabled={held}
               onClick={handleImpersonate}
             >
+              <UserRoundCog data-icon="inline-start" aria-hidden="true" />
               Impersonate
             </Button>
           )}
@@ -149,6 +152,7 @@ export const UserActions = ({
               disabled={held}
               onClick={handleRevokeSessions}
             >
+              <LogOut data-icon="inline-start" aria-hidden="true" />
               Sign out everywhere
             </Button>
           )}

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Plus, Search } from 'lucide-react'
 import type { FormEvent } from 'react'
 import { toast } from 'sonner'
 import { createPersonAction, deletePersonAction, updatePersonAction } from '@/actions/people'
@@ -67,12 +68,13 @@ export const PeopleView = ({ people, canUpload }: PeopleViewProps) => {
               maxLength={PEOPLE_SEARCH_MAX_LENGTH}
             />
           </div>
-          <Button type="submit" variant="secondary">
-            Search
+          <Button type="submit" variant="secondary" size="icon" aria-label="Search">
+            <Search aria-hidden="true" />
           </Button>
         </form>
         <NameDialog
           trigger="Add person"
+          triggerIcon={Plus}
           triggerVariant="default"
           triggerSize="default"
           title="Add a person"

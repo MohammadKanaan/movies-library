@@ -184,6 +184,12 @@ docs/DECISIONS.md        # Framework and library choices, with reasons; what was
 - Form controls in `components/Form/Input` and `components/Form/Textarea` own `label`, `required`,
   and `error`, forwarding native props and React 19 `ref` to the stock controls. `LoadingButton`
   composes stock Button and Spinner. These behaviors must stay outside `components/SCN`.
+- Icons follow the stock Button's own convention: `data-icon="inline-start"` (or `inline-end`) on
+  an icon beside a label — the size variants tighten the matching padding — and `size="icon-*"`
+  with an `aria-label` for an icon-only button. An icon-only button carries its label as a tooltip
+  (`ActionButton`, `ActionLink`) unless the glyph is universal on its own (a magnifier). A button
+  that keeps its words keeps them: dialog footers and sentence-length link actions never go
+  icon-only.
 - Primitives compose with Base UI's `render` prop, not Radix's `asChild`:
   `<DialogTrigger render={<Button variant="outline" />}>Open</DialogTrigger>`. A link that looks
   like a button is `ButtonLink` (a `next/link` with `buttonVariants`), never

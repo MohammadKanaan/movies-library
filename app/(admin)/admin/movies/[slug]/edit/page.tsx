@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { cache } from 'react'
-import { ButtonLink } from '@/components/ButtonLink'
+import { ActionLink } from '@/components/ActionLink'
 import { PageHeader } from '@/components/PageHeader'
 import { adminMovieEditPath, moviePath, ROUTE_ADMIN_MOVIES } from '@/lib/constants-routes'
 import { requireAdmin } from '@/lib/data/auth'
@@ -43,11 +43,7 @@ const AdminEditMoviePage = async ({ params }: PageProps<'/admin/movies/[slug]/ed
       <PageHeader
         title={movie.title}
         description={`${movie.releaseDate.getUTCFullYear()} · slug ${movie.slug}`}
-        actions={
-          <ButtonLink href={moviePath(movie.slug)} variant="outline">
-            View on site
-          </ButtonLink>
-        }
+        actions={<ActionLink action="view" label="View on site" href={moviePath(movie.slug)} />}
       />
       <EditMovieView movie={movie} genres={genres} canUpload={canUpload()} />
     </div>

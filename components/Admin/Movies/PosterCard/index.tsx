@@ -1,11 +1,13 @@
 'use client'
 
+import { ImageUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { attachPosterAction, removePosterAction } from '@/actions/movies'
 import { createUploadAction } from '@/actions/uploads'
 import { ConfirmDialog } from '@/components/Admin/ConfirmDialog'
 import { LoadingButton } from '@/components/LoadingButton'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/SCN/card'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/SCN/tooltip'
 import { useImageUpload } from '@/hooks/useImageUpload'
 import { POSTER_CONTENT_TYPES, UPLOAD_RULES } from '@/lib/dto/uploads'
 import { formatBytes } from '@/lib/formatBytes'
@@ -27,6 +29,8 @@ export const PosterCard = ({ movie, canUpload }: PosterCardProps) => {
       onAttached: () => toast.success('Poster updated'),
     },
   )
+
+  const pickerLabel = movie.posterUrl ? 'Replace poster' : 'Upload poster'
 
   return (
     <Card>
@@ -64,18 +68,26 @@ export const PosterCard = ({ movie, canUpload }: PosterCardProps) => {
                 onChange={handleChange}
               />
               <div className={styles.actions}>
-                <LoadingButton
-                  type="button"
-                  variant="outline"
-                  loading={uploading}
-                  onClick={openPicker}
-                >
-                  {movie.posterUrl ? 'Replace poster' : 'Upload poster'}
-                </LoadingButton>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <LoadingButton
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        icon={ImageUp}
+                        aria-label={pickerLabel}
+                        loading={uploading}
+                        onClick={openPicker}
+                      />
+                    }
+                  />
+                  <TooltipContent>{pickerLabel}</TooltipContent>
+                </Tooltip>
                 {movie.posterUrl && (
                   <ConfirmDialog
                     trigger="Remove poster"
-                    triggerVariant="ghost"
+                    triggerAction="delete"
                     title="Remove the poster?"
                     description="The movie keeps everything else; the image is deleted from storage."
                     confirmLabel="Remove poster"

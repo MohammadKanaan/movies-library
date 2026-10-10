@@ -1,5 +1,6 @@
 'use client'
 
+import { ExternalLink } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { AdminSidebar } from '@/components/Admin/Shell/AdminSidebar'
 import { ButtonLink } from '@/components/ButtonLink'
@@ -33,6 +34,7 @@ export const AdminShell = ({ viewer, defaultOpen, children }: AdminShellProps) =
           <div className={styles.topBarEnd}>
             <ButtonLink href={ROUTE_HOME} variant="ghost" size="sm">
               View site
+              <ExternalLink data-icon="inline-end" aria-hidden="true" />
             </ButtonLink>
             <ThemeToggle />
           </div>

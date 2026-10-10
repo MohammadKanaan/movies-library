@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Search } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { UserActions } from '@/components/Admin/Users/UserActions'
 import { Empty } from '@/components/Empty'
@@ -83,8 +84,8 @@ export const UsersView = ({ users, viewerId }: UsersViewProps) => {
               maxLength={USER_SEARCH_MAX_LENGTH}
             />
           </div>
-          <Button type="submit" variant="secondary">
-            Search
+          <Button type="submit" variant="secondary" size="icon" aria-label="Search">
+            <Search aria-hidden="true" />
           </Button>
         </form>
         <div className={styles.filters}>

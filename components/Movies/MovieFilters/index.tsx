@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, SlidersHorizontal, X } from 'lucide-react'
+import { ChevronDown, Search, SlidersHorizontal, X } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
 import { Input } from '@/components/Form/Input'
 import { GenreFilter } from '@/components/Movies/GenreFilter'
@@ -213,8 +213,14 @@ export const MovieFilters = ({
               autoComplete="off"
             />
           </div>
-          <Button type="submit" variant="secondary" disabled={disabled}>
-            Search
+          <Button
+            type="submit"
+            variant="secondary"
+            size="icon"
+            aria-label="Search"
+            disabled={disabled}
+          >
+            <Search aria-hidden="true" />
           </Button>
         </form>
         <div className={styles.controls}>
@@ -225,7 +231,7 @@ export const MovieFilters = ({
             aria-controls={panelId}
             onClick={() => setOpen((value) => !value)}
           >
-            <SlidersHorizontal aria-hidden="true" />
+            <SlidersHorizontal data-icon="inline-start" aria-hidden="true" />
             Filters
             {panelFilterCount > 0 ? <span className={styles.badge}>{panelFilterCount}</span> : null}
             <span className={styles.chevron} data-open={open || undefined}>

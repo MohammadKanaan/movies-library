@@ -3,6 +3,7 @@
 'use no memo'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import type { LucideIcon } from 'lucide-react'
 import { useState, type ComponentProps } from 'react'
 import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
@@ -35,6 +36,8 @@ type NameDialogProps<T> = {
   trigger: string
   /** Makes the trigger a record action's icon button (`ActionButton`) labelled `trigger`. */
   triggerAction?: RecordAction
+  /** Shown before the trigger's text, e.g. a `Plus` on an "Add …" button. */
+  triggerIcon?: LucideIcon
   triggerVariant?: ButtonVariant
   triggerSize?: ButtonSize
   title: string
@@ -55,6 +58,7 @@ type NameDialogProps<T> = {
 export const NameDialog = <T,>({
   trigger,
   triggerAction,
+  triggerIcon: Icon,
   triggerVariant = 'outline',
   triggerSize = 'sm',
   title,
@@ -108,6 +112,7 @@ export const NameDialog = <T,>({
             <Button type="button" variant={triggerVariant} size={triggerSize} disabled={disabled} />
           }
         >
+          {Icon && <Icon data-icon="inline-start" aria-hidden="true" />}
           {trigger}
         </DialogTrigger>
       )}

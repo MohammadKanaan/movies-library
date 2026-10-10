@@ -1,6 +1,7 @@
 'use client'
 
 import type { FormEvent, ReactNode } from 'react'
+import { Search } from 'lucide-react'
 import { Input } from '@/components/Form/Input'
 import { Pagination } from '@/components/Pagination'
 import { Button } from '@/components/SCN/button'
@@ -39,8 +40,8 @@ export const PeopleView = ({ page, totalPages, children }: PeopleViewProps) => {
             maxLength={PEOPLE_SEARCH_MAX_LENGTH}
           />
         </div>
-        <Button type="submit" variant="secondary">
-          Search
+        <Button type="submit" variant="secondary" size="icon" aria-label="Search">
+          <Search aria-hidden="true" />
         </Button>
       </form>
       <div className={styles.results} aria-busy={isPending || undefined}>

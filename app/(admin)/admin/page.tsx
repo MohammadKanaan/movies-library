@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Plus } from 'lucide-react'
 import { StatCard } from '@/components/Admin/StatCard'
 import { ButtonLink } from '@/components/ButtonLink'
 import { PageHeader } from '@/components/PageHeader'
@@ -36,11 +37,16 @@ const AdminOverviewPage = async () => {
         description="The catalog and its users at a glance."
         actions={
           <>
-            <ButtonLink href={ROUTE_ADMIN_MOVIE_NEW}>Add movie</ButtonLink>
+            <ButtonLink href={ROUTE_ADMIN_MOVIE_NEW}>
+              <Plus data-icon="inline-start" aria-hidden="true" />
+              Add movie
+            </ButtonLink>
             <ButtonLink href={ROUTE_ADMIN_PEOPLE} variant="outline">
+              <Plus data-icon="inline-start" aria-hidden="true" />
               Add person
             </ButtonLink>
             <ButtonLink href={ROUTE_ADMIN_GENRES} variant="outline">
+              <Plus data-icon="inline-start" aria-hidden="true" />
               Add genre
             </ButtonLink>
           </>

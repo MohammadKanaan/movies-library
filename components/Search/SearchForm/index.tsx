@@ -1,4 +1,5 @@
 import Form from 'next/form'
+import { Search } from 'lucide-react'
 import { Input } from '@/components/Form/Input'
 import { Button } from '@/components/SCN/button'
 import { ROUTE_SEARCH } from '@/lib/constants-routes'
@@ -28,7 +29,9 @@ export const SearchForm = ({ q }: SearchFormProps) => {
           autoComplete="off"
         />
       </div>
-      <Button type="submit">Search</Button>
+      <Button type="submit" size="icon" aria-label="Search">
+        <Search aria-hidden="true" />
+      </Button>
     </Form>
   )
 }

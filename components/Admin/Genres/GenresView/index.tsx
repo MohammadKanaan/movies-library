@@ -3,6 +3,7 @@
 'use no memo'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -61,7 +62,7 @@ export const GenresView = ({ genres }: GenresViewProps) => {
             {...register('name')}
           />
         </div>
-        <LoadingButton type="submit" loading={isSubmitting}>
+        <LoadingButton type="submit" icon={Plus} loading={isSubmitting}>
           Add genre
         </LoadingButton>
         {errors.root?.server && (
