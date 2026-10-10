@@ -20,6 +20,7 @@ import {
   ROUTE_PEOPLE,
   ROUTE_SETTINGS,
 } from '@/lib/constants-routes'
+import { PINNED_THEME } from '@/lib/constants-theme'
 import type { CurrentUser } from '@/lib/dto/users'
 import { env } from '@/lib/env'
 import styles from './styles.module.scss'
@@ -149,7 +150,7 @@ export const NavBar = ({ user }: NavBarProps) => {
         <div className={styles.desktopNav}>
           <NavLinks links={links} />
           <div className={styles.accountArea}>
-            <ThemeToggle />
+            {PINNED_THEME === null && <ThemeToggle />}
             <AccountActions user={user} />
           </div>
         </div>
@@ -209,7 +210,7 @@ export const NavBar = ({ user }: NavBarProps) => {
             ))}
           </div>
           <div className={styles.mobileAccountArea}>
-            <ThemeToggle />
+            {PINNED_THEME === null && <ThemeToggle />}
             {/* Account actions close the menu; theme choices keep it open. */}
             <div className={styles.accountArea} onClick={closeMobileMenu}>
               <AccountActions user={user} />

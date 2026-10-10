@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Providers } from '@/app/providers'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { PINNED_THEME } from '@/lib/constants-theme'
 
 beforeEach(() => {
   localStorage.clear()
@@ -22,7 +23,20 @@ afterEach(() => {
 })
 
 describe('Providers', () => {
-  it.each([
+  it.runIf(PINNED_THEME !== null)('renders the pinned theme over a saved choice', async () => {
+    localStorage.setItem('theme', 'light')
+    render(
+      <Providers>
+        <p>Application content</p>
+      </Providers>,
+    )
+
+    await waitFor(() => expect(document.documentElement).toHaveClass('dark'))
+    expect(document.documentElement).not.toHaveClass('light')
+  })
+
+  // The theme menu and the system default only apply while no theme is pinned.
+  it.runIf(PINNED_THEME === null).each([
     { label: 'Light', preference: 'light', resolved: 'light' },
     { label: 'Dark', preference: 'dark', resolved: 'dark' },
     { label: 'System', preference: 'system', resolved: 'dark' },
@@ -45,7 +59,7 @@ describe('Providers', () => {
     },
   )
 
-  it('uses the system preference when no theme is saved', async () => {
+  it.runIf(PINNED_THEME === null)('uses the system preference when no theme is saved', async () => {
     render(
       <Providers>
         <p>Application content</p>

@@ -22,7 +22,9 @@ left `var(--radius-xl)` undefined for CSS Modules (corners rendered square). Onl
 is applied to generated components, so CLI updates do not erase app logic. Labels/errors and loading
 behavior live in separate application wrappers. `lib/utils.ts` stays CLI-owned. Theme support follows
 the [official Next.js guide](https://ui.shadcn.com/docs/dark-mode/next): `next-themes`, a class-based
-provider with system default and transition suppression, and a light/dark/system menu.
+provider with system default and transition suppression, and a light/dark/system menu. The site is
+pinned to dark for now (`PINNED_THEME` in `lib/constants-theme.ts`, a `forcedTheme`), with the menu
+hidden rather than deleted so the choice can come back with one line.
 
 ## Stack choices
 

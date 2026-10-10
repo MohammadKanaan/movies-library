@@ -198,6 +198,8 @@ docs/DECISIONS.md        # Framework and library choices, with reasons; what was
   label, and its `onValueChange` receives `value | null`.
 - `Providers` uses `next-themes` with `attribute="class"`, system default, and transition suppression
   on theme changes. `ThemeToggle` offers light/dark/system; the stock Toaster follows the theme.
+  While `PINNED_THEME` (`lib/constants-theme.ts`) is set, the site is forced to that theme and the
+  toggle is hidden (kept, not removed); set it to `null` to bring the menu back.
 
 ## Data Access Layer
 
