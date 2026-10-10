@@ -1,5 +1,6 @@
 import 'server-only'
 import { Prisma } from '@/generated/prisma/client'
+import { MINUTE } from '@/lib/constants-time'
 import { catalogIdSchema, creditRoleSchema, slugSchema } from '@/lib/dto/catalog'
 import { pageSchema, toPage, type Page } from '@/lib/dto/common'
 import {
@@ -98,7 +99,7 @@ type PersonRecord = Omit<PersonDetail, 'permissions'>
 
 const personRecordSchema = personDetailSchema.omit({ permissions: true })
 
-const PEOPLE_CACHE_TTL = 300
+const PEOPLE_CACHE_TTL = 5 * MINUTE
 const PERMISSION_ACTIONS = ['update', 'delete'] as const
 const CREATE_ATTEMPTS = 3
 

@@ -1,5 +1,6 @@
 import 'server-only'
 import { Prisma } from '@/generated/prisma/client'
+import { MINUTE } from '@/lib/constants-time'
 import { catalogIdSchema } from '@/lib/dto/catalog'
 import { toPage, type Page } from '@/lib/dto/common'
 import {
@@ -30,10 +31,10 @@ import { userProfileSelect } from './users'
 // rating as `halfStars` (1 to 10); everything outside this file speaks stars. Authors edit and delete
 // their own review, an admin can delete any (`reviewPolicy`), nobody edits another's.
 
-const REVIEWS_CACHE_TTL = 300
+const REVIEWS_CACHE_TTL = 5 * MINUTE
 const PERMISSION_ACTIONS = ['update', 'delete'] as const
 /** Reviews one user may write per minute. */
-const REVIEW_LIMIT = { max: 10, windowMs: 60 * 1000 }
+const REVIEW_LIMIT = { max: 10, windowMs: MINUTE * 1000 }
 
 const reviewSelect = {
   id: true,

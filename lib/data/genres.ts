@@ -1,6 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { Prisma } from '@/generated/prisma/client'
+import { MINUTE } from '@/lib/constants-time'
 import { catalogIdSchema } from '@/lib/dto/catalog'
 import {
   genreInput,
@@ -39,7 +40,7 @@ const toGenreWithCount = ({ _count, ...genre }: GenreWithCountRow): GenreWithCou
   movieCount: _count.movies,
 })
 
-const GENRES_CACHE_TTL = 300
+const GENRES_CACHE_TTL = 5 * MINUTE
 
 const genreTaken = () => new ValidationError({ name: ['That genre already exists'] })
 

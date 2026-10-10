@@ -1,6 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { Prisma } from '@/generated/prisma/client'
+import { MINUTE } from '@/lib/constants-time'
 import { catalogIdSchema, slugSchema, type CreditRole } from '@/lib/dto/catalog'
 import { pageSchema, toPage, type Page } from '@/lib/dto/common'
 import {
@@ -81,7 +82,7 @@ const movieRecordSchema = movieDetailSchema
   .omit({ permissions: true })
   .extend({ createdById: z.string().nullable() })
 
-const MOVIES_CACHE_TTL = 300
+const MOVIES_CACHE_TTL = 5 * MINUTE
 const PERMISSION_ACTIONS = ['update', 'delete'] as const
 const CREATE_ATTEMPTS = 3
 

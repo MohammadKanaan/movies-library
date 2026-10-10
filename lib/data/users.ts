@@ -1,6 +1,7 @@
 import 'server-only'
 import { cache } from 'react'
 import { Prisma } from '@/generated/prisma/client'
+import { MINUTE } from '@/lib/constants-time'
 import {
   currentUserSchema,
   updateProfileInput,
@@ -30,7 +31,7 @@ export const currentUserSelect = {
   role: true,
 } satisfies Prisma.UserSelect
 
-const VIEWER_CACHE_TTL = 300
+const VIEWER_CACHE_TTL = 5 * MINUTE
 
 /** The signed-in user's record, or null when signed out (e.g. for the nav bar). */
 export const getViewer = cache(async (): Promise<CurrentUser | null> => {

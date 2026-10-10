@@ -1,5 +1,6 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
+import { HOUR } from '@/lib/constants-time'
 import {
   createUploadInput,
   type CreateUploadInput,
@@ -37,7 +38,7 @@ import { currentUserSelect } from './users'
 const log = logger.child({ module: 'uploads' })
 
 /** Tickets one user may ask for per hour. Each can leave an unattached object behind. */
-const UPLOAD_TICKET_LIMIT = { max: 10, windowMs: 60 * 60 * 1000 }
+const UPLOAD_TICKET_LIMIT = { max: 10, windowMs: HOUR * 1000 }
 
 /** Whether the upload controls should be offered. Public: it only says what `/settings` can do. */
 export const canUpload = (): boolean => isStorageConfigured()

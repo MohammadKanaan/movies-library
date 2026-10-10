@@ -1,5 +1,6 @@
 import 'server-only'
 import type { Prisma } from '@/generated/prisma/client'
+import { MINUTE } from '@/lib/constants-time'
 import { toPage, type Page } from '@/lib/dto/common'
 import {
   commentIdSchema,
@@ -25,7 +26,7 @@ import { userProfileSelect } from './users'
 
 const PERMISSION_ACTIONS = ['update', 'delete'] as const
 /** Comments one user may write per minute. */
-const COMMENT_LIMIT = { max: 20, windowMs: 60 * 1000 }
+const COMMENT_LIMIT = { max: 20, windowMs: MINUTE * 1000 }
 
 const commentSelect = {
   id: true,
