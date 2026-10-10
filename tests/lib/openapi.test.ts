@@ -73,14 +73,18 @@ describe('generated OpenAPI document', () => {
       'name' in parameter ? parameter.name : '',
     )
     expect(names.sort()).toEqual([
+      'direction',
       'genres',
       'page',
       'perPage',
       'person',
       'q',
+      'ratingMax',
+      'ratingMin',
       'runtimeMax',
       'runtimeMin',
       'sort',
+      'sortBy',
       'yearFrom',
       'yearTo',
     ])
@@ -92,7 +96,7 @@ describe('generated OpenAPI document', () => {
     })
     expect(parameterNamed('/api/v1/movies', 'sort')).toMatchObject({
       schema: expect.objectContaining({
-        enum: ['newest', 'oldest', 'title', 'added'],
+        enum: ['newest', 'oldest', 'title', 'added', 'rating'],
         default: 'newest',
       }),
     })

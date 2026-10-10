@@ -49,6 +49,7 @@ describe('GET /api/v1/search', () => {
           runtimeMinutes: null,
           posterUrl: null,
           genres: [],
+          rating: { average: null, count: 0 },
         },
       ],
       people: [],

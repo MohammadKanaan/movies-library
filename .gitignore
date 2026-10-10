@@ -53,3 +53,6 @@ next-env.d.ts
 
 # manual test pages
 /app/test/
+
+# Redis snapshot from a local redis-server
+/dump.rdb
