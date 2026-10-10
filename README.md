@@ -13,7 +13,7 @@ themselves are not built yet: follow **Adding a resource** below.
 
 - Next.js 16 (App Router, Turbopack), React 19 with the React Compiler, TypeScript 5.9
 - Bun as the package manager (scripts run on Node 24)
-- SCSS CSS Modules for all styling; shadcn/ui (Radix) + Tailwind CSS 4 only inside `components/SCN`
+- SCSS CSS Modules for all styling; shadcn/ui (Base UI) + Tailwind CSS 4 only inside `components/SCN`
 - lucide-react icons, sonner toasts
 - Prisma ORM 7.10 (`prisma-client` generator, `@prisma/adapter-pg`) + PostgreSQL 18
 - Better Auth 1.7 (email + password, optional Google sign-in, admin plugin, official Prisma adapter)
@@ -147,7 +147,7 @@ Route Handler (app/api/v1) ───────▶ lib/data   (decodes with lib
 light/dark tokens, and Tailwind base styles. Application CSS Modules use those tokens directly.
 `components/SCN` holds stock CLI-generated primitives, with no local styling or API overrides.
 Forms use `components/Form/Input` and `components/Form/Textarea` for labels and errors;
-`LoadingButton` composes the stock Button and Spinner. Callers do not pass `className` or `style`
+`LoadingButton` composes the stock Button and Spinner; `ButtonLink` is a link with the button styles. Callers do not pass `className` or `style`
 to application components. Read `AGENTS.md` for the full rules. Add or reinstall primitives with
 `bunx shadcn@latest add button input textarea --overwrite --yes`; keep `lib/utils.ts` dedicated to
 the CLI's `cn` utility. The `/ui-kit` catalog exercises the components and the theme toggle.

@@ -37,6 +37,13 @@ import {
 import { formatDateTime } from '@/lib/formatDate'
 import styles from './styles.module.scss'
 
+/** The role picker's options; also lets the trigger show the label instead of the value. */
+const ROLE_LABELS: Record<Role, string> = {
+  viewer: 'Viewer',
+  editor: 'Editor',
+  admin: 'Admin',
+}
+
 /** How the confirmation toast names each role. */
 const ROLE_PHRASES: Record<Role, string> = {
   viewer: 'a viewer',
@@ -74,7 +81,7 @@ export const AdminView = ({ users, viewerId }: AdminViewProps) => {
     }
   }
 
-  const handleRole = async (user: AdminUser, value: string) => {
+  const handleRole = async (user: AdminUser, value: string | null) => {
     const role = roleSchema.safeParse(value)
     if (!role.success || role.data === user.role) {
       return
@@ -160,6 +167,7 @@ export const AdminView = ({ users, viewerId }: AdminViewProps) => {
                   </TableCell>
                   <TableCell>
                     <Select
+                      items={ROLE_LABELS}
                       value={user.role}
                       onValueChange={(value) => handleRole(user, value)}
                       disabled={isSelf || isSaving}
@@ -168,9 +176,11 @@ export const AdminView = ({ users, viewerId }: AdminViewProps) => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="viewer">Viewer</SelectItem>
-                        <SelectItem value="editor">Editor</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
+                        {roleSchema.options.map((role) => (
+                          <SelectItem key={role} value={role}>
+                            {ROLE_LABELS[role]}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </TableCell>
