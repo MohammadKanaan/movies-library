@@ -111,4 +111,29 @@ describe('SiteSearch', () => {
     await userEvent.type(box(), 'dune')
     expect(await screen.findByRole('alert')).toHaveTextContent('The search failed. Try again.')
   })
+
+  it('jumps to the box on / when it holds the shortcut, but not while typing elsewhere', async () => {
+    render(
+      <>
+        <input aria-label="Elsewhere" />
+        <SiteSearch slashShortcut />
+      </>,
+    )
+    const box = screen.getByRole('combobox', { name: 'Search movies and people' })
+    await userEvent.keyboard('/')
+    expect(box).toHaveFocus()
+    expect(box).toHaveValue('')
+
+    const elsewhere = screen.getByRole('textbox', { name: 'Elsewhere' })
+    await userEvent.click(elsewhere)
+    await userEvent.keyboard('/')
+    expect(elsewhere).toHaveFocus()
+    expect(elsewhere).toHaveValue('/')
+  })
+
+  it('leaves / alone without the shortcut', async () => {
+    render(<SiteSearch />)
+    await userEvent.keyboard('/')
+    expect(screen.getByRole('combobox', { name: 'Search movies and people' })).not.toHaveFocus()
+  })
 })

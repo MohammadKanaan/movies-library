@@ -12,6 +12,21 @@
   }
 }
 
+// The `/` shortcut's key, until the box has focus; only where there is a keyboard.
+.slash {
+  display: inline-flex;
+}
+
+.form:focus-within .slash {
+  display: none;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .slash {
+    display: none;
+  }
+}
+
 .status {
   margin: 0;
   padding: 0.5rem 0.75rem;

@@ -10,6 +10,7 @@ import { GenrePicker } from '@/components/Admin/Movies/GenrePicker'
 import { Input } from '@/components/Form/Input'
 import { Textarea } from '@/components/Form/Textarea'
 import { LoadingButton } from '@/components/LoadingButton'
+import { ShortcutHint } from '@/components/ShortcutHint'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/SCN/card'
 import type { GenreWithCount } from '@/lib/dto/genres'
 import {
@@ -23,6 +24,7 @@ import {
 } from '@/lib/dto/movies'
 import type { PersonSummary } from '@/lib/dto/people'
 import { applyActionErrors } from '@/lib/formErrors'
+import { SUBMIT_KEYSHORTCUTS, submitOnShortcut } from '@/lib/keyboard'
 import type { ActionResult } from '@/types/api'
 import styles from './styles.module.scss'
 
@@ -79,7 +81,10 @@ const peopleFrom = (movie?: MovieDetail) => {
   return people
 }
 
-/** Creates a movie or edits one: its details, genres and credits. The poster is not part of it. */
+/**
+ * Creates a movie or edits one: its details, genres and credits. The poster is not part of it.
+ * ⌘/Ctrl + Enter saves it from any field, the synopsis included.
+ */
 export const MovieForm = ({ genres, movie, onSubmit, onSaved, submitLabel }: MovieFormProps) => {
   const mode = movie ? 'edit' : 'create'
   const [people, setPeople] = useState(() => peopleFrom(movie))
@@ -117,7 +122,7 @@ export const MovieForm = ({ genres, movie, onSubmit, onSaved, submitLabel }: Mov
   })
 
   return (
-    <form className={styles.form} onSubmit={submit} noValidate>
+    <form className={styles.form} onSubmit={submit} onKeyDown={submitOnShortcut} noValidate>
       <Card>
         <CardHeader>
           <CardTitle>Details</CardTitle>
@@ -210,7 +215,13 @@ export const MovieForm = ({ genres, movie, onSubmit, onSaved, submitLabel }: Mov
         </p>
       )}
       <div className={styles.actions}>
-        <LoadingButton type="submit" loading={isSubmitting} disabled={mode === 'edit' && !isDirty}>
+        <ShortcutHint action="to save" />
+        <LoadingButton
+          type="submit"
+          loading={isSubmitting}
+          disabled={mode === 'edit' && !isDirty}
+          aria-keyshortcuts={SUBMIT_KEYSHORTCUTS}
+        >
           {submitLabel ?? (mode === 'edit' ? 'Save changes' : 'Create movie')}
         </LoadingButton>
       </div>

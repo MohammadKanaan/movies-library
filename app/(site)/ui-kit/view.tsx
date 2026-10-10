@@ -15,6 +15,7 @@ import { Input } from '@/components/Form/Input'
 import { Textarea } from '@/components/Form/Textarea'
 import { ButtonLink } from '@/components/ButtonLink'
 import { LoadingButton } from '@/components/LoadingButton'
+import { ShortcutHint } from '@/components/ShortcutHint'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { PageHeader } from '@/components/PageHeader'
 import { MoviePoster } from '@/components/Movies/MoviePoster'
@@ -644,6 +645,17 @@ export const UiKitView = () => {
             onConfirm={() => resolveAfter(CONFIRM_OK)}
             onDone={() => toast.success('Genre deleted')}
           />
+        </div>
+      </Section>
+
+      <Section
+        id="shortcut-hint"
+        eyebrow="Application components"
+        title="ShortcutHint"
+        description="Names the ⌘/Ctrl + Enter shortcut beside a submit button that submitOnShortcut presses. Appears once hydrated, never on touch screens."
+      >
+        <div className={styles.row}>
+          <ShortcutHint action="to post comment" />
         </div>
       </Section>
 

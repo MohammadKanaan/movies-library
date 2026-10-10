@@ -145,7 +145,7 @@ export const NavBar = ({ user }: NavBarProps) => {
         </Link>
 
         <div className={styles.desktopSearch}>
-          <SiteSearch />
+          <SiteSearch slashShortcut />
         </div>
 
         <div className={styles.desktopNav}>

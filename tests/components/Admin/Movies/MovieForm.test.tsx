@@ -141,6 +141,20 @@ describe('MovieForm', () => {
       expect(onSubmit).not.toHaveBeenCalled()
     })
 
+    it('saves with ⌘ + Enter from the synopsis', async () => {
+      const onSubmit = vi.fn(async () => saved())
+      render(<MovieForm genres={genres} onSubmit={onSubmit} />)
+
+      await userEvent.type(screen.getByLabelText(/Title/), 'Dune')
+      await userEvent.type(screen.getByLabelText(/Release date/), '2021-10-22')
+      await userEvent.type(screen.getByLabelText(/Synopsis/), 'A boy.')
+      await userEvent.keyboard('{Meta>}{Enter}{/Meta}')
+
+      await vi.waitFor(() =>
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ title: 'Dune' })),
+      )
+    })
+
     it('uses the given submit label', () => {
       render(<MovieForm genres={genres} onSubmit={vi.fn()} submitLabel="Add the movie" />)
       expect(screen.getByRole('button', { name: 'Add the movie' })).toBeInTheDocument()

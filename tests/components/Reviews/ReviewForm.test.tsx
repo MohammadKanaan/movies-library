@@ -102,4 +102,30 @@ describe('ReviewForm', () => {
       'You have already reviewed this movie',
     )
   })
+
+  it('submits with ⌘ + Enter from the text box', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(OK)
+    render(<ReviewForm onSubmit={onSubmit} submitLabel="Post review" />)
+    await userEvent.click(screen.getByRole('radio', { name: '4 stars' }))
+    await userEvent.type(screen.getByRole('textbox', { name: /Review/ }), 'Great.')
+    await userEvent.keyboard('{Meta>}{Enter}{/Meta}')
+    await vi.waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({ rating: 4, body: 'Great.', spoiler: false }),
+    )
+  })
+
+  it('cancels an edit with Escape', async () => {
+    const onCancel = vi.fn()
+    render(
+      <ReviewForm
+        review={{ rating: 3, body: 'Fine.', spoiler: false }}
+        onSubmit={vi.fn()}
+        submitLabel="Save review"
+        onCancel={onCancel}
+      />,
+    )
+    await userEvent.click(screen.getByRole('textbox', { name: /Review/ }))
+    await userEvent.keyboard('{Escape}')
+    expect(onCancel).toHaveBeenCalledTimes(1)
+  })
 })

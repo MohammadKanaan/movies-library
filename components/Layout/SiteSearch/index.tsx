@@ -3,7 +3,7 @@
 import { Search } from 'lucide-react'
 import Form from 'next/form'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MoviePoster } from '@/components/Movies/MoviePoster'
 import { Headshot } from '@/components/People/Headshot'
 import { Button } from '@/components/SCN/button'
@@ -15,10 +15,13 @@ import {
   ComboboxItem,
   ComboboxList,
 } from '@/components/SCN/combobox'
+import { InputGroupAddon } from '@/components/SCN/input-group'
+import { Kbd } from '@/components/SCN/kbd'
 import { useDebouncedSearch } from '@/hooks/useDebouncedSearch'
 import { suggestCatalog } from '@/lib/client/search'
 import { moviePath, personPath, ROUTE_SEARCH, searchPath } from '@/lib/constants-routes'
 import { SEARCH_MIN_LENGTH } from '@/lib/dto/common'
+import { isTypingTarget } from '@/lib/keyboard'
 import type { MovieSummary } from '@/lib/dto/movies'
 import type { PersonListItem } from '@/lib/dto/people'
 import { SEARCH_MAX_LENGTH } from '@/lib/dto/search'
@@ -33,6 +36,8 @@ type SiteSearchProps = {
   /** Called when a search leaves the page: the mobile menus close themselves. */
   onNavigate?: () => void
   autoFocus?: boolean
+  /** Lets `/` focus this box from anywhere on the page; one search box per page takes it. */
+  slashShortcut?: boolean
 }
 
 const suggestionKey = (suggestion: Suggestion) =>
@@ -59,10 +64,35 @@ const suggestionHref = (suggestion: Suggestion) =>
 /**
  * The site-wide search box: suggestions from `GET /api/v1/search` as the visitor types (the best
  * movies and people, then "See all results"), a picked suggestion opens its page, and Enter with
- * nothing picked submits the form to the search page, as a plain `GET /search?q=` would.
+ * nothing picked submits the form to the search page, as a plain `GET /search?q=` would. With
+ * `slashShortcut`, pressing `/` outside a field jumps to it.
  */
-export const SiteSearch = ({ onNavigate, autoFocus }: SiteSearchProps) => {
+export const SiteSearch = ({ onNavigate, autoFocus, slashShortcut = false }: SiteSearchProps) => {
   const router = useRouter()
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!slashShortcut) {
+      return
+    }
+    const focusOnSlash = (event: KeyboardEvent) => {
+      if (
+        event.key !== '/' ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.defaultPrevented ||
+        isTypingTarget(event.target)
+      ) {
+        return
+      }
+      event.preventDefault()
+      inputRef.current?.focus()
+    }
+    document.addEventListener('keydown', focusOnSlash)
+    return () => document.removeEventListener('keydown', focusOnSlash)
+  }, [slashShortcut])
+
   const [inputValue, setInputValue] = useState('')
   const search = useDebouncedSearch(suggestCatalog)
 
@@ -114,6 +144,7 @@ export const SiteSearch = ({ onNavigate, autoFocus }: SiteSearchProps) => {
         itemToStringLabel={suggestionLabel}
       >
         <ComboboxInput
+          ref={inputRef}
           name="q"
           type="search"
           aria-label="Search movies and people"
@@ -122,7 +153,16 @@ export const SiteSearch = ({ onNavigate, autoFocus }: SiteSearchProps) => {
           autoFocus={autoFocus}
           maxLength={SEARCH_MAX_LENGTH}
           showTrigger={false}
-        />
+          aria-keyshortcuts={slashShortcut ? '/' : undefined}
+        >
+          {slashShortcut ? (
+            <InputGroupAddon align="inline-end">
+              <span className={styles.slash} aria-hidden="true">
+                <Kbd>/</Kbd>
+              </span>
+            </InputGroupAddon>
+          ) : null}
+        </ComboboxInput>
         <ComboboxContent>
           <ComboboxEmpty>Type at least {SEARCH_MIN_LENGTH} characters</ComboboxEmpty>
           {searching && search.status === 'loading' && !results && (

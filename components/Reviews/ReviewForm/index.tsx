@@ -3,16 +3,18 @@
 'use no memo'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useId } from 'react'
+import { useId, type KeyboardEvent } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { Textarea } from '@/components/Form/Textarea'
 import { LoadingButton } from '@/components/LoadingButton'
 import { StarRatingInput } from '@/components/Reviews/StarRatingInput'
+import { ShortcutHint } from '@/components/ShortcutHint'
 import { Button } from '@/components/SCN/button'
 import { Checkbox } from '@/components/SCN/checkbox'
 import { Label } from '@/components/SCN/label'
 import { reviewFormInput, type ReviewFormInput, type ReviewFormValues } from '@/lib/dto/reviews'
 import { applyActionErrors } from '@/lib/formErrors'
+import { SUBMIT_KEYSHORTCUTS, submitOnShortcut } from '@/lib/keyboard'
 import type { ActionResult } from '@/types/api'
 import styles from './styles.module.scss'
 import { hydrateReviewForm, REVIEW_FORM_FIELDS } from './utils'
@@ -22,10 +24,11 @@ export type ReviewFormProps = {
   review?: { rating: number; body: string | null; spoiler: boolean }
   onSubmit: (values: ReviewFormValues) => Promise<ActionResult<unknown>>
   submitLabel: string
-  /** Offers a Cancel button (editing). */
+  /** Offers a Cancel button (editing), which Escape presses too. */
   onCancel?: () => void
 }
 
+/** The rating, the text and the spoiler flag. ⌘/Ctrl + Enter submits it from the text box. */
 export const ReviewForm = ({ review, onSubmit, submitLabel, onCancel }: ReviewFormProps) => {
   const ratingLabelId = useId()
   const spoilerId = useId()
@@ -49,8 +52,17 @@ export const ReviewForm = ({ review, onSubmit, submitLabel, onCancel }: ReviewFo
     }
   })
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
+    if (event.key === 'Escape' && onCancel && !isSubmitting) {
+      event.preventDefault()
+      onCancel()
+      return
+    }
+    submitOnShortcut(event)
+  }
+
   return (
-    <form className={styles.form} onSubmit={submit} noValidate>
+    <form className={styles.form} onSubmit={submit} onKeyDown={handleKeyDown} noValidate>
       <div className={styles.field}>
         <span id={ratingLabelId} className={styles.label}>
           Your rating
@@ -114,12 +126,13 @@ export const ReviewForm = ({ review, onSubmit, submitLabel, onCancel }: ReviewFo
         </p>
       )}
       <div className={styles.actions}>
+        <ShortcutHint action={`to ${submitLabel.toLowerCase()}`} />
         {onCancel && (
           <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>
             Cancel
           </Button>
         )}
-        <LoadingButton type="submit" loading={isSubmitting}>
+        <LoadingButton type="submit" loading={isSubmitting} aria-keyshortcuts={SUBMIT_KEYSHORTCUTS}>
           {submitLabel}
         </LoadingButton>
       </div>
