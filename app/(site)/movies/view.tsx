@@ -164,9 +164,9 @@ const MoviesResults = ({
 }
 
 /**
- * The list's interactive parts: the search, the filter panel beside the grid, the sort and paging,
- * all through the URL, and the batches appended as the reader scrolls. A different query or first
- * batch starts a fresh list and aborts the old one.
+ * The list's interactive parts: the search and filters, the sort and the batches appended as the
+ * reader scrolls, all through the URL. The filter card sits under the toolbar and pushes the list
+ * down when it opens; a different query or first batch starts a fresh list and aborts the old one.
  */
 export const MoviesView = (props: MoviesViewProps) => {
   const { page, perPage, totalPages, query, genres, person, initialIds } = props
@@ -174,16 +174,17 @@ export const MoviesView = (props: MoviesViewProps) => {
   const key = JSON.stringify([query, page, perPage, totalPages, initialIds])
 
   return (
-    <MovieFilters
-      filters={state}
-      sort={state.sort}
-      genres={genres}
-      person={person}
-      disabled={isPending}
-      onChange={(patch) => setState({ ...patch, page: 1 })}
-      onSortChange={(sort) => setState({ sort, page: 1 })}
-    >
+    <div className={styles.view}>
+      <MovieFilters
+        filters={state}
+        sort={state.sort}
+        genres={genres}
+        person={person}
+        disabled={isPending}
+        onChange={(patch) => setState({ ...patch, page: 1 })}
+        onSortChange={(sort) => setState({ sort, page: 1 })}
+      />
       <MoviesResults key={key} {...props} />
-    </MovieFilters>
+    </div>
   )
 }

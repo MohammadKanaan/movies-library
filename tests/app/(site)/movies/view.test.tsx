@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MoviesView } from '@/app/(site)/movies/view'
@@ -61,12 +61,8 @@ const enter = () => {
   act(() => observer.enter())
 }
 
-/** A range field's two thumbs (its label also names the slider's root group). */
-const thumbsOf = (label: string) =>
-  screen.getAllByLabelText(label).filter((element) => element instanceof HTMLInputElement)
-
 // Base UI keeps a slider's thumbs `visibility: hidden` until it can measure the track, which jsdom
-// never does, so role queries skip them; the tests find the thumbs by their label instead.
+// never does, so the tests find them through the slider's labelled group instead.
 describe('MoviesView', () => {
   beforeEach(() => {
     navigation.search = ''
@@ -124,20 +120,29 @@ describe('MoviesView', () => {
     expect(navigation.push).toHaveBeenLastCalledWith('/movies?sort=title', { scroll: false })
   })
 
-  it('applies the panel filters from the first page', async () => {
+  it('applies the card’s filters from the first page as each one settles', async () => {
     navigation.search = 'page=2'
     render(view({ page: 2, totalPages: 2 }))
-    await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Filters/ }))
     await userEvent.click(screen.getByRole('combobox', { name: 'Genres' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Science Fiction' }))
+    expect(navigation.push).toHaveBeenLastCalledWith('/movies?genres=science-fiction', {
+      scroll: false,
+    })
     await userEvent.keyboard('{Escape}')
-    const [, runtimeMax] = thumbsOf('Runtime')
-    // jsdom leaves the slider unmeasured, so keys do not move it; set the value as assistive tech does.
-    fireEvent.change(runtimeMax!, { target: { value: '150' } })
-    await userEvent.click(screen.getByRole('button', { name: 'Apply filters' }))
-    expect(navigation.push).toHaveBeenLastCalledWith(
-      '/movies?genres=science-fiction&runtimeMax=150',
-      { scroll: false },
+
+    // jsdom has no layout, so Base UI keeps the thumbs hidden; find them through the labelled group.
+    const [, longest] = within(screen.getByRole('group', { name: 'Runtime' })).getAllByRole(
+      'slider',
+      { hidden: true },
+    )
+    longest!.focus()
+    await userEvent.keyboard('{ArrowLeft}')
+    await waitFor(() =>
+      expect(navigation.push).toHaveBeenLastCalledWith(
+        '/movies?genres=science-fiction&runtimeMax=235',
+        { scroll: false },
+      ),
     )
   })
 

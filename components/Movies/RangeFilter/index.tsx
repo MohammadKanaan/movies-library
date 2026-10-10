@@ -1,61 +1,55 @@
 'use client'
 
-import { useId } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { Slider } from '@/components/SCN/slider'
+import type { Thumbs } from '@/lib/filterRange'
 import styles from './styles.module.scss'
-
-/** A filter's bounds; null is no bound on that side. */
-export type Range = { from: number | null; to: number | null }
 
 type RangeFilterProps = {
   label: string
-  /** The slider's ends. A thumb at an end means "no bound" there, so it adds no filter. */
   min: number
   max: number
   step: number
-  /** What Page Up / Page Down and Shift + arrow move by. */
-  largeStep: number
-  value: Range
-  onChange: (value: Range) => void
-  /** The range written out for the eye, e.g. "1990–1999" or "Any length". */
+  /** Both thumbs; one resting at an end of the track is an open end. */
+  value: Thumbs
+  /** What the current value means, shown beside the label (e.g. "1990–1999", "Any year"). */
   readout: string
-  /** The slider's end labels, e.g. "1888" and "2026", or "0 min" and "4h+". */
-  minLabel: string
-  maxLabel: string
+  /** What the two ends of the track are called. */
+  bounds: [string, string]
+  /** Every step of a drag, so the readout follows the thumb. */
+  onValueChange: (value: Thumbs) => void
+  /**
+   * The thumb is released, or a burst of key presses has ended: the one moment to write the URL.
+   * Arrow keys commit on every press, so commits wait `COMMIT_DELAY_MS` and only the last is sent.
+   */
+  onValueCommitted: (value: Thumbs) => void
   disabled?: boolean
 }
 
+const COMMIT_DELAY_MS = 300
+
+const toThumbs = (value: number | readonly number[], fallback: Thumbs): Thumbs =>
+  typeof value === 'number' ? fallback : [value[0] ?? fallback[0], value[1] ?? fallback[1]]
+
 /**
- * A two-thumb slider over a numeric filter (release year, runtime), with its range written out above
- * it. A bound outside the slider, from the URL, stays as it is until its thumb is moved.
+ * The advanced search's range field: a dual-thumb slider with a live readout, for a release year
+ * or a runtime. The two ends of the track are "no bound", so the URL only carries what was set.
  */
 export const RangeFilter = ({
   label,
   min,
   max,
   step,
-  largeStep,
   value,
-  onChange,
   readout,
-  minLabel,
-  maxLabel,
+  bounds,
+  onValueChange,
+  onValueCommitted,
   disabled,
 }: RangeFilterProps) => {
   const labelId = useId()
-  const start = Math.min(Math.max(value.from ?? min, min), max)
-  const end = Math.max(Math.min(value.to ?? max, max), min)
-
-  const handleChange = (next: number | readonly number[]) => {
-    if (typeof next === 'number') {
-      return
-    }
-    const [from = min, to = max] = next
-    onChange({
-      from: from > min ? from : value.from !== null && value.from < min ? value.from : null,
-      to: to < max ? to : value.to !== null && value.to > max ? value.to : null,
-    })
-  }
+  const commitTimer = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(commitTimer.current), [])
 
   return (
     <div className={styles.field}>
@@ -63,25 +57,26 @@ export const RangeFilter = ({
         <span id={labelId} className={styles.label}>
           {label}
         </span>
-        {/* Each thumb announces its own value; this sums them up for the eye. */}
-        <span className={styles.readout} aria-hidden="true">
-          {readout}
-        </span>
+        <output className={styles.readout}>{readout}</output>
       </div>
       <Slider
-        value={[start, end]}
+        aria-labelledby={labelId}
         min={min}
         max={max}
         step={step}
-        largeStep={largeStep}
         minStepsBetweenValues={1}
-        onValueChange={handleChange}
+        value={value}
         disabled={disabled}
-        aria-labelledby={labelId}
+        onValueChange={(next) => onValueChange(toThumbs(next, value))}
+        onValueCommitted={(next) => {
+          const settled = toThumbs(next, value)
+          window.clearTimeout(commitTimer.current)
+          commitTimer.current = window.setTimeout(() => onValueCommitted(settled), COMMIT_DELAY_MS)
+        }}
       />
-      <div className={styles.ends} aria-hidden="true">
-        <span>{minLabel}</span>
-        <span>{maxLabel}</span>
+      <div className={styles.bounds} aria-hidden="true">
+        <span>{bounds[0]}</span>
+        <span>{bounds[1]}</span>
       </div>
     </div>
   )

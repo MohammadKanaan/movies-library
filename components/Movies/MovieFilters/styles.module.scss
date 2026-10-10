@@ -1,12 +1,8 @@
-// A strong ease-out: the panel covers most of its distance at once, then settles.
-$ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
-$rail-width: 3rem;
-$panel-width: 18rem;
+$ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 
 .filters {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
 }
 
 /* ── Toolbar ────────────────────────────────────────── */
@@ -14,7 +10,6 @@ $panel-width: 18rem;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  justify-content: space-between;
   gap: 1rem;
 }
 
@@ -31,62 +26,14 @@ $panel-width: 18rem;
   flex: 1;
 }
 
-/* ── Layout: the rail beside the results ────────────── */
-// The results only ever make room for the rail: the open panel lies over them, so opening it
-// moves nothing in the grid.
-.layout {
-  display: grid;
-  grid-template-columns: $rail-width minmax(0, 1fr);
-  align-items: start;
-  gap: 1.5rem;
-}
-
-.results {
-  min-width: 0;
-}
-
-/* ── Panel ──────────────────────────────────────────── */
-// Sticks below the fixed NavBar while the results scroll; the sheet is placed against it.
-.panel {
-  position: sticky;
-  top: 5rem;
-  z-index: 10;
-}
-
-.rail {
+.controls {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.625rem;
-  width: 100%;
-  padding: 0.875rem 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  background: var(--card);
-  color: var(--foreground);
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 150ms ease;
-
-  &:focus-visible {
-    outline: 2px solid var(--ring);
-    outline-offset: 2px;
-  }
-
-  svg {
-    width: 1rem;
-    height: 1rem;
-  }
+  gap: 0.5rem;
 }
 
-.railLabel {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-}
-
-.count {
+.badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -97,97 +44,83 @@ $panel-width: 18rem;
   background: var(--primary);
   color: var(--primary-foreground);
   font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
 }
 
-// The open panel: laid out at its full size from the start and revealed by a clip that wipes
-// out of the rail's edge, so the only things that change per frame are the clip, the contents'
-// offset and their opacity. It is a transition, so a quick toggle reverses from where it is.
-.sheet {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-  flex-direction: column;
-  width: $panel-width;
-  max-height: calc(100dvh - 6rem);
-  overflow: hidden auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  background: var(--card);
-  box-shadow: 0 12px 32px -12px color-mix(in oklch, var(--foreground) 25%, transparent);
-  overscroll-behavior: contain;
-  clip-path: inset(0 100% 0 0 round var(--radius-xl));
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    clip-path 200ms $ease-out-expo,
-    opacity 200ms ease,
-    visibility 0s linear 200ms;
-}
+.chevron {
+  display: inline-flex;
+  transition: rotate 200ms ease-out;
 
-.layout[data-open] .sheet {
-  // Open, the clip reaches past the edges so the shadow shows.
-  clip-path: inset(-2rem -2rem -2rem 0 round var(--radius-xl));
-  opacity: 1;
-  visibility: visible;
-  transition:
-    clip-path 380ms $ease-out-expo,
-    opacity 120ms ease,
-    visibility 0s;
-}
-
-.sheetHeader {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.625rem 0.5rem 0.625rem 1rem;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.875rem;
-  font-weight: 500;
-
-  > svg {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  > button {
-    margin-left: auto;
+  &[data-open] {
+    rotate: 180deg;
   }
 }
 
-.panelForm {
+/* ── Card ───────────────────────────────────────────── */
+// The card's height opens through a grid row, so the chips and the list below are pushed down
+// with it as it grows, and pulled back up as it closes.
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 360ms $ease-out;
+
+  &[data-open] {
+    grid-template-rows: 1fr;
+  }
+}
+
+.clip {
+  min-height: 0;
+  // The clip would cut focus rings and the slider thumbs' halo; this room keeps them whole.
+  margin: -0.5rem;
+  padding: 0.5rem;
+  overflow: hidden;
+}
+
+.card {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding: 1.25rem 1rem;
-  // The contents trail the wipe slightly, settling into place as it opens.
-  transform: translateX(-0.75rem);
-  transition: transform 200ms $ease-out-expo;
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  opacity: 0;
+  translate: 0 -0.75rem;
+  visibility: hidden;
+  transition:
+    opacity 200ms ease-out,
+    translate 360ms $ease-out,
+    visibility 0s linear 360ms;
+
+  .collapse[data-open] & {
+    opacity: 1;
+    translate: 0 0;
+    visibility: visible;
+    transition:
+      opacity 260ms ease-out 60ms,
+      translate 360ms $ease-out,
+      visibility 0s;
+  }
 }
 
-.layout[data-open] .panelForm {
-  transform: none;
-  transition-duration: 420ms;
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
+  gap: 1.5rem 2rem;
+  align-items: start;
 }
 
-.panelActions {
+.cardFooter {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
-}
-
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  border: 0;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
 }
 
 /* ── Chips ──────────────────────────────────────────── */
@@ -196,7 +129,7 @@ $panel-width: 18rem;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  margin: 0;
+  margin: 1rem 0 0;
   padding: 0;
   list-style: none;
 }
@@ -247,94 +180,28 @@ $panel-width: 18rem;
   }
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .rail:hover {
-    background: var(--muted);
-  }
-}
-
-/* ── Narrow screens: the panel stacks above the results ── */
 @media (width < $breakpoint-md) {
+  // The search takes its own row; the filters button and the sort share the one below.
   .search {
+    flex-basis: 100%;
     min-width: 0;
     max-width: none;
   }
 
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .panel {
-    position: static;
-  }
-
-  .rail {
-    flex-direction: row;
-    padding: 0.75rem 1rem;
-  }
-
-  .railLabel {
-    writing-mode: horizontal-tb;
-    transform: none;
-  }
-
-  // In the flow, the sheet replaces the bar and pushes the results down once.
-  .sheet {
-    position: static;
-    display: none;
-    width: auto;
-    max-height: none;
-    box-shadow: none;
-    clip-path: none;
-  }
-
-  .layout[data-open] {
-    .rail {
-      display: none;
-    }
-
-    .sheet {
-      display: flex;
-      clip-path: none;
-      animation: sheet-down 260ms $ease-out-expo;
-    }
-  }
-
-  // The panel folds up, not to the side.
-  .collapseIcon {
-    transform: rotate(90deg);
-  }
-
-  @keyframes sheet-down {
-    from {
-      opacity: 0;
-      transform: translateY(-0.5rem);
-    }
+  .card {
+    padding: 1rem;
   }
 }
 
+// No travel under reduced motion: the card still fades, so the change stays legible.
 @media (prefers-reduced-motion: reduce) {
-  .sheet,
-  .layout[data-open] .sheet {
-    clip-path: inset(-2rem -2rem -2rem 0 round var(--radius-xl));
-    transition:
-      opacity 150ms ease,
-      visibility 0s linear 150ms;
-  }
-
-  .layout[data-open] .sheet {
-    transition:
-      opacity 150ms ease,
-      visibility 0s;
-  }
-
-  .panelForm,
-  .layout[data-open] .panelForm {
-    transform: none;
+  .collapse,
+  .chevron {
     transition: none;
   }
 
-  .layout[data-open] .sheet {
-    animation: none;
+  .card {
+    translate: 0 0;
+    transition: opacity 150ms ease-out;
   }
 }
