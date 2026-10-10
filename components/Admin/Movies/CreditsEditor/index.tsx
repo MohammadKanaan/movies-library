@@ -4,6 +4,8 @@ import { ArrowDown, ArrowUp, X } from 'lucide-react'
 import { useId } from 'react'
 import { PersonPicker } from '@/components/Admin/Movies/PersonPicker'
 import { Button } from '@/components/SCN/button'
+import { Checkbox } from '@/components/SCN/checkbox'
+import { Label } from '@/components/SCN/label'
 import type { CreditRole } from '@/lib/dto/catalog'
 import { MOVIE_CREDITS_MAX, type CreditInput } from '@/lib/dto/movies'
 import type { PersonSummary } from '@/lib/dto/people'
@@ -30,7 +32,10 @@ const SECTIONS: Section[] = [
 
 const UNKNOWN_PERSON = 'Unknown person'
 
-/** Directors, writers and cast as three ordered lists, each with a typeahead to add people. */
+/**
+ * Directors, writers and cast as three ordered lists, each with a typeahead to add people. Each cast
+ * member can be marked a star, a lead the movie's pages highlight.
+ */
 export const CreditsEditor = ({ value, people, onChange, error, disabled }: CreditsEditorProps) => {
   const baseId = useId()
   const errorId = `${baseId}-error`
@@ -62,6 +67,13 @@ export const CreditsEditor = ({ value, people, onChange, error, disabled }: Cred
     )
   }
 
+  const setStar = (index: number, star: boolean) => {
+    replaceRun(
+      'ACTOR',
+      runOf('ACTOR').map((credit, position) => (position === index ? { ...credit, star } : credit)),
+    )
+  }
+
   const add = (role: CreditRole, person: PersonSummary) => {
     const run = runOf(role)
     if (run.some((credit) => credit.personId === person.id)) {
@@ -83,10 +95,23 @@ export const CreditsEditor = ({ value, people, onChange, error, disabled }: Cred
               <ol className={styles.list}>
                 {run.map((credit, index) => {
                   const name = people[credit.personId]?.name ?? UNKNOWN_PERSON
+                  const starId = `${baseId}-star-${credit.personId}`
                   return (
                     <li key={credit.personId} className={styles.row}>
                       <span className={styles.position}>{index + 1}</span>
                       <span className={styles.name}>{name}</span>
+                      {role === 'ACTOR' && (
+                        <span className={styles.star}>
+                          <Checkbox
+                            id={starId}
+                            aria-label={`Star ${name}`}
+                            checked={credit.star ?? false}
+                            disabled={disabled}
+                            onCheckedChange={(checked) => setStar(index, checked)}
+                          />
+                          <Label htmlFor={starId}>Star</Label>
+                        </span>
+                      )}
                       <span className={styles.actions}>
                         <Button
                           type="button"

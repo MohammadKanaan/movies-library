@@ -63,7 +63,7 @@ const movieDetailSelect = {
   createdById: true,
   createdBy: { select: userProfileSelect },
   credits: {
-    select: { role: true, person: { select: personSummarySelect } },
+    select: { role: true, star: true, person: { select: personSummarySelect } },
     orderBy: [{ position: 'asc' }, { personId: 'asc' }],
   },
 } satisfies Prisma.MovieSelect
@@ -99,13 +99,13 @@ export const toMovieSummary = ({ genres, ...movie }: MovieSummaryRow): MovieSumm
 
 const toMovieRecord = ({ credits, genres, ...movie }: MovieDetailRow): MovieRecord => {
   const grouped: MovieRecord['credits'] = { directors: [], writers: [], cast: [] }
-  for (const { role, person } of credits) {
+  for (const { role, star, person } of credits) {
     if (role === 'DIRECTOR') {
       grouped.directors.push(person)
     } else if (role === 'WRITER') {
       grouped.writers.push(person)
     } else {
-      grouped.cast.push(person)
+      grouped.cast.push({ ...person, star })
     }
   }
   return { ...movie, genres: genres.map(({ genre }) => genre), credits: grouped }
@@ -218,7 +218,12 @@ const assertReferencesExist = async ({ genreIds, credits }: ParsedMovieInput) =>
 /** `position` is the index within each role, in the order the credits were given. */
 const toCreditRows = (credits: ParsedMovieInput['credits']) => {
   const next: Record<CreditRole, number> = { DIRECTOR: 0, WRITER: 0, ACTOR: 0 }
-  return credits.map(({ personId, role }) => ({ personId, role, position: next[role]++ }))
+  return credits.map(({ personId, role, star }) => ({
+    personId,
+    role,
+    star,
+    position: next[role]++,
+  }))
 }
 
 /** `YYYY-MM-DD` into the `date` column: midnight UTC, which the UTC session stores as that day. */

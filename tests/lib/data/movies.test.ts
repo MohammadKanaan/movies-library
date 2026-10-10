@@ -69,7 +69,7 @@ const fixtures = async () => {
     credits: [
       { personId: timothee.id, role: 'ACTOR' },
       { personId: denis.id, role: 'DIRECTOR' },
-      { personId: zendaya.id, role: 'ACTOR' },
+      { personId: zendaya.id, role: 'ACTOR', star: true },
       { personId: denis.id, role: 'WRITER' },
     ],
   }
@@ -241,7 +241,7 @@ describe('movies DAL', () => {
         createdById: admin.id,
         genreIds: [scifi.id, adventure.id],
         credits: [
-          { personId: zendaya.id, role: 'ACTOR', position: 1 },
+          { personId: zendaya.id, role: 'ACTOR', position: 1, star: true },
           { personId: denis.id, role: 'WRITER', position: 0 },
           { personId: timothee.id, role: 'ACTOR', position: 0 },
           { personId: denis.id, role: 'DIRECTOR', position: 0 },
@@ -276,8 +276,9 @@ describe('movies DAL', () => {
               slug: 'timothee-chalamet',
               name: 'Timothée Chalamet',
               headshotUrl: null,
+              star: false,
             },
-            { id: zendaya.id, slug: 'zendaya', name: 'Zendaya', headshotUrl: null },
+            { id: zendaya.id, slug: 'zendaya', name: 'Zendaya', headshotUrl: null, star: true },
           ],
         },
         permissions: { update: false, delete: false },
@@ -388,19 +389,19 @@ describe('movies DAL', () => {
         directors: [expect.objectContaining({ id: denis.id })],
         writers: [expect.objectContaining({ id: denis.id })],
         cast: [
-          expect.objectContaining({ id: timothee.id }),
-          expect.objectContaining({ id: zendaya.id }),
+          expect.objectContaining({ id: timothee.id, star: false }),
+          expect.objectContaining({ id: zendaya.id, star: true }),
         ],
       })
       const rows = await db.credit.findMany({
         where: { movieId: movie.id },
         orderBy: [{ role: 'asc' }, { position: 'asc' }],
       })
-      expect(rows.map((row) => [row.role, row.personId, row.position])).toEqual([
-        ['DIRECTOR', denis.id, 0],
-        ['WRITER', denis.id, 0],
-        ['ACTOR', timothee.id, 0],
-        ['ACTOR', zendaya.id, 1],
+      expect(rows.map((row) => [row.role, row.personId, row.position, row.star])).toEqual([
+        ['DIRECTOR', denis.id, 0, false],
+        ['WRITER', denis.id, 0, false],
+        ['ACTOR', timothee.id, 0, false],
+        ['ACTOR', zendaya.id, 1, true],
       ])
       expect(await db.movie.findUnique({ where: { id: movie.id } })).toMatchObject({
         createdById: admin.id,
@@ -484,10 +485,52 @@ describe('movies DAL', () => {
       expect(updated.credits).toEqual({
         directors: [expect.objectContaining({ id: denis.id })],
         writers: [],
-        cast: [expect.objectContaining({ id: zendaya.id })],
+        cast: [expect.objectContaining({ id: zendaya.id, star: false })],
       })
       expect(await db.credit.count({ where: { movieId: dune.id } })).toBe(2)
       expect(await db.movieGenre.count({ where: { movieId: dune.id } })).toBe(2)
+    })
+
+    it('stars and unstars cast members', async () => {
+      const { input, timothee, zendaya } = await fixtures()
+      await signInAsAdmin()
+      const dune = await createMovie(input)
+
+      const updated = await updateMovie({
+        ...input,
+        id: dune.id,
+        credits: [
+          { personId: timothee.id, role: 'ACTOR', star: true },
+          { personId: zendaya.id, role: 'ACTOR' },
+        ],
+      })
+
+      expect(updated.credits.cast.map(({ id, star }) => [id, star])).toEqual([
+        [timothee.id, true],
+        [zendaya.id, false],
+      ])
+      expect((await getMovieBySlug(dune.slug)).credits.cast).toEqual(updated.credits.cast)
+    })
+
+    it('refuses a star outside the cast', async () => {
+      const { input, denis } = await fixtures()
+      await signInAsAdmin()
+      const dune = await createMovie(input)
+
+      const error = await updateMovie({
+        ...input,
+        id: dune.id,
+        credits: [{ personId: denis.id, role: 'DIRECTOR', star: true }],
+      }).catch((caught: unknown) => caught)
+
+      expect(error).toBeInstanceOf(ValidationError)
+      expect(error).toMatchObject({ fieldErrors: { credits: ['Only cast members can be stars'] } })
+      // The table refuses it too (`credits_star_cast_only`).
+      await expect(
+        db.credit.create({
+          data: { movieId: dune.id, personId: denis.id, role: 'WRITER', star: true },
+        }),
+      ).rejects.toThrow()
     })
 
     it('refuses unknown genres and people without changing anything', async () => {

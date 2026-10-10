@@ -195,6 +195,9 @@ model Credit {
   role     CreditRole
   // Display order within a role (first-billed director, cast order).
   position Int        @default(0)
+  // A lead the movie's pages highlight. Cast only (`credits_star_cast_only`); independent of
+  // `position`, so a star can be billed last ("and Robert De Niro").
+  star     Boolean    @default(false)
 
   movie  Movie  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   // Deleting a person must not silently strip a movie's director.

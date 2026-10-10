@@ -116,7 +116,13 @@ try {
     const credits = (['DIRECTOR', 'WRITER', 'ACTOR'] as const).flatMap((role) => {
       const names =
         role === 'DIRECTOR' ? seed.directors : role === 'WRITER' ? seed.writers : seed.cast
-      return names.map((name, position) => ({ personId: idOf(personIds, name), role, position }))
+      // The first three billed actors are the stars, as the `credit_star` migration backfilled.
+      return names.map((name, position) => ({
+        personId: idOf(personIds, name),
+        role,
+        position,
+        star: role === 'ACTOR' && position < 3,
+      }))
     })
     await db.$transaction(async (tx) => {
       const movie = await tx.movie.upsert({

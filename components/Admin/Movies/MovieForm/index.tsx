@@ -60,7 +60,11 @@ const valuesFrom = (movie: MovieDetail): MovieInput => ({
       role: 'DIRECTOR' as const,
     })),
     ...movie.credits.writers.map((person) => ({ personId: person.id, role: 'WRITER' as const })),
-    ...movie.credits.cast.map((person) => ({ personId: person.id, role: 'ACTOR' as const })),
+    ...movie.credits.cast.map((member) => ({
+      personId: member.id,
+      role: 'ACTOR' as const,
+      star: member.star,
+    })),
   ],
 })
 

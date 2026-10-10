@@ -32,6 +32,11 @@ export const movieSummarySchema = z.object({
 
 export type MovieSummary = z.infer<typeof movieSummarySchema>
 
+/** A cast member in billing order; `star` marks the leads the movie's pages highlight. */
+export const castMemberSchema = personSummarySchema.extend({ star: z.boolean() })
+
+export type CastMember = z.infer<typeof castMemberSchema>
+
 /** One movie with everything the catalog knows: credits grouped by role in billing order. */
 export const movieDetailSchema = movieSummarySchema.extend({
   synopsis: z.string().nullable(),
@@ -42,7 +47,7 @@ export const movieDetailSchema = movieSummarySchema.extend({
   credits: z.object({
     directors: z.array(personSummarySchema),
     writers: z.array(personSummarySchema),
-    cast: z.array(personSummarySchema),
+    cast: z.array(castMemberSchema),
   }),
   permissions: permissionsSchema,
 })
@@ -93,13 +98,18 @@ const hasDuplicate = <T>(values: T[], keyOf: (value: T) => string) => {
   })
 }
 
-/** One credit as the editor lists it; the DAL numbers `position` from the order within each role. */
+/**
+ * One credit as the editor lists it; the DAL numbers `position` from the order within each role.
+ * `star` marks a lead (cast only), and left out it is false.
+ */
 export const creditInputSchema = z.object({
   personId: catalogIdSchema,
   role: creditRoleSchema,
+  star: z.boolean().default(false),
 })
 
-export type CreditInput = z.infer<typeof creditInputSchema>
+/** What callers pass (`star` optional). */
+export type CreditInput = z.input<typeof creditInputSchema>
 
 /**
  * Create and update share this shape. The slug is derived from the title and release year on create
@@ -144,6 +154,10 @@ export const movieInput = z.object({
     .refine(
       (credits) => !hasDuplicate(credits, (credit) => `${credit.personId}:${credit.role}`),
       'A person is credited twice in the same role',
+    )
+    .refine(
+      (credits) => credits.every((credit) => !credit.star || credit.role === 'ACTOR'),
+      'Only cast members can be stars',
     ),
 })
 

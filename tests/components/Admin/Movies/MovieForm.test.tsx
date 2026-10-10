@@ -45,8 +45,8 @@ const movie: MovieDetail = {
       person('a0000000-0000-4000-8000-000000000003', 'Eric Roth'),
     ],
     cast: [
-      person('a0000000-0000-4000-8000-000000000004', 'Timothee Chalamet'),
-      person('a0000000-0000-4000-8000-000000000005', 'Rebecca Ferguson'),
+      { ...person('a0000000-0000-4000-8000-000000000004', 'Timothee Chalamet'), star: true },
+      { ...person('a0000000-0000-4000-8000-000000000005', 'Rebecca Ferguson'), star: false },
     ],
   },
   createdBy: null,
@@ -80,6 +80,7 @@ describe('MovieForm', () => {
       await userEvent.click(screen.getByRole('checkbox', { name: 'Drama' }))
       await userEvent.click(screen.getByRole('button', { name: 'Add a cast member' }))
       expect(screen.getByText('Zendaya')).toBeInTheDocument()
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Star Zendaya' }))
       await userEvent.click(screen.getByRole('button', { name: 'Create movie' }))
 
       await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
@@ -89,7 +90,7 @@ describe('MovieForm', () => {
         releaseDate: '2021-10-22',
         runtimeMinutes: 155,
         genreIds: [GENRE_ID],
-        credits: [{ personId: PERSON_ID, role: 'ACTOR' }],
+        credits: [{ personId: PERSON_ID, role: 'ACTOR', star: true }],
       })
       await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining(movie)))
     })
@@ -194,11 +195,11 @@ describe('MovieForm', () => {
         runtimeMinutes: 155,
         genreIds: [GENRE_ID],
         credits: [
-          { personId: 'a0000000-0000-4000-8000-000000000001', role: 'DIRECTOR' },
-          { personId: 'a0000000-0000-4000-8000-000000000002', role: 'WRITER' },
-          { personId: 'a0000000-0000-4000-8000-000000000003', role: 'WRITER' },
-          { personId: 'a0000000-0000-4000-8000-000000000004', role: 'ACTOR' },
-          { personId: 'a0000000-0000-4000-8000-000000000005', role: 'ACTOR' },
+          { personId: 'a0000000-0000-4000-8000-000000000001', role: 'DIRECTOR', star: false },
+          { personId: 'a0000000-0000-4000-8000-000000000002', role: 'WRITER', star: false },
+          { personId: 'a0000000-0000-4000-8000-000000000003', role: 'WRITER', star: false },
+          { personId: 'a0000000-0000-4000-8000-000000000004', role: 'ACTOR', star: true },
+          { personId: 'a0000000-0000-4000-8000-000000000005', role: 'ACTOR', star: false },
         ],
       })
       await vi.waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))

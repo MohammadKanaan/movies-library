@@ -22,7 +22,7 @@ export type SeedMovie = {
   posterUrl?: string | null
   createdById?: string | null
   genreIds?: string[]
-  credits?: { personId: string; role: CreditRole; position?: number }[]
+  credits?: { personId: string; role: CreditRole; position?: number; star?: boolean }[]
 }
 
 export const seedMovie = ({
@@ -45,6 +45,7 @@ export const seedMovie = ({
           personId: credit.personId,
           role: credit.role,
           position: credit.position ?? index,
+          star: credit.star,
         })),
       },
     },

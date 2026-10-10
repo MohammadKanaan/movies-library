@@ -109,6 +109,45 @@ describe('CreditsEditor', () => {
     )
   })
 
+  it('offers a star checkbox on cast rows only', () => {
+    setup({
+      value: credits.map((credit) =>
+        credit.personId === 'a2' ? { ...credit, star: true } : credit,
+      ),
+    })
+    expect(screen.getAllByRole('checkbox')).toHaveLength(2)
+    expect(section('Directors').queryByRole('checkbox')).toBeNull()
+    expect(section('Writers').queryByRole('checkbox')).toBeNull()
+    expect(screen.getByRole('checkbox', { name: 'Star Alex Actor' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Star Avery Actor' })).toBeChecked()
+  })
+
+  it('stars and unstars a cast member, keeping their place', async () => {
+    const { onChange } = setup()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Star Avery Actor' }))
+    expect(onChange).toHaveBeenLastCalledWith(
+      [...credits.slice(0, 4), { personId: 'a2', role: 'ACTOR', star: true }],
+      people,
+    )
+  })
+
+  it('carries the star with a cast member who moves', async () => {
+    const { onChange } = setup({
+      value: credits.map((credit) =>
+        credit.personId === 'a2' ? { ...credit, star: true } : credit,
+      ),
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Move Avery Actor up' }))
+    expect(onChange).toHaveBeenCalledWith(
+      [
+        ...credits.slice(0, 3),
+        { personId: 'a2', role: 'ACTOR', star: true },
+        { personId: 'a1', role: 'ACTOR' },
+      ],
+      people,
+    )
+  })
+
   it('removes a credit', async () => {
     const { onChange } = setup()
     await userEvent.click(screen.getByRole('button', { name: 'Remove Wren Writer' }))

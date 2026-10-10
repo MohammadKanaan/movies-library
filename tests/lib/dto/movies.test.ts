@@ -41,8 +41,11 @@ const issuesOf = (input: unknown) =>
     .error?.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`)
 
 describe('movieInput', () => {
-  it('accepts a full movie and keeps the credits in order', () => {
-    expect(movieInput.parse(valid)).toEqual(valid)
+  it('accepts a full movie and keeps the credits in order, unstarred unless marked', () => {
+    expect(movieInput.parse(valid)).toEqual({
+      ...valid,
+      credits: valid.credits.map((credit) => ({ ...credit, star: false })),
+    })
   })
 
   it('trims the title and bounds it', () => {
@@ -118,6 +121,17 @@ describe('movieInput', () => {
       role: 'ACTOR',
     }))
     expect(issuesOf({ ...valid, credits: cast })?.[0]).toMatch(/^credits: /)
+  })
+
+  it('stars cast members only', () => {
+    const starred = { personId: OTHER_PERSON_ID, role: 'ACTOR', star: true } as const
+    expect(movieInput.parse({ ...valid, credits: [starred] }).credits).toEqual([starred])
+    expect(
+      issuesOf({ ...valid, credits: [{ personId: PERSON_ID, role: 'DIRECTOR', star: true }] }),
+    ).toEqual(['credits: Only cast members can be stars'])
+    expect(issuesOf({ ...valid, credits: [{ ...starred, star: 'yes' }] })?.[0]).toMatch(
+      /^credits\.0\.star: /,
+    )
   })
 
   it('needs a movie id to update, and a movie id plus an upload key to attach a poster', () => {
