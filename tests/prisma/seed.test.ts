@@ -36,5 +36,17 @@ describe('catalog seed', () => {
     expect(movies.items.some((movie) => movie.id === previous.id)).toBe(false)
     expect(await db.movie.findUnique({ where: { id: previous.id } })).toBeNull()
     expect(await db.movie.count()).toBe(1018)
+    expect(await db.user.count()).toBe(103)
+    expect(await db.review.count()).toBe(1006)
+    expect(await db.reviewComment.count()).toBe(3003)
+    expect(
+      (await db.review.findMany({ distinct: ['movieId'], select: { movieId: true } })).length,
+    ).toBe(1000)
+
+    await run(process.execPath, ['prisma/seed.ts'], { env: process.env })
+
+    expect(await db.user.count()).toBe(103)
+    expect(await db.review.count()).toBe(1006)
+    expect(await db.reviewComment.count()).toBe(3003)
   }, 60_000)
 })

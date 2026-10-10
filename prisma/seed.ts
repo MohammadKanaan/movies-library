@@ -74,16 +74,105 @@ const SEED_COMMENTS: { movieIndex: number; reviewer: string; author: string; bod
   },
 ]
 
-/** One account per role (`users_role_valid`). */
-const SEED_USERS: {
+/** One account per role (`users_role_valid`), plus a hundred distinct viewer accounts. */
+const seedFirstNames = [
+  'Maya',
+  'Theo',
+  'Nina',
+  'Omar',
+  'Lena',
+  'Jules',
+  'Amir',
+  'Sofia',
+  'Eli',
+  'Zara',
+]
+const seedLastNames = [
+  'Bennett',
+  'Sato',
+  'Khalil',
+  'Morgan',
+  'Costa',
+  'Reed',
+  'Haddad',
+  'Park',
+  'Silva',
+  'Foster',
+]
+type SeedUser = {
   name: string
   username: string
   email: string
   role: 'viewer' | 'editor' | 'admin'
-}[] = [
+}
+const SEED_USERS: SeedUser[] = [
   { name: 'Ada Admin', username: 'admin', email: 'admin@example.com', role: 'admin' },
   { name: 'Leanne Graham', username: 'leanne', email: 'leanne@example.com', role: 'editor' },
   { name: 'Ervin Howell', username: 'ervin', email: 'ervin@example.com', role: 'viewer' },
+  ...Array.from({ length: 100 }, (_, index) => {
+    const number = String(index + 1).padStart(3, '0')
+    return {
+      name: `${seedFirstNames[index % seedFirstNames.length]} ${seedLastNames[Math.floor(index / seedFirstNames.length)]}`,
+      username: `movie-fan-${number}`,
+      email: `movie-fan-${number}@example.com`,
+      role: 'viewer' as const,
+    }
+  }),
+]
+
+const seedReviewBodies = [
+  (title: string) =>
+    `${title} has a confident sense of place, and its best scenes linger after the credits.`,
+  (title: string) =>
+    `I liked how ${title} lets its characters breathe instead of rushing to the next plot point.`,
+  (title: string) =>
+    `${title} builds beautifully. The final stretch brought all the earlier details together.`,
+  (title: string) =>
+    `A strong cast carries ${title}, especially in the quieter moments between the big scenes.`,
+  (title: string) =>
+    `${title} looks and sounds wonderful. I would happily watch it again on a big screen.`,
+  (title: string) =>
+    `The pacing in ${title} is uneven, but the central idea kept me interested throughout.`,
+  (title: string) =>
+    `${title} surprised me with how funny and warm it could be without losing its edge.`,
+  (title: string) =>
+    `Some parts of ${title} are rough, though the performances make it worth the time.`,
+  (title: string) => `${title} takes a familiar setup somewhere more thoughtful than I expected.`,
+  (title: string) =>
+    `I enjoyed the atmosphere in ${title} most; every location feels carefully chosen.`,
+  (title: string) => `${title} is at its best when it trusts the audience to connect the dots.`,
+  (title: string) =>
+    `A few scenes in ${title} hit harder than the story around them, and I keep thinking about those.`,
+  (title: string) =>
+    `${title} has a lovely score and a clear point of view. The middle could be tighter.`,
+  (title: string) =>
+    `I went in with low expectations and came away impressed by ${title}'s energy.`,
+  (title: string) =>
+    `${title} does not quite stick the landing, but getting there is a very good time.`,
+  (title: string) =>
+    `The smaller choices make ${title} work: the framing, the pauses, and the lived-in dialogue.`,
+  (title: string) =>
+    `${title} feels more interesting on reflection than it did while I was watching it.`,
+  (title: string) =>
+    `There is a lot to admire in ${title}, even if not every story thread gets enough room.`,
+  (title: string) =>
+    `${title} caught me off guard in the best way. I am glad I knew very little going in.`,
+  (title: string) =>
+    `A solid, entertaining film. ${title} knows exactly what kind of story it wants to tell.`,
+]
+const seedCommentBodies = [
+  'That was my favorite part too.',
+  'You put into words what I could not quite explain.',
+  'I had a different reaction, but I see where you are coming from.',
+  'The quieter scenes stayed with me as well.',
+  'This makes me want to revisit it.',
+  'I agree about the pacing, especially in the middle.',
+  'Interesting take. The ending worked better for me on a second watch.',
+  'The score deserves more credit than it gets.',
+  'I am glad someone else noticed that detail.',
+  'Good point about the cast carrying those scenes.',
+  'I watched it last week and keep thinking about it too.',
+  'That is exactly why I liked it.',
 ]
 
 // The seeded accounts have a public password and one of them is an admin, so a production
@@ -211,7 +300,7 @@ try {
 
   // Reviews are upserted on their unique (movie, author) pair, like the movies on their slug.
   const reviewMovies = await db.movie.findMany({
-    where: { slug: { in: seededSlugs.slice(0, 3) } },
+    where: { slug: { in: seededSlugs } },
     select: { id: true, slug: true },
   })
   const reviewMovieBySlug = new Map(reviewMovies.map((movie) => [movie.slug, movie.id]))
@@ -237,6 +326,48 @@ try {
     reviewedNow.add(movieId)
   }
 
+  // Give each demo viewer ten reviews. The index pattern covers the full catalog once, while
+  // stable text, ratings and assignments make each seed run predictable.
+  const communityUsers = Array.from({ length: 100 }, (_, index) => {
+    const number = String(index + 1).padStart(3, '0')
+    return reviewAuthors.get(`movie-fan-${number}@example.com`)
+  }).filter((id): id is string => Boolean(id))
+  const communityReviews: {
+    movieId: string
+    authorId: string
+    halfStars: number
+    body: string
+    spoiler: boolean
+  }[] = []
+  for (let userIndex = 0; userIndex < communityUsers.length; userIndex += 1) {
+    for (let movieSlot = 0; movieSlot < 10; movieSlot += 1) {
+      const reviewIndex = userIndex * 10 + movieSlot
+      const movieIndex = Math.floor(
+        (reviewIndex * SEED_MOVIES.length) / (communityUsers.length * 10),
+      )
+      const movieId = reviewMovieBySlug.get(seededSlugs[movieIndex])
+      if (!movieId) {
+        continue
+      }
+      communityReviews.push({
+        movieId,
+        authorId: communityUsers[userIndex],
+        halfStars: ((reviewIndex * 7) % 10) + 1,
+        body: seedReviewBodies[reviewIndex % seedReviewBodies.length](
+          SEED_MOVIES[movieIndex].title,
+        ),
+        spoiler: reviewIndex % 37 === 0,
+      })
+    }
+  }
+  const insertedCommunityReviews = await db.review.createManyAndReturn({
+    data: communityReviews,
+    select: { id: true, movieId: true, authorId: true },
+  })
+  for (const { movieId } of insertedCommunityReviews) {
+    reviewedNow.add(movieId)
+  }
+
   // Comments hang off those reviews. Re-seeding replaces the users, and their comments go with
   // them, so these never double.
   for (const { movieIndex, reviewer, author, body } of SEED_COMMENTS) {
@@ -254,6 +385,18 @@ try {
       await db.reviewComment.create({ data: { reviewId: review.id, authorId, body } })
     }
   }
+
+  const communityComments = insertedCommunityReviews.flatMap((review, reviewIndex) =>
+    Array.from({ length: 3 }, (_, commentIndex) => {
+      const authorIndex = (reviewIndex + commentIndex * 31 + 1) % communityUsers.length
+      return {
+        reviewId: review.id,
+        authorId: communityUsers[authorIndex],
+        body: seedCommentBodies[(reviewIndex * 3 + commentIndex) % seedCommentBodies.length],
+      }
+    }),
+  )
+  await db.reviewComment.createMany({ data: communityComments })
 
   // The dev seed replaces the movie catalog. Prune only after every upsert succeeds, so a
   // partially failed seed never deletes movies it has not finished loading.
