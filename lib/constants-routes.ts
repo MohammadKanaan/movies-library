@@ -18,6 +18,9 @@ export const movieReviewsPath = (slug: string) => `${moviePath(slug)}/reviews`
 /** One review; the slug is the movie's, and the page answers 404 for any other movie's. */
 export const reviewPath = (slug: string, id: string) => `${movieReviewsPath(slug)}/${id}`
 
+/** The movie page with the viewer's own review open for editing (`viewerReviewUrlQuery`). */
+export const editReviewPath = (slug: string) => `${moviePath(slug)}?edit=review#your-review`
+
 /** The search page for a term: movies and people together. */
 export const searchPath = (q: string) => `${ROUTE_SEARCH}?${new URLSearchParams({ q })}`
 

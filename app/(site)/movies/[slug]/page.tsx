@@ -23,9 +23,10 @@ import { loadPage } from '@/lib/data/page'
 import { getReviewSummary, getViewerReview, listReviews } from '@/lib/data/reviews'
 import { getViewer } from '@/lib/data/users'
 import type { PersonSummary } from '@/lib/dto/people'
-import type { RatingSummary } from '@/lib/dto/reviews'
+import { viewerReviewUrlQuery, type RatingSummary } from '@/lib/dto/reviews'
 import { formatDate } from '@/lib/formatDate'
 import { formatRuntime } from '@/lib/formatRuntime'
+import { toScalarParams } from '@/lib/searchParams'
 import { presentMovieDetail, type SupportingCredit } from '@/presenters/movieDetail'
 import styles from './styles.module.scss'
 
@@ -78,8 +79,10 @@ export const generateMetadata = async ({
   return { title: `${movie.title} (${movie.releaseDate.getUTCFullYear()})` }
 }
 
-const MoviePage = async ({ params }: PageProps<'/movies/[slug]'>) => {
+const MoviePage = async ({ params, searchParams }: PageProps<'/movies/[slug]'>) => {
   const { slug } = await params
+  // `editReviewPath` asks for the viewer's review on its form; a garbled query shows it as it is.
+  const { edit } = viewerReviewUrlQuery.parse(toScalarParams(await searchParams))
   // The reviews are read by the movie's slug, so they load alongside the movie, not after it.
   const [detail, [viewer, summary, latest, viewerReview]] = await Promise.all([
     loadMovie(slug),
@@ -232,7 +235,11 @@ const MoviePage = async ({ params }: PageProps<'/movies/[slug]'>) => {
 
           <div id="your-review" className={styles.yourReview}>
             {viewer ? (
-              <ViewerReview movieId={movie.id} review={viewerReview}>
+              <ViewerReview
+                movieId={movie.id}
+                review={viewerReview}
+                startEditing={edit === 'review'}
+              >
                 {viewerReview ? <ReviewCard review={viewerReview} movieSlug={slug} /> : null}
               </ViewerReview>
             ) : (

@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { cache } from 'react'
+import { ButtonLink } from '@/components/ButtonLink'
 import { Empty } from '@/components/Empty'
 import { PageHeader } from '@/components/PageHeader'
 import { ReviewCard } from '@/components/Reviews/ReviewCard'
@@ -67,7 +68,16 @@ const MovieReviewsPage = async ({ params, searchParams }: PageProps<'/movies/[sl
           <Empty
             title={page > 1 ? 'No reviews on this page' : 'No reviews yet'}
             description={
-              page > 1 ? 'Go back to the first page.' : 'Be the first to review this movie.'
+              page > 1
+                ? 'The list has fewer pages than it did.'
+                : 'Be the first to review this movie.'
+            }
+            action={
+              page > 1 ? (
+                <ButtonLink href={path} variant="outline">
+                  First page
+                </ButtonLink>
+              ) : undefined
             }
           />
         ) : (

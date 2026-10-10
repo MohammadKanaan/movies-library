@@ -108,3 +108,11 @@ export type ListReviewsQuery = z.input<typeof listReviewsQuery>
 export const reviewsUrlQuery = z.object({
   page: pageQuerySchema.shape.page.catch(1),
 })
+
+/**
+ * The tolerant URL contract of the movie page: `?edit=review` opens the viewer's own review on its
+ * form (the review page's Edit link, `editReviewPath`). Anything else shows the review as it is.
+ */
+export const viewerReviewUrlQuery = z.object({
+  edit: z.literal('review').optional().catch(undefined),
+})

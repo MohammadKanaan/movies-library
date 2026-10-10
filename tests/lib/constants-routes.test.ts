@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   adminMovieEditPath,
   adminUserPath,
+  editReviewPath,
   isPrivateRoute,
   isPublicRoute,
   loginPath,
@@ -61,6 +62,10 @@ describe('admin routes', () => {
 
   it('builds a person page from the slug', () => {
     expect(personPath('denis-villeneuve')).toBe('/people/denis-villeneuve')
+  })
+
+  it('builds the movie page with the viewer’s review open for editing', () => {
+    expect(editReviewPath('dune-2021')).toBe('/movies/dune-2021?edit=review#your-review')
   })
 })
 

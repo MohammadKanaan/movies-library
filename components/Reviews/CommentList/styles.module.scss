@@ -12,3 +12,16 @@
   color: var(--muted-foreground);
   font-size: 0.9375rem;
 }
+
+.link {
+  color: var(--foreground);
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in oklch, var(--foreground) 35%, transparent);
+  text-underline-offset: 0.3em;
+
+  &:focus-visible {
+    border-radius: 2px;
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}

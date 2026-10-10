@@ -8,7 +8,13 @@ import { MoviePoster } from '@/components/Movies/MoviePoster'
 import { CommentList } from '@/components/Reviews/CommentList'
 import { NewComment } from '@/components/Reviews/NewComment'
 import { ReviewCard } from '@/components/Reviews/ReviewCard'
-import { loginPath, moviePath, movieReviewsPath, reviewPath } from '@/lib/constants-routes'
+import {
+  editReviewPath,
+  loginPath,
+  moviePath,
+  movieReviewsPath,
+  reviewPath,
+} from '@/lib/constants-routes'
 import { loadPage } from '@/lib/data/page'
 import { listComments } from '@/lib/data/reviewComments'
 import { getReview } from '@/lib/data/reviews'
@@ -81,7 +87,7 @@ const ReviewPage = async ({ params, searchParams }: PageProps<'/movies/[slug]/re
       <ReviewCard
         review={review}
         movieSlug={slug}
-        editHref={`${moviePath(slug)}#your-review`}
+        editHref={editReviewPath(slug)}
         deleteRedirect={moviePath(slug)}
       >
         {/* Inside the card, so the comments of a spoiler review are as hidden as its text. */}
@@ -101,7 +107,11 @@ const ReviewPage = async ({ params, searchParams }: PageProps<'/movies/[slug]/re
             </p>
           )}
           <CommentsView page={comments.page} totalPages={comments.totalPages}>
-            <CommentList comments={comments.items} />
+            {/* A page past the end (its last comment was deleted) links back to the first. */}
+            <CommentList
+              comments={comments.items}
+              firstPageHref={page > 1 ? `${path}#comments` : undefined}
+            />
           </CommentsView>
         </section>
       </ReviewCard>

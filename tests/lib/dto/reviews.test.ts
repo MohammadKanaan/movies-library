@@ -8,6 +8,7 @@ import {
   reviewInput,
   reviewsUrlQuery,
   updateReviewInput,
+  viewerReviewUrlQuery,
 } from '@/lib/dto/reviews'
 
 const MOVIE_ID = '0190d1a2-0000-7000-8000-000000000001'
@@ -107,5 +108,13 @@ describe('reviewsUrlQuery', () => {
     expect(reviewsUrlQuery.parse({})).toEqual({ page: 1 })
     expect(reviewsUrlQuery.parse({ page: 'garbage' })).toEqual({ page: 1 })
     expect(reviewsUrlQuery.parse({ page: '3' })).toEqual({ page: 3 })
+  })
+})
+
+describe('viewerReviewUrlQuery', () => {
+  it('opens the form only for `edit=review`', () => {
+    expect(viewerReviewUrlQuery.parse({})).toEqual({ edit: undefined })
+    expect(viewerReviewUrlQuery.parse({ edit: 'review' })).toEqual({ edit: 'review' })
+    expect(viewerReviewUrlQuery.parse({ edit: 'garbage' })).toEqual({ edit: undefined })
   })
 })

@@ -12,13 +12,20 @@ type ViewerReviewProps = {
   movieId: string
   /** The viewer's review of this movie, if they wrote one. */
   review: Review | null
+  /** Opens `review` on its form straight away: the review page's Edit link (`editReviewPath`). */
+  startEditing?: boolean
   /** The server-rendered card of `review`. */
   children?: ReactNode
 }
 
 /** The viewer's own review of a movie: the form to write it, or the review with an Edit button. */
-export const ViewerReview = ({ movieId, review, children }: ViewerReviewProps) => {
-  const [editing, setEditing] = useState(false)
+export const ViewerReview = ({
+  movieId,
+  review,
+  startEditing = false,
+  children,
+}: ViewerReviewProps) => {
+  const [editing, setEditing] = useState(startEditing)
 
   if (review && !editing) {
     return (

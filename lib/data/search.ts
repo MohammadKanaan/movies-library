@@ -67,12 +67,7 @@ const rankedPeople = async (term: string, contains: string, prefix: string, limi
   const ids = await rankedPersonIds(term, contains, prefix, limit)
   const rows = await db.person.findMany({
     where: { id: { in: ids } },
-    select: {
-      ...personListItemSelect,
-      // The list's plain `_count` groups the whole credits table before joining the few people
-      // asked for; bounding the count to those people keeps the aggregate to their credits.
-      _count: { select: { credits: { where: { personId: { in: ids } } } } },
-    },
+    select: personListItemSelect,
   })
   return inOrder(ids, rows.map(toPersonListItem))
 }
