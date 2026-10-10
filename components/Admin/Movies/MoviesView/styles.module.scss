@@ -37,7 +37,7 @@
 .tableWrap {
   overflow-x: auto;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   transition: opacity 150ms ease-out;
 
   // A page or filter change is in flight: dim the rows it is about to replace.

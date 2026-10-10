@@ -16,7 +16,9 @@ UI's Button forces `role="button"`.
 [zippystarter theme](https://zippystarter.com/r/nw0r02zop7mgg0ba1u1fjou6), installed with
 `bunx shadcn@latest add` on 2026-10-10 to replace the stock neutral palette. After the install, the
 CLI's self-referencing `--font-*` theme entries were dropped, the invalid `tight` tracking became
-`-0.025em`, and `--font-sans` points at Geist, so Inter is gone. Only Prettier formatting
+`-0.025em`, and `--font-sans` points at Geist, so Inter is gone. The `--radius-*` scale moved
+into its own `@theme static inline` block: Tailwind drops theme variables no utility uses, which
+left `var(--radius-xl)` undefined for CSS Modules (corners rendered square). Only Prettier formatting
 is applied to generated components, so CLI updates do not erase app logic. Labels/errors and loading
 behavior live in separate application wrappers. `lib/utils.ts` stays CLI-owned. Theme support follows
 the [official Next.js guide](https://ui.shadcn.com/docs/dark-mode/next): `next-themes`, a class-based
