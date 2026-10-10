@@ -7,8 +7,7 @@ writes, shared Zod DTOs, schema-first forms, and shadcn/ui with SCSS everywhere 
 It started from a template, so the infrastructure is in place (auth, accounts, admin, cache, rate
 limits, background jobs, email, uploads to R2, logging, tooling) and the catalog schema is migrated
 (`movies`, `genres`, `people`, `credits`; see `prisma/schema.prisma`). The catalog backend is built
-(DTOs, DAL, policies, Server Actions, posters on R2, seed; see
-[`docs/guides/catalog.md`](docs/guides/catalog.md)): reads are public, writes are admin-only. Its
+(DTOs, DAL, policies, Server Actions, posters on R2, seed): reads are public, writes are admin-only. Its
 pages are the next step of **Adding a resource** below.
 
 ## Stack
@@ -148,8 +147,7 @@ Route Handler (app/api/v1) ───────▶ lib/data   (decodes with lib
 Every data path ends at the same DAL function and returns the same DTO under the same auth rules;
 the DAL enforces auth and validates its inputs itself. The conventions (DTOs, DAL, Server Actions,
 errors, caching, styling) are in [`AGENTS.md`](AGENTS.md); the reasons behind them in
-[`docs/DECISIONS.md`](docs/DECISIONS.md); each area's narrative (auth and the admin plugin, jobs,
-email, uploads, caching) in [`docs/guides/`](docs/guides/).
+[`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 ## Pattern index
 
@@ -212,7 +210,4 @@ record)`, call them with `authorize()` after the exists check, and build the DTO
 
 - [`AGENTS.md`](AGENTS.md): project conventions and rules for contributors and agents.
 - [`docs/DECISIONS.md`](docs/DECISIONS.md): what was chosen and why, and what was removed and where it went.
-- Area guides in [`docs/guides/`](docs/guides/): authentication, route-handlers, caching,
-  jobs, email, uploads, infrastructure, environment.
-- Recipes in [`docs/recipes/`](docs/recipes/) for what the template leaves out: concurrency and
-  optimistic locking, and the other removed patterns.
+- [`docs/guides/uploads.md`](docs/guides/uploads.md): setting up the Cloudflare R2 bucket.

@@ -26,21 +26,8 @@ that forgets a check cannot bypass it.
 
 ## Guides
 
-Long area narratives live in `docs/guides/`. Read the one for the area you touch before editing it.
-
-- `docs/guides/catalog.md`: the movie catalog (movies, genres, people, credits, posters): DTOs, DAL check order, slugs, the one cache tag, admin-only writes, the seed.
-- `docs/guides/authentication.md`: Better Auth, the admin plugin (roles, bans, impersonation), email flows, account settings, Google, rate limits.
-- `docs/guides/route-handlers.md`: Route Handlers, the REST API, health.
-- `docs/guides/caching.md`: the Redis data cache (`remember`, tags, what is never cached).
-- `docs/guides/jobs.md`: pg-boss jobs, handlers, the worker, the system DAL.
-- `docs/guides/email.md`: the mailer, the `send-email` job and the plain templates in `emails/`.
-- `docs/guides/uploads.md`: uploads on Cloudflare R2 without an uploads table (presigned PUT, per-user keys, attach, delayed deletes, bucket setup).
-- `docs/guides/infrastructure.md`: `lib/server`, logging, Docker and CI.
-- `docs/guides/environment.md`: public and server-only config, security headers, `serverEnv()`.
-
-`docs/recipes/` holds patterns the template does **not** implement (concurrency and optimistic locking
-and the other removed features) written to fit this architecture. Read one before adding
-such a feature; never treat it as a description of existing code.
+The code and its comments are the documentation. The one guide, `docs/guides/uploads.md`, covers
+what the code cannot: creating the R2 bucket, its public domain, CORS rule and API token.
 
 ## Build & Run Commands
 
@@ -251,6 +238,11 @@ catch (error) { return toActionFailure(error) }`. Return `ActionResult<T>`; neve
   `refresh()`. There is no DAL function behind those calls, so these actions are the exception that
   runs `parseInput` themselves (in `actions/auth.ts`).
 - The calling view owns navigation and toasts; the form owns field errors.
+- Route Handlers (`app/api/v1/<resource>`) exist only for an HTTP API or a client component that
+  must fetch. A handler is thin: `requireUser()` first for a write, `readJsonBody(request)` (JSON
+  only; with the `SameSite=Lax` cookie that is the CSRF guard), decode with the DTO schema, call the
+  DAL, return JSON or `toErrorResponse(error)`. 201 for a create, 200 for reads and updates, 204 for
+  a delete.
 
 ## Errors
 
@@ -269,8 +261,9 @@ One cache: the Redis data cache (`remember()` in `lib/server/cache.ts`), used in
 that is the same for every viewer. Next's Cache Components are off, so `'use cache'` is not
 available. Check auth first, `remember()` only the viewer-independent part, then compute
 viewer-specific fields after; invalidate inside the DAL right after the write succeeds. Searches and
-author lists are never cached. Redis is an optimization, never a dependency. Full rules:
-`docs/guides/caching.md`.
+author lists are never cached. Redis is an optimization, never a dependency: every cache failure is
+logged and falls through to the database. Tag versions have no TTL, so Redis must run with
+`maxmemory-policy volatile-lru` (as `docker-compose.yml` does) so they are never evicted.
 
 ## Helpers & Presenters
 
