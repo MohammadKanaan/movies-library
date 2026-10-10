@@ -57,3 +57,10 @@
 .actionsHead {
   text-align: right;
 }
+
+// Phones: the columns a row can do without, so its name and actions stay on screen.
+.secondary {
+  @media (width < $breakpoint-md) {
+    display: none;
+  }
+}

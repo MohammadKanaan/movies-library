@@ -1,5 +1,6 @@
 'use client'
 
+import clsx from 'clsx'
 import Link from 'next/link'
 import { Plus, Search } from 'lucide-react'
 import type { FormEvent } from 'react'
@@ -168,9 +169,9 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
               <TableRow>
                 <TableHead>Poster</TableHead>
                 <TableHead>Title</TableHead>
-                <TableHead>Genres</TableHead>
-                <TableHead>Runtime</TableHead>
-                <TableHead>Released</TableHead>
+                <TableHead className={styles.secondary}>Genres</TableHead>
+                <TableHead className={styles.secondary}>Runtime</TableHead>
+                <TableHead className={styles.secondary}>Released</TableHead>
                 <TableHead className={styles.actionsHead}>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -193,21 +194,23 @@ export const MoviesView = ({ movies, genres }: MoviesViewProps) => {
                       <span className={styles.muted}>{movie.releaseDate.getUTCFullYear()}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className={styles.secondary}>
                     {movie.genres.length > 0 ? (
                       movie.genres.map((genre) => genre.name).join(', ')
                     ) : (
                       <span className={styles.muted}>None</span>
                     )}
                   </TableCell>
-                  <TableCell className={styles.nowrap}>
+                  <TableCell className={clsx(styles.nowrap, styles.secondary)}>
                     {movie.runtimeMinutes === null ? (
                       <span className={styles.muted}>—</span>
                     ) : (
                       formatRuntime(movie.runtimeMinutes)
                     )}
                   </TableCell>
-                  <TableCell className={styles.nowrap}>{formatDate(movie.releaseDate)}</TableCell>
+                  <TableCell className={clsx(styles.nowrap, styles.secondary)}>
+                    {formatDate(movie.releaseDate)}
+                  </TableCell>
                   <TableCell>
                     <ActionGroup label={`${movie.title} actions`}>
                       <ActionLink

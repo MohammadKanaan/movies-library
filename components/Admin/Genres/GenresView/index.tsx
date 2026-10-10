@@ -80,7 +80,7 @@ export const GenresView = ({ genres }: GenresViewProps) => {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Slug</TableHead>
+                <TableHead className={styles.secondary}>Slug</TableHead>
                 <TableHead>Movies</TableHead>
                 <TableHead className={styles.actionsHead}>Actions</TableHead>
               </TableRow>
@@ -91,7 +91,7 @@ export const GenresView = ({ genres }: GenresViewProps) => {
                 return (
                   <TableRow key={genre.id}>
                     <TableCell className={styles.name}>{genre.name}</TableCell>
-                    <TableCell>
+                    <TableCell className={styles.secondary}>
                       <code className={styles.slug}>{genre.slug}</code>
                     </TableCell>
                     <TableCell>

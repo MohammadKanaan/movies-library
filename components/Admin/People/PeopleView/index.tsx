@@ -1,5 +1,6 @@
 'use client'
 
+import clsx from 'clsx'
 import Link from 'next/link'
 import { Plus, Search } from 'lucide-react'
 import type { FormEvent } from 'react'
@@ -98,9 +99,9 @@ export const PeopleView = ({ people, canUpload }: PeopleViewProps) => {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Slug</TableHead>
+                <TableHead className={styles.secondary}>Slug</TableHead>
                 <TableHead>Credits</TableHead>
-                <TableHead>Added</TableHead>
+                <TableHead className={styles.secondary}>Added</TableHead>
                 <TableHead className={styles.actionsHead}>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -115,7 +116,7 @@ export const PeopleView = ({ people, canUpload }: PeopleViewProps) => {
                         <span className={styles.name}>{person.name}</span>
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className={styles.secondary}>
                       <code className={styles.slug}>{person.slug}</code>
                     </TableCell>
                     <TableCell>
@@ -127,7 +128,9 @@ export const PeopleView = ({ people, canUpload }: PeopleViewProps) => {
                         <span className={styles.zero}>0</span>
                       )}
                     </TableCell>
-                    <TableCell className={styles.nowrap}>{formatDate(person.createdAt)}</TableCell>
+                    <TableCell className={clsx(styles.nowrap, styles.secondary)}>
+                      {formatDate(person.createdAt)}
+                    </TableCell>
                     <TableCell>
                       <ActionGroup label={`${person.name} actions`}>
                         <HeadshotDialog person={person} canUpload={canUpload} />

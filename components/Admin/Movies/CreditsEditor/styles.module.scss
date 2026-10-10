@@ -134,3 +134,14 @@
   color: var(--destructive);
   font-size: 0.875rem;
 }
+
+// Phones: the list's order already numbers the rows, so the name gets the position's room.
+@media (width < $breakpoint-sm) {
+  .row {
+    gap: 0.5rem;
+  }
+
+  .position {
+    display: none;
+  }
+}

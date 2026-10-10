@@ -1,5 +1,6 @@
 'use client'
 
+import clsx from 'clsx'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
@@ -144,10 +145,10 @@ export const UsersView = ({ users, viewerId }: UsersViewProps) => {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead className={styles.secondary}>Email</TableHead>
+                <TableHead className={styles.secondary}>Role</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Joined</TableHead>
+                <TableHead className={styles.secondary}>Joined</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -164,13 +165,13 @@ export const UsersView = ({ users, viewerId }: UsersViewProps) => {
                         <span className={styles.username}>@{user.username}</span>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className={styles.secondary}>
                       <div className={styles.emailCell}>
                         <span>{user.email}</span>
                         {!user.emailVerified && <Badge variant="outline">Unverified</Badge>}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className={styles.secondary}>
                       <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
                         {user.role}
                       </Badge>
@@ -184,7 +185,9 @@ export const UsersView = ({ users, viewerId }: UsersViewProps) => {
                         <Badge variant="outline">Active</Badge>
                       )}
                     </TableCell>
-                    <TableCell className={styles.nowrap}>{formatDate(user.createdAt)}</TableCell>
+                    <TableCell className={clsx(styles.nowrap, styles.secondary)}>
+                      {formatDate(user.createdAt)}
+                    </TableCell>
                     <TableCell>
                       <UserActions
                         user={user}

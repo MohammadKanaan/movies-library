@@ -49,6 +49,9 @@
 .nameCell {
   display: flex;
   flex-direction: column;
+  // The table's cells do not wrap; a long name may, so the row's actions stay on a phone screen.
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .nameLink {
@@ -75,4 +78,11 @@
 
 .nowrap {
   white-space: nowrap;
+}
+
+// Phones: the columns a row can do without, so its name and actions stay on screen.
+.secondary {
+  @media (width < $breakpoint-md) {
+    display: none;
+  }
 }
