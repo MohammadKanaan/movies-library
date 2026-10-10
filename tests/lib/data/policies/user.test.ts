@@ -12,31 +12,28 @@ const as = (role: SessionUser['role'], id = 'u1'): SessionUser => ({
 })
 
 const permissions = (viewer: SessionUser | null, record: UserRecord) =>
-  permissionsFor(userPolicy, ['setRole', 'ban'], viewer, record)
+  permissionsFor(userPolicy, ['setRole', 'ban', 'revokeSessions'], viewer, record)
+
+const none = { setRole: false, ban: false, revokeSessions: false }
+const all = { setRole: true, ban: true, revokeSessions: true }
 
 describe('userPolicy', () => {
   it('gives nothing to a signed-out visitor, a viewer or an editor', () => {
     const viewer: UserRecord = { id: 'u2', role: 'viewer' }
-    expect(permissions(null, viewer)).toEqual({ setRole: false, ban: false })
+    expect(permissions(null, viewer)).toEqual(none)
     for (const role of ['viewer', 'editor'] as const) {
-      expect(permissions(as(role), viewer)).toEqual({ setRole: false, ban: false })
+      expect(permissions(as(role), viewer)).toEqual(none)
     }
   })
 
   it('lets an admin manage a viewer or an editor', () => {
     for (const role of ['viewer', 'editor'] as const) {
-      expect(permissions(as('admin'), { id: 'u2', role })).toEqual({ setRole: true, ban: true })
+      expect(permissions(as('admin'), { id: 'u2', role })).toEqual(all)
     }
   })
 
   it('never lets an admin act on their own account or on another admin', () => {
-    expect(permissions(as('admin'), { id: 'u1', role: 'admin' })).toEqual({
-      setRole: false,
-      ban: false,
-    })
-    expect(permissions(as('admin'), { id: 'u2', role: 'admin' })).toEqual({
-      setRole: false,
-      ban: false,
-    })
+    expect(permissions(as('admin'), { id: 'u1', role: 'admin' })).toEqual(none)
+    expect(permissions(as('admin'), { id: 'u2', role: 'admin' })).toEqual(none)
   })
 })

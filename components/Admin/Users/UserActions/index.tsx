@@ -144,7 +144,7 @@ export const UserActions = ({
               Impersonate
             </Button>
           )}
-          {extended && (
+          {extended && user.role !== 'admin' && (
             <Button
               type="button"
               size="sm"

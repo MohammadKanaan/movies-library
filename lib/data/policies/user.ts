@@ -7,8 +7,8 @@ export type UserRecord = { id: string; role: Role }
 
 /**
  * Admins are peers: an admin manages viewers and editors, never another admin and never their own
- * account. So nobody can ban or demote the admin who could undo it, and the last admin cannot lock
- * themselves out. An admin is promoted here and steps down only through the database.
+ * account. So nobody can ban, demote or sign out the admin who could undo it, and the last admin
+ * cannot lock themselves out. An admin is promoted here and steps down only through the database.
  */
 const managesUser: Rule<UserRecord> = (viewer, record) =>
   viewer !== null && viewer.role === 'admin' && viewer.id !== record.id && record.role !== 'admin'
@@ -16,4 +16,5 @@ const managesUser: Rule<UserRecord> = (viewer, record) =>
 export const userPolicy = {
   setRole: managesUser,
   ban: managesUser,
+  revokeSessions: managesUser,
 } satisfies Policy<UserRecord>

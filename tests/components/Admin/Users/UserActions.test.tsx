@@ -49,6 +49,11 @@ describe('UserActions', () => {
     expect(toast.success).toHaveBeenCalledWith('Grace Hopper was signed out everywhere')
   })
 
+  it('never offers to sign another admin out (the DAL refuses it)', () => {
+    render(<UserActions user={{ ...grace, role: 'admin' }} isSelf={false} extended />)
+    expect(screen.queryByRole('button', { name: 'Sign out everywhere' })).not.toBeInTheDocument()
+  })
+
   it('shows the server’s message when signing out everywhere fails', async () => {
     vi.mocked(revokeUserSessionsAction).mockResolvedValue({
       ok: false,

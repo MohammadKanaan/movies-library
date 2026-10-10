@@ -640,6 +640,19 @@ describe('admin DAL', () => {
       expect(await db.session.count({ where: { userId: target.id } })).toBe(0)
       await expect(getSessionUser()).resolves.toMatchObject({ id: admin.id })
     })
+
+    it("refuses the admin's own account and another admin, sessions kept", async () => {
+      const other = await createUser({ role: 'admin' })
+      await signInAs(other)
+      const admin = await createUser({ role: 'admin' })
+      await signInAs(admin)
+
+      await expect(revokeUserSessions(admin.id)).rejects.toBeInstanceOf(ForbiddenError)
+      await expect(revokeUserSessions(other.id)).rejects.toBeInstanceOf(ForbiddenError)
+
+      expect(await db.session.count({ where: { userId: other.id } })).toBe(2)
+      await expect(getSessionUser()).resolves.toMatchObject({ id: admin.id })
+    })
   })
 
   describe('getAdminOverview', () => {

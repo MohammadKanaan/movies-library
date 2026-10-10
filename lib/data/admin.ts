@@ -148,13 +148,22 @@ export const getAdminUser = async (id: string): Promise<AdminUserDetail> => {
 }
 
 /**
- * Admin only: ends every session of the user (they are signed out everywhere, and may sign in
- * again). The plugin does not check that the user exists, so the DAL does (404).
+ * Admin only → id valid → the user exists (404; the plugin does not check) → allowed (403: not the
+ * admin's own account and not another admin; see `userPolicy`) → every session of the user ends
+ * (they are signed out everywhere, and may sign in again).
  */
 export const revokeUserSessions = async (id: string): Promise<void> => {
-  await requireAdmin()
+  const viewer = await requireAdmin()
   const userId = parseInput(userIdSchema, id)
-  await readAdminUser(userId)
+  const target = await readAdminUser(userId)
+  authorize(
+    userPolicy.revokeSessions,
+    viewer,
+    target,
+    target.id === viewer.id
+      ? 'Sign your other sessions out from your settings'
+      : 'Another admin cannot be signed out',
+  )
   await auth.api
     .revokeUserSessions({ body: { userId }, headers: await headers() })
     .catch(fromAdminApi)
