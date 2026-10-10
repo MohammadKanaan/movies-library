@@ -1,7 +1,8 @@
 'use client'
 
+import clsx from 'clsx'
 import { useId, useState } from 'react'
-import { StarRating } from '@/components/Reviews/StarRating'
+import { fillOf, StarGlyph, STARS } from '@/components/Reviews/StarRating'
 import { RATING_MAX, RATING_STEP } from '@/lib/dto/reviews'
 import styles from './styles.module.scss'
 
@@ -16,16 +17,16 @@ type StarRatingInputProps = {
   'aria-labelledby'?: string
 }
 
-const STEPS = Array.from(
-  { length: RATING_MAX / RATING_STEP },
-  (_, index) => (index + 1) * RATING_STEP,
-)
-
 const stepLabel = (step: number) => `${step} ${step === 1 ? 'star' : 'stars'}`
 
+/** The two radios of star `position`: its left half, then the whole star. */
+const halvesOf = (position: number) => [position - RATING_STEP, position]
+
 /**
- * Picks a rating from ½ to 5 stars. Ten native radios sit over the stars, one per half star, so the
- * arrow keys, focus and screen readers work without any script; hovering previews a rating.
+ * Picks a rating from ½ to 5 stars. Each star holds two native radios, one per half, so the arrow
+ * keys, focus and screen readers work without any script. Hovering previews a rating in a lighter
+ * tint with the star under the pointer lifted; picking one pops its star; the rating is written out
+ * beside the stars.
  */
 export const StarRatingInput = ({
   value,
@@ -38,6 +39,15 @@ export const StarRatingInput = ({
 }: StarRatingInputProps) => {
   const name = useId()
   const [hovered, setHovered] = useState<number | null>(null)
+  // The star that was just picked, until its pop animation ends.
+  const [popped, setPopped] = useState<number | null>(null)
+  const shown = hovered ?? value
+  const previewing = hovered !== null && hovered !== value
+
+  const pick = (step: number) => {
+    setPopped(Math.ceil(step))
+    onChange(step)
+  }
 
   return (
     <div
@@ -46,30 +56,52 @@ export const StarRatingInput = ({
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledby}
       aria-invalid={invalid || undefined}
+      data-previewing={previewing || undefined}
       onMouseLeave={() => setHovered(null)}
     >
-      <StarRating rating={hovered ?? value} size="lg" decorative />
-      <div className={styles.halves}>
-        {STEPS.map((step) => (
-          <label
-            key={step}
-            className={disabled ? `${styles.half} ${styles.disabled}` : styles.half}
-            onMouseEnter={() => setHovered(step)}
+      <div className={styles.stars}>
+        {STARS.map((position) => (
+          <span
+            key={position}
+            className={clsx(
+              styles.star,
+              hovered !== null && Math.ceil(hovered) === position && styles.lifted,
+              popped === position && styles.popped,
+            )}
+            onAnimationEnd={() => setPopped(null)}
           >
-            <input
-              className={styles.radio}
-              type="radio"
-              name={name}
-              value={step}
-              checked={value === step}
-              disabled={disabled}
-              onChange={() => onChange(step)}
-              onBlur={onBlur}
-            />
-            <span className={styles.hidden}>{stepLabel(step)}</span>
-          </label>
+            <StarGlyph fill={fillOf(shown, position)} />
+            {halvesOf(position).map((step) => (
+              <label
+                key={step}
+                className={clsx(styles.half, disabled && styles.disabled)}
+                onMouseEnter={disabled ? undefined : () => setHovered(step)}
+              >
+                <input
+                  className={styles.radio}
+                  type="radio"
+                  name={name}
+                  value={step}
+                  checked={value === step}
+                  disabled={disabled}
+                  onChange={() => pick(step)}
+                  onBlur={onBlur}
+                />
+                <span className={styles.hidden}>{stepLabel(step)}</span>
+              </label>
+            ))}
+          </span>
         ))}
       </div>
+      {/* The radios already name each value; this is for the eye. */}
+      <span className={styles.readout} aria-hidden="true">
+        {shown > 0 ? (
+          <>
+            {shown}
+            <span className={styles.outOf}> / {RATING_MAX}</span>
+          </>
+        ) : null}
+      </span>
     </div>
   )
 }

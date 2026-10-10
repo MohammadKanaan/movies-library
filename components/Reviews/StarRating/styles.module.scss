@@ -39,7 +39,9 @@
 .fill {
   position: absolute;
   inset: 0;
+  width: 0;
   overflow: hidden;
+  transition: width 120ms ease-out;
 }
 
 .full .fill {
@@ -48,6 +50,12 @@
 
 .half .fill {
   width: 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
 }
 
 .filled {

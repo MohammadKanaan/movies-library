@@ -1,20 +1,44 @@
 .group {
-  position: relative;
-  display: inline-block;
+  --star-size: 2rem;
+
+  display: inline-flex;
+  align-items: center;
   align-self: flex-start;
+  gap: 0.875rem;
 }
 
-// One cell per half star, laid over the stars.
-.halves {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: repeat(10, 1fr);
+.stars {
+  display: inline-flex;
+  gap: 0.125rem;
+  color: var(--primary);
+  transition: color 150ms ease;
 }
 
-.half {
+// A hovered rating is a preview: lighter than one that is picked.
+.group[data-previewing] .stars {
+  color: color-mix(in oklch, var(--primary) 55%, var(--card));
+}
+
+.star {
   position: relative;
+  display: inline-flex;
+  transition: transform 160ms ease-out;
+}
+
+// One radio per half star, laid over its half.
+.half {
+  position: absolute;
+  inset-block: 0;
+  width: 50%;
   cursor: pointer;
+
+  &:first-of-type {
+    left: 0;
+  }
+
+  &:last-of-type {
+    right: 0;
+  }
 
   &:has(.radio:focus-visible) {
     border-radius: 2px;
@@ -40,8 +64,51 @@
   white-space: nowrap;
 }
 
-.group[aria-invalid='true'] {
+@media (hover: hover) and (pointer: fine) {
+  .lifted {
+    transform: scale(1.15);
+  }
+}
+
+// The picked star pops, then settles back where it was (lifted under the pointer, or at rest).
+.popped {
+  animation: star-pop 320ms ease-out;
+}
+
+@keyframes star-pop {
+  35% {
+    transform: scale(1.35) rotate(-8deg);
+  }
+}
+
+.readout {
+  min-width: 3.5rem;
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.outOf {
+  color: var(--muted-foreground);
+}
+
+.group[aria-invalid='true'] .stars {
   border-radius: 2px;
   outline: 1px solid var(--destructive);
   outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .star {
+    transition: none;
+  }
+
+  .lifted {
+    transform: none;
+  }
+
+  .popped {
+    animation: none;
+  }
 }

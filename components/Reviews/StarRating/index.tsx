@@ -10,14 +10,31 @@ type StarRatingProps = {
   decorative?: boolean
 }
 
-const STARS = Array.from({ length: RATING_MAX }, (_, index) => index + 1)
+export const STARS = Array.from({ length: RATING_MAX }, (_, index) => index + 1)
+
+export type StarFill = 'full' | 'half' | 'empty'
 
 /** How much of star number `position` (1 to 5) a rating fills. */
-const fillOf = (rating: number, position: number) => {
+export const fillOf = (rating: number, position: number): StarFill => {
   if (rating >= position) {
     return 'full'
   }
   return rating >= position - 0.5 ? 'half' : 'empty'
+}
+
+/**
+ * One star: an outline with the filled star clipped over it, sized by the `--star-size` of the row
+ * around it. The fill sweeps when it changes, which `StarRatingInput`'s hover preview shows off.
+ */
+export const StarGlyph = ({ fill }: { fill: StarFill }) => {
+  return (
+    <span className={`${styles.star} ${styles[fill]}`}>
+      <Star className={styles.outline} aria-hidden="true" />
+      <span className={styles.fill}>
+        <Star className={styles.filled} aria-hidden="true" />
+      </span>
+    </span>
+  )
 }
 
 /** A read-only star rating with full, half and empty stars. */
@@ -29,19 +46,9 @@ export const StarRating = ({ rating, size = 'md', decorative = false }: StarRati
       aria-label={decorative ? undefined : `${rating} out of ${RATING_MAX} stars`}
       aria-hidden={decorative || undefined}
     >
-      {STARS.map((position) => {
-        const fill = fillOf(rating, position)
-        return (
-          <span key={position} className={`${styles.star} ${styles[fill]}`}>
-            <Star className={styles.outline} aria-hidden="true" />
-            {fill === 'empty' ? null : (
-              <span className={styles.fill}>
-                <Star className={styles.filled} aria-hidden="true" />
-              </span>
-            )}
-          </span>
-        )
-      })}
+      {STARS.map((position) => (
+        <StarGlyph key={position} fill={fillOf(rating, position)} />
+      ))}
     </span>
   )
 }

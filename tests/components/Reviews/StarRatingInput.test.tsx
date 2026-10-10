@@ -60,4 +60,28 @@ describe('StarRatingInput', () => {
       expect(radio).toBeDisabled()
     }
   })
+
+  it('writes the rating out beside the stars', async () => {
+    const { container } = render(<Controlled />)
+    const group = screen.getByRole('radiogroup', { name: 'Your rating' })
+    expect(group).not.toHaveTextContent('/ 5')
+    await userEvent.click(screen.getByRole('radio', { name: '3.5 stars' }))
+    expect(container).toHaveTextContent('3.5 / 5')
+  })
+
+  it('previews a hovered rating without picking it, and drops the preview on leave', async () => {
+    const onChange = vi.fn()
+    const { container } = render(
+      <StarRatingInput value={2} onChange={onChange} aria-label="Your rating" />,
+    )
+    const group = screen.getByRole('radiogroup', { name: 'Your rating' })
+    const fourAndAHalf = screen.getByRole('radio', { name: '4.5 stars' }).closest('label')!
+    await userEvent.hover(fourAndAHalf)
+    expect(group).toHaveAttribute('data-previewing')
+    expect(container).toHaveTextContent('4.5 / 5')
+    expect(onChange).not.toHaveBeenCalled()
+    await userEvent.unhover(group)
+    expect(group).not.toHaveAttribute('data-previewing')
+    expect(container).toHaveTextContent('2 / 5')
+  })
 })
