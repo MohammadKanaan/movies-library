@@ -93,7 +93,7 @@ the movie exists → allowed → `headObject` re-checks the stored object (an ob
 is deleted at once) → in one transaction that first locks the movie row, the current `posterUrl` is
 read and replaced with `publicUrl(key)` → the replaced object, if it is in the bucket and not the same
 key, goes through a delayed `delete-object` job. `removePoster` and `deleteMovie` queue the current
-object the same way. A poster URL that is not in the bucket (nothing writes one today) is left alone.
+object the same way. A poster URL that is not in the bucket (the seed's TMDB posters) is left alone.
 
 ## Server Actions (`actions/`)
 
@@ -105,11 +105,13 @@ return `{ ok: true, data: undefined }`.
 
 ## Seed
 
-`prisma/catalog.ts` holds the data (12 genres, 16 well-known films with directors, writers and cast,
-60 people derived from the credits); `prisma/seed.ts` upserts genres and people by slug, then each
-movie by slug and replaces its genre links and credits in a transaction, with the seeded admin as
-`createdById` (set on update too, because re-seeding recreates the admin). Running it twice changes
-nothing. `db:seed` does not flush Redis: cached catalog reads can lag up to 5 minutes.
+`prisma/catalog.ts` holds the data (14 genres, 23 well-known films with directors, writers, cast
+and a poster, 93 people derived from the credits); `prisma/seed.ts` upserts genres and people by
+slug, then each movie by slug and replaces its genre links and credits in a transaction, with the
+seeded admin as `createdById` (set on update too, because re-seeding recreates the admin). Posters
+are TMDB image URLs rather than bucket objects, so the catalog shows them without R2; re-seeding
+resets each seeded movie's poster to its TMDB URL, replacing one uploaded in development. Running it
+twice changes nothing. `db:seed` does not flush Redis: cached catalog reads can lag up to 5 minutes.
 
 ## Tests
 

@@ -104,6 +104,7 @@ try {
       synopsis: seed.synopsis,
       releaseDate: new Date(`${seed.releaseDate}T00:00:00.000Z`),
       runtimeMinutes: seed.runtimeMinutes,
+      posterUrl: seed.posterUrl,
       createdById: admin.id,
     }
     const credits = (['DIRECTOR', 'WRITER', 'ACTOR'] as const).flatMap((role) => {
