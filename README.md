@@ -143,7 +143,7 @@ Server Action (actions/*) ────────▶ lib/data
 Route Handler (app/api/v1) ───────▶ lib/data   (decodes with lib/dto, answers JSON)
 ```
 
-**Styling and `components/SCN`.** `styles/global.css` contains the official shadcn neutral theme,
+**Styling and `components/SCN`.** `styles/global.css` contains the zippystarter shadcn theme,
 light/dark tokens, and Tailwind base styles. Application CSS Modules use those tokens directly.
 `components/SCN` holds stock CLI-generated primitives, with no local styling or API overrides.
 Forms use `components/Form/Input` and `components/Form/Textarea` for labels and errors;

@@ -87,7 +87,8 @@ such a feature; never treat it as a description of existing code.
 - **Logging:** pino (`lib/server/logger.ts`), pino-pretty in development
 - **Auth:** Better Auth (email + password, official Prisma adapter, `admin` plugin, `nextCookies`)
 - **Forms:** React Hook Form + Zod 4
-- **Styling:** Stock shadcn neutral tokens and Tailwind base styles in `styles/global.css`.
+- **Styling:** The zippystarter `nw0r02zop7mgg0ba1u1fjou6` shadcn theme (tokens, Geist / Space
+  Grotesk / JetBrains Mono) and Tailwind base styles in `styles/global.css`.
   SCSS CSS Modules beside application components; Tailwind utilities stay in `components/SCN`.
 - **Testing:** Vitest + Testing Library (jsdom; server tests run in node against a real test DB)
 - **Linting:** ESLint (`eslint-config-next` + `eslint-config-prettier`) + Prettier
@@ -170,8 +171,12 @@ docs/DECISIONS.md        # Framework and library choices, with reasons; what was
 
 ## Styling
 
-- `styles/global.css` is the single theme source: stock neutral `:root` / `.dark` tokens and the
-  official Tailwind base layer. No secondary palette or token aliases that override shadcn.
+- `styles/global.css` is the single theme source: the `:root` / `.dark` tokens installed by
+  `bunx shadcn@latest add https://zippystarter.com/r/nw0r02zop7mgg0ba1u1fjou6` and the official
+  Tailwind base layer. Body text is Geist (`var(--font-body-family)`), headings can use Space Grotesk
+  (`var(--font-display-family)`, `--font-display-weight`, `--font-display-tracking`), `pre`/`code`
+  use JetBrains Mono. The theme also adds `--header`, `--footer` and `--code*` tokens. No palette or
+  token aliases beyond what the theme installs.
 - Outside `components/SCN`: semantic class names in CSS Modules, using shadcn tokens directly
   (`var(--foreground)`, `var(--muted-foreground)`, `var(--border)`, etc.). No Tailwind utilities,
   `@apply`, or inline `style` in application components unless the value is genuinely runtime-only.

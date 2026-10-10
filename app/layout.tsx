@@ -1,11 +1,22 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Geist, JetBrains_Mono, Space_Grotesk } from 'next/font/google'
 import { Providers } from '@/app/providers'
 import { env } from '@/lib/env'
+import { cn } from '@/lib/utils'
 import '@/styles/global.css'
 
-const inter = Inter({
-  variable: '--font-inter',
+const geist = Geist({
+  variable: '--font-geist',
+  subsets: ['latin'],
+})
+
+const spaceGrotesk = Space_Grotesk({
+  variable: '--font-space-grotesk',
+  subsets: ['latin'],
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-jetbrains-mono',
   subsets: ['latin'],
 })
 
@@ -15,7 +26,11 @@ export const metadata: Metadata = {
 
 const RootLayout = ({ children }: LayoutProps<'/'>) => {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={cn(geist.variable, spaceGrotesk.variable, jetbrainsMono.variable)}
+      suppressHydrationWarning
+    >
       <body>
         <Providers>{children}</Providers>
       </body>
