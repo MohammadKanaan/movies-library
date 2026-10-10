@@ -107,7 +107,7 @@ emails/                  # Plain email templates ({ subject, html, text }), rend
 prisma/                  # schema.prisma, migrations, seed
 generated/               # Generated Prisma client (git-ignored; `postinstall` regenerates it)
 styles/                  # global.css: official shadcn theme tokens and Tailwind base styles
-proxy.ts                 # Optimistic auth redirects (Next 16's renamed middleware)
+proxy.ts                 # Optimistic auth redirects and the per-request CSP nonce (lib/csp.ts)
 tests/                   # Vitest tests mirroring the source structure
 docs/DECISIONS.md        # Framework and library choices, with reasons; what was removed and why
 ```

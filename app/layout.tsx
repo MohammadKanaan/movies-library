@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist, JetBrains_Mono, Space_Grotesk } from 'next/font/google'
+import { headers } from 'next/headers'
 import { Providers } from '@/app/providers'
 import { siteUrl } from '@/lib/data/site'
 import { env } from '@/lib/env'
@@ -33,7 +34,9 @@ export const metadata: Metadata = {
   twitter: { card: 'summary' },
 }
 
-const RootLayout = ({ children }: LayoutProps<'/'>) => {
+const RootLayout = async ({ children }: LayoutProps<'/'>) => {
+  // The request's CSP nonce (`proxy.ts`), for the one inline script Next does not render itself.
+  const nonce = (await headers()).get('x-nonce') ?? undefined
   return (
     <html
       lang="en"
@@ -43,7 +46,7 @@ const RootLayout = ({ children }: LayoutProps<'/'>) => {
       {/* `suppressHydrationWarning` also covers attributes browser extensions inject
           into <body> (e.g. `cz-shortcut-listen`) before React hydrates. */}
       <body suppressHydrationWarning>
-        <Providers>{children}</Providers>
+        <Providers nonce={nonce}>{children}</Providers>
       </body>
     </html>
   )
