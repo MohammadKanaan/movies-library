@@ -32,9 +32,9 @@ describe('catalog seed', () => {
     await run(process.execPath, ['prisma/seed.ts'], { env: process.env })
 
     const movies = await listMovies({})
-    expect(movies.totalItems).toBe(1000)
+    expect(movies.totalItems).toBe(1018)
     expect(movies.items.some((movie) => movie.id === previous.id)).toBe(false)
     expect(await db.movie.findUnique({ where: { id: previous.id } })).toBeNull()
-    expect(await db.movie.count()).toBe(1000)
+    expect(await db.movie.count()).toBe(1018)
   }, 60_000)
 })

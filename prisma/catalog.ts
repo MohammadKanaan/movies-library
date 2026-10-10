@@ -1,11 +1,15 @@
 /**
- * 1,000 released feature films selected by vote count from CrawlFeeds' TMDB dataset.
+ * 1,018 released feature films: 1,000 selected by vote count from CrawlFeeds' TMDB dataset,
+ * plus two per year from 2018 through 2026 sourced directly from TMDB movie pages.
  * Source: https://github.com/CrawlFeeds/movies-datasets
  * Snapshot: 05863eb7b5363c35283fefd506f8f789456e9da3/movies_dataset_1000_records_sample.csv
  * Retrieved 2026-10-10. CrawlFeeds publishes the dataset under CC BY 4.0:
  * https://creativecommons.org/licenses/by/4.0/
  * Movie metadata and posters originate from TMDB: https://www.themoviedb.org/
- * Dates use the source's release dates; credits retain source order, with the first six actors.
+ * The 18 additions were retrieved 2026-10-10 from the TMDB links beside their records and
+ * each movie's /releases page. They use the earliest theatrical or digital release date,
+ * with paraphrased synopses. The CrawlFeeds snapshot's release dates are unchanged.
+ * Credits retain source order, with the first six actors; writers are screenplay/writer credits.
  * Records with missing required metadata, TV movies and films under 40 minutes are excluded.
  * TMDB ids beside each record link back to its source. Seeding needs no network or API key.
  */
@@ -19915,6 +19919,366 @@ export const SEED_MOVIES: SeedMovie[] = [
       'Martin Feifel',
       'Karin Neuhäuser',
       'Nina Petri',
+    ],
+  },
+  // https://www.themoviedb.org/movie/299536
+  {
+    title: 'Avengers: Infinity War',
+    releaseDate: '2018-04-25',
+    runtimeMinutes: 149,
+    synopsis:
+      'The Avengers join forces with allies across the galaxy to stop Thanos from using the Infinity Stones to wipe out half of all life.',
+    posterUrl: tmdbPoster('7WsyChQLEftFiDOVTGkv3hFpyyt'),
+    genres: ['Adventure', 'Action', 'Science Fiction'],
+    directors: ['Joe Russo', 'Anthony Russo'],
+    writers: ['Christopher Markus', 'Stephen McFeely'],
+    cast: [
+      'Robert Downey Jr.',
+      'Chris Evans',
+      'Chris Hemsworth',
+      'Josh Brolin',
+      'Mark Ruffalo',
+      'Scarlett Johansson',
+    ],
+  },
+  // https://www.themoviedb.org/movie/324857
+  {
+    title: 'Spider-Man: Into the Spider-Verse',
+    releaseDate: '2018-12-06',
+    runtimeMinutes: 117,
+    synopsis:
+      'Brooklyn teenager Miles Morales gains spider powers and teams up with Spider-People from other dimensions to stop a collider from destroying their worlds.',
+    posterUrl: tmdbPoster('iiZZdoQBEYBv6id8su7ImL0oCbD'),
+    genres: ['Animation', 'Action', 'Adventure', 'Science Fiction'],
+    directors: ['Rodney Rothman', 'Peter Ramsey', 'Bob Persichetti'],
+    writers: ['Rodney Rothman', 'Phil Lord'],
+    cast: [
+      'Shameik Moore',
+      'Jake Johnson',
+      'Hailee Steinfeld',
+      'Mahershala Ali',
+      'Brian Tyree Henry',
+      'Lily Tomlin',
+    ],
+  },
+  // https://www.themoviedb.org/movie/496243
+  {
+    title: 'Parasite',
+    releaseDate: '2019-05-30',
+    runtimeMinutes: 133,
+    synopsis:
+      'An unemployed family works its way into a wealthy household through deception, until a hidden secret threatens the arrangement.',
+    posterUrl: tmdbPoster('7IiTTgloJzvGI1TAYymCfbfl3vT'),
+    genres: ['Comedy', 'Thriller', 'Drama'],
+    directors: ['Bong Joon Ho'],
+    writers: ['Bong Joon Ho', 'Han Jin-won'],
+    cast: [
+      'Song Kang-ho',
+      'Lee Sun-kyun',
+      'Cho Yeo-jeong',
+      'Choi Woo-shik',
+      'Park So-dam',
+      'Lee Jung-eun',
+    ],
+  },
+  // https://www.themoviedb.org/movie/546554
+  {
+    title: 'Knives Out',
+    releaseDate: '2019-11-27',
+    runtimeMinutes: 131,
+    synopsis:
+      'Detective Benoit Blanc investigates the death of a wealthy novelist, untangling the conflicting accounts of his family and caretaker.',
+    posterUrl: tmdbPoster('pThyQovXQrw2m0s9x82twj48Jq4'),
+    genres: ['Comedy', 'Crime', 'Mystery'],
+    directors: ['Rian Johnson'],
+    writers: ['Rian Johnson'],
+    cast: [
+      'Daniel Craig',
+      'Chris Evans',
+      'Ana de Armas',
+      'Jamie Lee Curtis',
+      'Michael Shannon',
+      'Don Johnson',
+    ],
+  },
+  // https://www.themoviedb.org/movie/577922
+  {
+    title: 'Tenet',
+    releaseDate: '2020-08-22',
+    runtimeMinutes: 150,
+    synopsis:
+      'A secret agent learns to manipulate time in reverse while trying to prevent a global catastrophe tied to a powerful arms dealer.',
+    posterUrl: tmdbPoster('rrKH3VhHssGTCfPuaEQkxvEoElv'),
+    genres: ['Action', 'Thriller', 'Science Fiction'],
+    directors: ['Christopher Nolan'],
+    writers: ['Christopher Nolan'],
+    cast: [
+      'John David Washington',
+      'Robert Pattinson',
+      'Elizabeth Debicki',
+      'Kenneth Branagh',
+      'Dimple Kapadia',
+      'Michael Caine',
+    ],
+  },
+  // https://www.themoviedb.org/movie/508442
+  {
+    title: 'Soul',
+    releaseDate: '2020-12-25',
+    runtimeMinutes: 101,
+    synopsis:
+      'After an accident separates him from his body, a jazz musician teams up with an unassigned soul and reconsiders what makes a life meaningful.',
+    posterUrl: tmdbPoster('hm58Jw4Lw8OIeECIq5qyPYhAeRJ'),
+    genres: ['Animation', 'Family', 'Drama', 'Music', 'Fantasy'],
+    directors: ['Pete Docter'],
+    writers: ['Pete Docter', 'Mike Jones', 'Kemp Powers'],
+    cast: [
+      'Jamie Foxx',
+      'Tina Fey',
+      'Graham Norton',
+      'Rachel House',
+      'Alice Braga',
+      'Richard Ayoade',
+    ],
+  },
+  // https://www.themoviedb.org/movie/438631
+  {
+    title: 'Dune',
+    releaseDate: '2021-09-15',
+    runtimeMinutes: 155,
+    synopsis:
+      'Paul Atreides travels with his family to the desert planet Arrakis, where control of a vital resource draws them into a deadly political conflict.',
+    posterUrl: tmdbPoster('v1tRXZ4JtD2Iv6fjkPvT4GiwslV'),
+    genres: ['Science Fiction', 'Adventure'],
+    directors: ['Denis Villeneuve'],
+    writers: ['Denis Villeneuve', 'Eric Roth', 'Jon Spaihts'],
+    cast: [
+      'Timothée Chalamet',
+      'Rebecca Ferguson',
+      'Oscar Isaac',
+      'Jason Momoa',
+      'Stellan Skarsgård',
+      'Stephen McKinley Henderson',
+    ],
+  },
+  // https://www.themoviedb.org/movie/634649
+  {
+    title: 'Spider-Man: No Way Home',
+    releaseDate: '2021-12-15',
+    runtimeMinutes: 148,
+    synopsis:
+      'With his identity exposed, Peter Parker seeks a magical solution that instead brings dangerous visitors from other universes into his world.',
+    posterUrl: tmdbPoster('1g0dhYtq4irTY1GPXvft6k4YLjm'),
+    genres: ['Action', 'Adventure', 'Science Fiction'],
+    directors: ['Jon Watts'],
+    writers: ['Chris McKenna', 'Erik Sommers'],
+    cast: [
+      'Tom Holland',
+      'Zendaya',
+      'Benedict Cumberbatch',
+      'Jacob Batalon',
+      'Jon Favreau',
+      'Jamie Foxx',
+    ],
+  },
+  // https://www.themoviedb.org/movie/545611
+  {
+    title: 'Everything Everywhere All at Once',
+    releaseDate: '2022-03-24',
+    runtimeMinutes: 140,
+    synopsis:
+      'A laundromat owner facing family tensions and a tax audit discovers alternate versions of herself and must draw on their abilities to protect her daughter.',
+    posterUrl: tmdbPoster('u68AjlvlutfEIcpmbYpKcdi09ut'),
+    genres: ['Action', 'Adventure', 'Science Fiction'],
+    directors: ['Daniel Scheinert', 'Daniel Kwan'],
+    writers: ['Daniel Scheinert', 'Daniel Kwan'],
+    cast: [
+      'Michelle Yeoh',
+      'Stephanie Hsu',
+      'Ke Huy Quan',
+      'James Hong',
+      'Jamie Lee Curtis',
+      'Tallie Medel',
+    ],
+  },
+  // https://www.themoviedb.org/movie/361743
+  {
+    title: 'Top Gun: Maverick',
+    releaseDate: '2022-05-21',
+    runtimeMinutes: 131,
+    synopsis:
+      'Veteran pilot Maverick returns to train a group of naval aviators for a dangerous mission, including the son of his late friend Goose.',
+    posterUrl: tmdbPoster('n0YuM4f5lvGAP6MAW2kBIzugXnc'),
+    genres: ['Action', 'Drama'],
+    directors: ['Joseph Kosinski'],
+    writers: ['Eric Warren Singer', 'Ehren Kruger', 'Christopher McQuarrie'],
+    cast: [
+      'Tom Cruise',
+      'Miles Teller',
+      'Jennifer Connelly',
+      'Bashir Salahuddin',
+      'Jon Hamm',
+      'Charles Parnell',
+    ],
+  },
+  // https://www.themoviedb.org/movie/872585
+  {
+    title: 'Oppenheimer',
+    releaseDate: '2023-07-19',
+    runtimeMinutes: 181,
+    synopsis:
+      'Physicist J. Robert Oppenheimer leads the wartime effort to develop an atomic weapon and later faces scrutiny over his political ties and decisions.',
+    posterUrl: tmdbPoster('8Gxv8gSFCU0XGDykEGv7zR1n2ua'),
+    genres: ['Drama', 'History'],
+    directors: ['Christopher Nolan'],
+    writers: ['Christopher Nolan'],
+    cast: [
+      'Cillian Murphy',
+      'Emily Blunt',
+      'Matt Damon',
+      'Robert Downey Jr.',
+      'Florence Pugh',
+      'Josh Hartnett',
+    ],
+  },
+  // https://www.themoviedb.org/movie/346698
+  {
+    title: 'Barbie',
+    releaseDate: '2023-07-19',
+    runtimeMinutes: 114,
+    synopsis:
+      'Barbie leaves her familiar world with Ken to investigate unsettling changes, and their visit to the human world challenges both of their identities.',
+    posterUrl: tmdbPoster('iuFNMS8U5cb6xfzi51Dbkovj7vM'),
+    genres: ['Comedy', 'Adventure', 'Fantasy'],
+    directors: ['Greta Gerwig'],
+    writers: ['Greta Gerwig', 'Noah Baumbach'],
+    cast: [
+      'Margot Robbie',
+      'Ryan Gosling',
+      'America Ferrera',
+      'Ariana Greenblatt',
+      'Issa Rae',
+      'Kate McKinnon',
+    ],
+  },
+  // https://www.themoviedb.org/movie/693134
+  {
+    title: 'Dune: Part Two',
+    releaseDate: '2024-02-27',
+    runtimeMinutes: 167,
+    synopsis:
+      'Paul Atreides joins the Fremen resistance on Arrakis while confronting the consequences of revenge, prophecy and his growing political power.',
+    posterUrl: tmdbPoster('6izwz7rsy95ARzTR3poZ8H6c5pp'),
+    genres: ['Science Fiction', 'Adventure'],
+    directors: ['Denis Villeneuve'],
+    writers: ['Denis Villeneuve', 'Jon Spaihts'],
+    cast: [
+      'Timothée Chalamet',
+      'Zendaya',
+      'Rebecca Ferguson',
+      'Javier Bardem',
+      'Josh Brolin',
+      'Austin Butler',
+    ],
+  },
+  // https://www.themoviedb.org/movie/1184918
+  {
+    title: 'The Wild Robot',
+    releaseDate: '2024-09-12',
+    runtimeMinutes: 102,
+    synopsis:
+      'A robot stranded on an island learns from its animal inhabitants and raises an orphaned gosling, discovering connection beyond its programming.',
+    posterUrl: tmdbPoster('wTnV3PCVW5O92JMrFvvrRcV39RU'),
+    genres: ['Family', 'Animation', 'Science Fiction', 'Adventure'],
+    directors: ['Chris Sanders'],
+    writers: ['Chris Sanders'],
+    cast: [
+      "Lupita Nyong'o",
+      'Pedro Pascal',
+      'Kit Connor',
+      'Bill Nighy',
+      'Stephanie Hsu',
+      'Matt Berry',
+    ],
+  },
+  // https://www.themoviedb.org/movie/1233413
+  {
+    title: 'Sinners',
+    releaseDate: '2025-04-16',
+    runtimeMinutes: 138,
+    synopsis:
+      'Twin brothers return to Mississippi to open a juke joint, where a night of music draws the attention of a supernatural threat.',
+    posterUrl: tmdbPoster('fWPgbnt2LSqkQ6cdQc0SZN9CpLm'),
+    genres: ['Horror', 'Action', 'Thriller'],
+    directors: ['Ryan Coogler'],
+    writers: ['Ryan Coogler'],
+    cast: [
+      'Michael B. Jordan',
+      'Hailee Steinfeld',
+      'Miles Caton',
+      "Jack O'Connell",
+      'Wunmi Mosaku',
+      'Jayme Lawson',
+    ],
+  },
+  // https://www.themoviedb.org/movie/911430
+  {
+    title: 'F1',
+    releaseDate: '2025-06-25',
+    runtimeMinutes: 156,
+    synopsis:
+      'A former Formula 1 driver returns to the grid to help an underperforming team and mentor a talented but headstrong young teammate.',
+    posterUrl: tmdbPoster('9PXZIUsSDh4alB80jheWX4fhZmy'),
+    genres: ['Action', 'Drama'],
+    directors: ['Joseph Kosinski'],
+    writers: ['Ehren Kruger'],
+    cast: [
+      'Brad Pitt',
+      'Damson Idris',
+      'Javier Bardem',
+      'Kerry Condon',
+      'Tobias Menzies',
+      'Kim Bodnia',
+    ],
+  },
+  // https://www.themoviedb.org/movie/687163
+  {
+    title: 'Project Hail Mary',
+    releaseDate: '2026-03-15',
+    runtimeMinutes: 157,
+    synopsis:
+      'An amnesiac teacher aboard a distant spacecraft pieces together a mission to save the Sun and forms an unexpected alliance along the way.',
+    posterUrl: tmdbPoster('iOb2fjXLbpJgyQXe46n1WtGCnaa'),
+    genres: ['Science Fiction', 'Adventure'],
+    directors: ['Christopher Miller', 'Phil Lord'],
+    writers: ['Drew Goddard'],
+    cast: [
+      'Ryan Gosling',
+      'Sandra Hüller',
+      'James Ortiz',
+      'Lionel Boyce',
+      'Milana Vayntrub',
+      'Ken Leung',
+    ],
+  },
+  // https://www.themoviedb.org/movie/1084244
+  {
+    title: 'Toy Story 5',
+    releaseDate: '2026-06-17',
+    runtimeMinutes: 102,
+    synopsis:
+      'When Bonnie becomes absorbed in a new tablet, her toys must find a way to stay part of her life as technology competes for her attention.',
+    posterUrl: tmdbPoster('sfQtVlIHljToOwYjhe21KPGzZWK'),
+    genres: ['Animation', 'Family', 'Comedy', 'Adventure'],
+    directors: ['Andrew Stanton'],
+    writers: ['Andrew Stanton', 'Kenna Harris'],
+    cast: [
+      'Joan Cusack',
+      'Tom Hanks',
+      'Tim Allen',
+      "Conan O'Brien",
+      'Scarlett Spears',
+      'Greta Lee',
     ],
   },
 ]
