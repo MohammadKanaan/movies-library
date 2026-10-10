@@ -23,6 +23,9 @@ const amy: PersonListItem = {
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
 }
 
+/** The open panel; it stays mounted (and `inert`) while tucked away, so it can animate. */
+const sheet = () => screen.getByRole('form', { name: 'Filters', hidden: true }).parentElement
+
 const setup = (filters: Partial<Filters> = {}, person: typeof amy | null = null) => {
   const onChange = vi.fn()
   const onSortChange = vi.fn()
@@ -55,26 +58,34 @@ describe('MovieFilters', () => {
       .mockResolvedValue({ items: [amy], page: 1, perPage: 10, totalItems: 1, totalPages: 1 })
   })
 
-  it('keeps the panel closed without advanced filters and shows no chips', () => {
+  it('keeps the panel tucked away without advanced filters and shows no chips', () => {
     setup()
     expect(screen.getByRole('button', { name: /^Filters/ })).toHaveAttribute(
       'aria-expanded',
       'false',
     )
-    expect(screen.queryByRole('combobox', { name: 'Genres' })).not.toBeInTheDocument()
+    expect(sheet()).toHaveAttribute('inert')
     expect(screen.queryByRole('list', { name: 'Active filters' })).not.toBeInTheDocument()
   })
 
-  it('keeps the panel tucked beside the results until it is opened', async () => {
+  it('opens the panel from the rail and tucks it back, focus returning to the rail', async () => {
     setup()
     expect(screen.getByText('the results')).toBeInTheDocument()
-    const toggle = screen.getByRole('button', { name: /^Filters/ })
-    await userEvent.click(toggle)
-    expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('form', { name: 'Filters' })).toBeInTheDocument()
-    await userEvent.click(toggle)
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByRole('form', { name: 'Filters' })).not.toBeInTheDocument()
+    const rail = screen.getByRole('button', { name: /^Filters/ })
+    await userEvent.click(rail)
+    expect(rail).toHaveAttribute('aria-expanded', 'true')
+    expect(sheet()).not.toHaveAttribute('inert')
+    await userEvent.click(screen.getByRole('button', { name: 'Hide filters' }))
+    expect(rail).toHaveAttribute('aria-expanded', 'false')
+    expect(sheet()).toHaveAttribute('inert')
+    expect(rail).toHaveFocus()
+  })
+
+  it('tucks the panel away once the filters are applied', async () => {
+    const { onChange } = setup({ genres: ['drama'] })
+    await userEvent.click(screen.getByRole('button', { name: 'Apply filters' }))
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(sheet()).toHaveAttribute('inert')
   })
 
   it('opens the panel when an advanced filter is in force, with the fields filled in', () => {

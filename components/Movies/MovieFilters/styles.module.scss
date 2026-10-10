@@ -31,17 +31,14 @@ $panel-width: 18rem;
   flex: 1;
 }
 
-/* ── Layout: the panel beside the results ───────────── */
+/* ── Layout: the rail beside the results ────────────── */
+// The results only ever make room for the rail: the open panel lies over them, so opening it
+// moves nothing in the grid.
 .layout {
   display: grid;
   grid-template-columns: $rail-width minmax(0, 1fr);
   align-items: start;
   gap: 1.5rem;
-  transition: grid-template-columns 380ms $ease-out-expo;
-
-  &[data-open] {
-    grid-template-columns: $panel-width minmax(0, 1fr);
-  }
 }
 
 .results {
@@ -49,41 +46,33 @@ $panel-width: 18rem;
 }
 
 /* ── Panel ──────────────────────────────────────────── */
-// Sticks below the fixed NavBar while the results scroll.
+// Sticks below the fixed NavBar while the results scroll; the sheet is placed against it.
 .panel {
   position: sticky;
   top: 5rem;
+  z-index: 10;
+}
+
+.rail {
   display: flex;
   flex-direction: column;
-  max-height: calc(100dvh - 6rem);
-  min-width: 0;
-  overflow: hidden auto;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.875rem 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--card);
-  overscroll-behavior: contain;
-}
-
-// Tucked, a vertical rail; open, the panel's header.
-.toggle {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.875rem 0;
-  border: 0;
-  background: transparent;
   color: var(--foreground);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
+  transition: background-color 150ms ease;
 
   &:focus-visible {
-    border-radius: var(--radius-xl);
     outline: 2px solid var(--ring);
-    outline-offset: -2px;
+    outline-offset: 2px;
   }
 
   svg {
@@ -92,7 +81,7 @@ $panel-width: 18rem;
   }
 }
 
-.toggleLabel {
+.railLabel {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
 }
@@ -111,25 +100,59 @@ $panel-width: 18rem;
   font-variant-numeric: tabular-nums;
 }
 
-.collapseIcon {
-  display: none;
-  color: var(--muted-foreground);
+// The open panel: laid out at its full size from the start and revealed by a clip that wipes
+// out of the rail's edge, so the only things that change per frame are the clip, the contents'
+// offset and their opacity. It is a transition, so a quick toggle reverses from where it is.
+.sheet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  width: $panel-width;
+  max-height: calc(100dvh - 6rem);
+  overflow: hidden auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  box-shadow: 0 12px 32px -12px color-mix(in oklch, var(--foreground) 25%, transparent);
+  overscroll-behavior: contain;
+  clip-path: inset(0 100% 0 0 round var(--radius-xl));
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    clip-path 200ms $ease-out-expo,
+    opacity 200ms ease,
+    visibility 0s linear 200ms;
 }
 
-.layout[data-open] {
-  .toggle {
-    flex-direction: row;
-    padding: 0.875rem 1rem;
-    border-bottom: 1px solid var(--border);
+.layout[data-open] .sheet {
+  // Open, the clip reaches past the edges so the shadow shows.
+  clip-path: inset(-2rem -2rem -2rem 0 round var(--radius-xl));
+  opacity: 1;
+  visibility: visible;
+  transition:
+    clip-path 380ms $ease-out-expo,
+    opacity 120ms ease,
+    visibility 0s;
+}
+
+.sheetHeader {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.5rem 0.625rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+  font-weight: 500;
+
+  > svg {
+    width: 1rem;
+    height: 1rem;
   }
 
-  .toggleLabel {
-    writing-mode: horizontal-tb;
-    transform: none;
-  }
-
-  .collapseIcon {
-    display: block;
+  > button {
     margin-left: auto;
   }
 }
@@ -138,17 +161,15 @@ $panel-width: 18rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  // Laid out at the open panel's inner width from the start, so nothing reflows as it grows.
-  width: calc(#{$panel-width} - 2px);
   padding: 1.25rem 1rem;
-  animation: panel-in 380ms $ease-out-expo;
+  // The contents trail the wipe slightly, settling into place as it opens.
+  transform: translateX(-0.75rem);
+  transition: transform 200ms $ease-out-expo;
 }
 
-@keyframes panel-in {
-  from {
-    opacity: 0;
-    transform: translateX(-0.75rem);
-  }
+.layout[data-open] .panelForm {
+  transform: none;
+  transition-duration: 420ms;
 }
 
 .panelActions {
@@ -227,7 +248,7 @@ $panel-width: 18rem;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .toggle:hover {
+  .rail:hover {
     background: var(--muted);
   }
 }
@@ -239,29 +260,44 @@ $panel-width: 18rem;
     max-width: none;
   }
 
-  .layout,
-  .layout[data-open] {
+  .layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .panel {
     position: static;
-    max-height: none;
   }
 
-  .toggle,
-  .layout[data-open] .toggle {
+  .rail {
     flex-direction: row;
     padding: 0.75rem 1rem;
   }
 
-  .toggleLabel {
+  .railLabel {
     writing-mode: horizontal-tb;
     transform: none;
   }
 
-  .layout:not([data-open]) .toggle {
-    border-bottom: 0;
+  // In the flow, the sheet replaces the bar and pushes the results down once.
+  .sheet {
+    position: static;
+    display: none;
+    width: auto;
+    max-height: none;
+    box-shadow: none;
+    clip-path: none;
+  }
+
+  .layout[data-open] {
+    .rail {
+      display: none;
+    }
+
+    .sheet {
+      display: flex;
+      clip-path: none;
+      animation: sheet-down 260ms $ease-out-expo;
+    }
   }
 
   // The panel folds up, not to the side.
@@ -269,12 +305,7 @@ $panel-width: 18rem;
     transform: rotate(90deg);
   }
 
-  .panelForm {
-    width: auto;
-    animation-name: panel-down;
-  }
-
-  @keyframes panel-down {
+  @keyframes sheet-down {
     from {
       opacity: 0;
       transform: translateY(-0.5rem);
@@ -283,17 +314,27 @@ $panel-width: 18rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .layout {
+  .sheet,
+  .layout[data-open] .sheet {
+    clip-path: inset(-2rem -2rem -2rem 0 round var(--radius-xl));
+    transition:
+      opacity 150ms ease,
+      visibility 0s linear 150ms;
+  }
+
+  .layout[data-open] .sheet {
+    transition:
+      opacity 150ms ease,
+      visibility 0s;
+  }
+
+  .panelForm,
+  .layout[data-open] .panelForm {
+    transform: none;
     transition: none;
   }
 
-  .panelForm {
-    animation-name: panel-fade;
-  }
-
-  @keyframes panel-fade {
-    from {
-      opacity: 0;
-    }
+  .layout[data-open] .sheet {
+    animation: none;
   }
 }

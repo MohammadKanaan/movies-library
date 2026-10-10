@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronLeft, SlidersHorizontal, X } from 'lucide-react'
-import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Input } from '@/components/Form/Input'
 import { GenreFilter } from '@/components/Movies/GenreFilter'
 import { PersonFilter } from '@/components/Movies/PersonFilter'
@@ -144,13 +144,16 @@ const TitleSearch = ({ filters, disabled, onChange }: TitleSearchProps) => {
 type PanelFormProps = Pick<
   MovieFiltersProps,
   'filters' | 'genres' | 'person' | 'disabled' | 'onChange'
-> & { id: string }
+> & {
+  /** After the filters are applied: the panel tucks itself away to show the results. */
+  onApplied: () => void
+}
 
 /**
  * The panel's fields and their apply button. Remounted by its parent whenever the URL's filters
  * change, so the drafts follow the URL (back/forward, a removed chip).
  */
-const PanelForm = ({ id, filters, genres, person, disabled, onChange }: PanelFormProps) => {
+const PanelForm = ({ filters, genres, person, disabled, onChange, onApplied }: PanelFormProps) => {
   const currentYear = new Date().getUTCFullYear()
   const [draftGenres, setDraftGenres] = useState(filters.genres)
   const [draftPerson, setDraftPerson] = useState(person)
@@ -177,6 +180,7 @@ const PanelForm = ({ id, filters, genres, person, disabled, onChange }: PanelFor
       runtimeMin: runtime.from,
       runtimeMax: runtime.to,
     })
+    onApplied()
   }
 
   const reset = () => {
@@ -187,7 +191,7 @@ const PanelForm = ({ id, filters, genres, person, disabled, onChange }: PanelFor
   }
 
   return (
-    <form id={id} className={styles.panelForm} onSubmit={handleSubmit} aria-label="Filters">
+    <form className={styles.panelForm} onSubmit={handleSubmit} aria-label="Filters">
       <GenreFilter genres={genres} value={draftGenres} onChange={setDraftGenres} />
       <RangeFilter
         label="Release year"
@@ -235,8 +239,9 @@ const PanelForm = ({ id, filters, genres, person, disabled, onChange }: PanelFor
 /**
  * The movie list's search and filters, IMDb's advanced search beside the results: the title search
  * and sort in a toolbar, a chip per filter in force, and a filter panel for genres, release year,
- * runtime and person that waits tucked into a rail at the side and slides out to full width when
- * opened. Everything lives in the URL through `onChange` / `onSortChange`.
+ * runtime and person. The panel waits tucked into a rail at the side of the results and, opened,
+ * wipes out of the rail over them: the results keep their layout, so nothing reflows while it moves.
+ * Everything lives in the URL through `onChange` / `onSortChange`.
  */
 export const MovieFilters = ({
   filters,
@@ -250,7 +255,13 @@ export const MovieFilters = ({
 }: MovieFiltersProps) => {
   const panelId = useId()
   const [open, setOpen] = useState(() => hasPanelFilters(filters))
+  const toggleRef = useRef<HTMLButtonElement>(null)
   const chips = chipsOf(filters, genres, person)
+  // Tucking the panel away makes its contents inert, so focus goes back to the rail.
+  const close = () => {
+    setOpen(false)
+    toggleRef.current?.focus()
+  }
   const panelCount = countPanelFilters(filters)
   // The forms follow the URL: a new set of filters is a new form with fresh defaults.
   const panelKey = JSON.stringify([filters, person?.slug ?? null])
@@ -310,32 +321,47 @@ export const MovieFilters = ({
       <div className={styles.layout} data-open={open || undefined}>
         <aside className={styles.panel}>
           <button
+            ref={toggleRef}
             type="button"
-            className={styles.toggle}
+            className={styles.rail}
             aria-expanded={open}
-            aria-controls={open ? panelId : undefined}
-            onClick={() => setOpen((value) => !value)}
+            aria-controls={panelId}
+            onClick={() => setOpen(true)}
           >
-            <SlidersHorizontal className={styles.toggleIcon} aria-hidden="true" />
-            <span className={styles.toggleLabel}>Filters</span>{' '}
+            <SlidersHorizontal aria-hidden="true" />
+            <span className={styles.railLabel}>Filters</span>{' '}
             {panelCount > 0 ? (
               <span className={styles.count}>
                 {panelCount} <span className={styles.srOnly}>active</span>
               </span>
             ) : null}
-            <ChevronLeft className={styles.collapseIcon} aria-hidden="true" />
           </button>
-          {open ? (
+          {/* Always mounted, so it can wipe out of the rail and back; `inert` while tucked away. */}
+          <div id={panelId} className={styles.sheet} inert={!open}>
+            <div className={styles.sheetHeader}>
+              <SlidersHorizontal aria-hidden="true" />
+              <span>Filters</span>
+              {panelCount > 0 ? <span className={styles.count}>{panelCount}</span> : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Hide filters"
+                onClick={close}
+              >
+                <ChevronLeft className={styles.collapseIcon} aria-hidden="true" />
+              </Button>
+            </div>
             <PanelForm
               key={panelKey}
-              id={panelId}
               filters={filters}
               genres={genres}
               person={person}
               disabled={disabled}
               onChange={onChange}
+              onApplied={close}
             />
-          ) : null}
+          </div>
         </aside>
         <div className={styles.results}>{children}</div>
       </div>
