@@ -5,25 +5,13 @@ $ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   flex-direction: column;
 }
 
-/* ── Toolbar ────────────────────────────────────────── */
-.toolbar {
+/* ── Bar: the page header, with the toggle and sort tucked to its side ── */
+.bar {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 1rem;
-}
-
-.search {
-  display: flex;
-  flex: 1;
-  align-items: flex-end;
-  gap: 0.75rem;
-  min-width: 16rem;
-  max-width: 28rem;
-}
-
-.searchField {
-  flex: 1;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
 }
 
 .controls {
@@ -106,11 +94,40 @@ $ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   }
 }
 
+// One grid for every field: the text fields share the top row, the ranges and the rating the one
+// below, so each row's labels and boxes line up.
 .fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
+  grid-template-areas:
+    'title genres person'
+    'year runtime rating';
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.5rem 2rem;
   align-items: start;
+}
+
+.title {
+  grid-area: title;
+}
+
+.genres {
+  grid-area: genres;
+}
+
+.person {
+  grid-area: person;
+}
+
+.year {
+  grid-area: year;
+}
+
+.runtime {
+  grid-area: runtime;
+}
+
+.rating {
+  grid-area: rating;
 }
 
 .cardFooter {
@@ -180,12 +197,21 @@ $ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   }
 }
 
+@media (width < $breakpoint-lg) {
+  .fields {
+    grid-template-areas:
+      'title title'
+      'genres person'
+      'year runtime'
+      'rating rating';
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (width < $breakpoint-md) {
-  // The search takes its own row; the filters button and the sort share the one below.
-  .search {
-    flex-basis: 100%;
-    min-width: 0;
-    max-width: none;
+  .fields {
+    grid-template-areas: 'title' 'genres' 'person' 'year' 'runtime' 'rating';
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .card {

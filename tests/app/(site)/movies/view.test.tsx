@@ -110,8 +110,8 @@ describe('MoviesView', () => {
   it('searches by title through the URL from the first page, keeping the other filters', async () => {
     navigation.search = 'page=3&genres=drama'
     render(view({ page: 3, totalPages: 3 }))
-    await userEvent.type(screen.getByRole('searchbox', { name: 'Search movies' }), ' dune ')
-    await userEvent.click(screen.getByRole('button', { name: 'Search' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Filters/ }))
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Title' }), ' dune {Enter}')
     expect(navigation.push).toHaveBeenCalledWith('/movies?genres=drama&q=dune', { scroll: false })
   })
 
@@ -123,15 +123,12 @@ describe('MoviesView', () => {
     expect(navigation.push).toHaveBeenLastCalledWith('/movies?sort=title', { scroll: false })
   })
 
-  it('applies the card’s filters from the first page as each one settles', async () => {
+  it('applies the panel’s filters together, from the first page, on Apply', async () => {
     navigation.search = 'page=2'
     render(view({ page: 2, totalPages: 2 }))
     await userEvent.click(screen.getByRole('button', { name: /^Filters/ }))
     await userEvent.click(screen.getByRole('combobox', { name: 'Genres' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Science Fiction' }))
-    expect(navigation.push).toHaveBeenLastCalledWith('/movies?genres=science-fiction', {
-      scroll: false,
-    })
     await userEvent.keyboard('{Escape}')
 
     // jsdom has no layout, so Base UI keeps the thumbs hidden; find them through the labelled group.
@@ -141,18 +138,17 @@ describe('MoviesView', () => {
     )
     longest!.focus()
     await userEvent.keyboard('{ArrowLeft}')
-    await waitFor(() =>
-      expect(navigation.push).toHaveBeenLastCalledWith(
-        '/movies?genres=science-fiction&runtimeMax=235',
-        { scroll: false },
-      ),
-    )
+    expect(navigation.push).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Apply filters' }))
+    expect(navigation.push).toHaveBeenCalledTimes(1)
+    expect(navigation.push).toHaveBeenCalledWith('/movies?genres=science-fiction&runtimeMax=235', {
+      scroll: false,
+    })
   })
 
   it('lifts one filter from its chip and clears them all', async () => {
     navigation.search = 'q=dune&genres=drama%2Cscience-fiction&yearTo=1999&sort=title'
     render(view())
-    // The open panel's genre picker has its own Remove Drama, which only edits the draft.
     const activeFilters = within(screen.getByRole('list', { name: 'Active filters' }))
     await userEvent.click(activeFilters.getByRole('button', { name: 'Remove Drama' }))
     expect(navigation.push).toHaveBeenLastCalledWith(

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useRef } from 'react'
+import { useId } from 'react'
 import { Slider } from '@/components/SCN/slider'
 import type { Thumbs } from '@/lib/filterRange'
 import styles from './styles.module.scss'
@@ -18,22 +18,16 @@ type RangeFilterProps = {
   bounds: [string, string]
   /** Every step of a drag, so the readout follows the thumb. */
   onValueChange: (value: Thumbs) => void
-  /**
-   * The thumb is released, or a burst of key presses has ended: the one moment to write the URL.
-   * Arrow keys commit on every press, so commits wait `COMMIT_DELAY_MS` and only the last is sent.
-   */
-  onValueCommitted: (value: Thumbs) => void
   disabled?: boolean
 }
-
-const COMMIT_DELAY_MS = 300
 
 const toThumbs = (value: number | readonly number[], fallback: Thumbs): Thumbs =>
   typeof value === 'number' ? fallback : [value[0] ?? fallback[0], value[1] ?? fallback[1]]
 
 /**
  * The advanced search's range field: a dual-thumb slider with a live readout, for a release year
- * or a runtime. The two ends of the track are "no bound", so the URL only carries what was set.
+ * or a runtime. The two ends of the track are "no bound", so the URL only carries what was set. It
+ * edits the filter panel's draft; the panel's Apply writes it.
  */
 export const RangeFilter = ({
   label,
@@ -44,12 +38,9 @@ export const RangeFilter = ({
   readout,
   bounds,
   onValueChange,
-  onValueCommitted,
   disabled,
 }: RangeFilterProps) => {
   const labelId = useId()
-  const commitTimer = useRef<number | undefined>(undefined)
-  useEffect(() => () => window.clearTimeout(commitTimer.current), [])
 
   return (
     <div className={styles.field}>
@@ -68,11 +59,6 @@ export const RangeFilter = ({
         value={value}
         disabled={disabled}
         onValueChange={(next) => onValueChange(toThumbs(next, value))}
-        onValueCommitted={(next) => {
-          const settled = toThumbs(next, value)
-          window.clearTimeout(commitTimer.current)
-          commitTimer.current = window.setTimeout(() => onValueCommitted(settled), COMMIT_DELAY_MS)
-        }}
       />
       <div className={styles.bounds} aria-hidden="true">
         <span>{bounds[0]}</span>

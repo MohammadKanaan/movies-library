@@ -1,7 +1,8 @@
 'use client'
 
-import { ChevronDown, Search, SlidersHorizontal, X } from 'lucide-react'
-import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import { ChevronDown, SlidersHorizontal, X } from 'lucide-react'
+import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { Input } from '@/components/Form/Input'
 import { GenreFilter } from '@/components/Movies/GenreFilter'
 import { PersonFilter } from '@/components/Movies/PersonFilter'
@@ -15,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/SCN/select'
-import { fromThumbs, toThumbs, type Thumbs } from '@/lib/filterRange'
+import { fromThumbs, toThumbs, type RangeBounds, type Thumbs } from '@/lib/filterRange'
 import { formatRuntime } from '@/lib/formatRuntime'
 import type { Genre } from '@/lib/dto/genres'
 import {
@@ -53,7 +54,7 @@ type MovieFiltersProps = {
   genres: Genre[]
   /** The person `filters.person` names, for the chip and the field; null when unknown. */
   person: PersonSummary | null
-  /** A navigation is in flight: the search button, the sort and the chips wait; the fields do not. */
+  /** A navigation is in flight: Apply, the sort and the chips wait; the fields do not. */
   disabled?: boolean
   /** Writes the given filters to the URL, back on page 1. */
   onChange: (patch: Partial<Filters>) => void
@@ -62,13 +63,21 @@ type MovieFiltersProps = {
 
 type Chip = { key: string; label: string; remove: Partial<Filters> }
 
-/** What the panel's fields show: the URL's filters, plus what was just chosen and is still landing. */
+/**
+ * What the panel's fields hold until Apply: the URL's filters, edited. Each range keeps the bounds
+ * it started from beside its thumbs, so a bound beyond the track survives until Reset clears it.
+ * `ratingMax` has no field (the stars pick a floor) but rides along for the same reason.
+ */
 type Draft = {
+  q: string
   genres: string[]
   person: PersonSummary | null
   year: Thumbs
+  yearFrom: RangeBounds
   runtime: Thumbs
+  runtimeFrom: RangeBounds
   ratingMin: number | null
+  ratingMax: number | null
 }
 
 const toSort = (value: string | null): MovieSort => {
@@ -91,17 +100,6 @@ const ratingLabel = (min: number | null, max: number | null) =>
     : min !== null
       ? `Rated ${min}+`
       : `Rated up to ${max}`
-
-/** The panel's filters in force, as opposed to the title search that is always shown. */
-const hasPanelFilters = (filters: Filters) =>
-  filters.genres.length > 0 ||
-  filters.person !== '' ||
-  filters.yearFrom !== null ||
-  filters.yearTo !== null ||
-  filters.runtimeMin !== null ||
-  filters.runtimeMax !== null ||
-  filters.ratingMin !== null ||
-  filters.ratingMax !== null
 
 /** The chips for the filters in force, each with the patch that lifts it. */
 const chipsOf = (filters: Filters, genres: Genre[], person: PersonSummary | null): Chip[] => {
@@ -143,28 +141,32 @@ const chipsOf = (filters: Filters, genres: Genre[], person: PersonSummary | null
   return chips
 }
 
-const draftOf = (filters: Filters, person: PersonSummary | null): Draft => ({
-  genres: filters.genres,
-  person: filters.person ? person : null,
-  year: toThumbs({ from: filters.yearFrom, to: filters.yearTo }, YEAR_TRACK_MIN, currentYear()),
-  runtime: toThumbs(
-    { from: filters.runtimeMin, to: filters.runtimeMax },
-    RUNTIME_TRACK.min,
-    RUNTIME_TRACK.max,
-  ),
-  ratingMin: filters.ratingMin,
-})
+const draftOf = (filters: Filters, person: PersonSummary | null): Draft => {
+  const year = { from: filters.yearFrom, to: filters.yearTo }
+  const runtime = { from: filters.runtimeMin, to: filters.runtimeMax }
+  return {
+    q: filters.q,
+    genres: filters.genres,
+    person: filters.person ? person : null,
+    year: toThumbs(year, YEAR_TRACK_MIN, currentYear()),
+    yearFrom: year,
+    runtime: toThumbs(runtime, RUNTIME_TRACK.min, RUNTIME_TRACK.max),
+    runtimeFrom: runtime,
+    ratingMin: filters.ratingMin,
+    ratingMax: filters.ratingMax,
+  }
+}
 
 /** The slider's readout: the range in words, "Any …" when neither end is bound. */
 const readoutOf = (from: number | null, to: number | null, any: string, unit = '') =>
   from === null && to === null ? any : rangeLabel(from, to, unit)
 
 /**
- * The movie list's search and filters, IMDb's advanced search beside the page header in one bar:
- * the title search and sort always shown, a card under them (opened by Filters, growing in and
- * pushing the list down) for genres, release year, runtime, rating and person, and a chip per filter in
- * force. Everything lives in the URL through `onChange` / `onSortChange`: the title search applies
- * on its button, the card's fields as each choice settles (a genre picked, a slider released).
+ * The movie list's search and filters, IMDb's advanced search tucked beside the page header: a
+ * Filters toggle and the sort, a panel that slides open below them (title, genres, person, release
+ * year, runtime, lowest rating, the title focused) and a chip per filter in force. The panel's
+ * fields are a draft: Apply writes them to the URL at once through `onChange` and tucks the panel
+ * away, Reset empties them. The sort and the chips apply at once.
  */
 export const MovieFilters = ({
   header,
@@ -177,13 +179,14 @@ export const MovieFilters = ({
   onSortChange,
 }: MovieFiltersProps) => {
   const panelId = useId()
-  const [open, setOpen] = useState(() => hasPanelFilters(filters))
+  const titleRef = useRef<HTMLInputElement>(null)
+  const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState(() => draftOf(filters, person))
 
-  // The fields follow the URL (back/forward, a removed chip, a reset), but only once no navigation
-  // is in flight: one landing mid-drag must not pull a thumb out from under the visitor. The card
-  // is never remounted, so a list or a slider in use keeps its focus while the page re-renders.
+  // The fields follow the URL (back/forward, a removed chip), but only once no navigation is in
+  // flight, so one landing never rewrites a field under the visitor's hands.
   const urlKey = JSON.stringify([
+    filters.q,
     filters.genres,
     filters.person,
     filters.yearFrom,
@@ -200,66 +203,58 @@ export const MovieFilters = ({
   }
 
   const chips = chipsOf(filters, genres, person)
-  const panelFilterCount = chips.filter((chip) => chip.key !== 'q').length
   const yearMax = currentYear()
-  const yearBounds = fromThumbs(
-    draft.year,
-    { from: filters.yearFrom, to: filters.yearTo },
-    YEAR_TRACK_MIN,
-    yearMax,
-  )
+  const yearBounds = fromThumbs(draft.year, draft.yearFrom, YEAR_TRACK_MIN, yearMax)
   const runtimeBounds = fromThumbs(
     draft.runtime,
-    { from: filters.runtimeMin, to: filters.runtimeMax },
+    draft.runtimeFrom,
     RUNTIME_TRACK.min,
     RUNTIME_TRACK.max,
   )
+  const emptyDraft = draftOf(EMPTY_MOVIE_FILTERS, null)
+  const draftIsEmpty = JSON.stringify(draft) === JSON.stringify(emptyDraft)
 
-  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
+  const toggle = () => {
+    if (open) {
+      setOpen(false)
+      return
+    }
+    // The panel is inert while closed: commit it open before moving focus into it.
+    flushSync(() => setOpen(true))
+    titleRef.current?.focus()
+  }
+
+  const apply = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const q = new FormData(event.currentTarget).get('q')
-    onChange({ q: typeof q === 'string' ? q.trim() : '' })
+    setOpen(false)
+    onChange({
+      q: draft.q.trim(),
+      genres: draft.genres,
+      person: draft.person?.slug ?? '',
+      yearFrom: yearBounds.from,
+      yearTo: yearBounds.to,
+      runtimeMin: runtimeBounds.from,
+      runtimeMax: runtimeBounds.to,
+      ratingMin: draft.ratingMin,
+      ratingMax: draft.ratingMax,
+    })
   }
 
   return (
     <div className={styles.filters}>
-      <div className={styles.toolbar}>
+      <div className={styles.bar}>
         {header}
-        <form className={styles.search} role="search" aria-label="Movies" onSubmit={handleSearch}>
-          <div className={styles.searchField}>
-            {/* Keyed by the URL's search, so a removed chip or the back button refills it. */}
-            <Input
-              key={filters.q}
-              name="q"
-              type="search"
-              label="Search movies"
-              placeholder="Title"
-              defaultValue={filters.q}
-              maxLength={MOVIE_SEARCH_MAX_LENGTH}
-              autoComplete="off"
-            />
-          </div>
-          <Button
-            type="submit"
-            variant="secondary"
-            size="icon"
-            aria-label="Search"
-            disabled={disabled}
-          >
-            <Search aria-hidden="true" />
-          </Button>
-        </form>
         <div className={styles.controls}>
           <Button
             type="button"
             variant="outline"
             aria-expanded={open}
             aria-controls={panelId}
-            onClick={() => setOpen((value) => !value)}
+            onClick={toggle}
           >
             <SlidersHorizontal data-icon="inline-start" aria-hidden="true" />
             Filters
-            {panelFilterCount > 0 ? <span className={styles.badge}>{panelFilterCount}</span> : null}
+            {chips.length > 0 ? <span className={styles.badge}>{chips.length}</span> : null}
             <span className={styles.chevron} data-open={open || undefined}>
               <ChevronDown aria-hidden="true" />
             </span>
@@ -283,7 +278,7 @@ export const MovieFilters = ({
         </div>
       </div>
 
-      {/* Closed, the card is out of the tab order and the accessibility tree, yet stays mounted so it can animate. */}
+      {/* Closed, the panel is out of the tab order and the accessibility tree, yet stays mounted so it can animate. */}
       <div
         id={panelId}
         className={styles.collapse}
@@ -292,100 +287,87 @@ export const MovieFilters = ({
         inert={!open}
       >
         <div className={styles.clip}>
-          <div className={styles.card}>
+          <form className={styles.card} role="search" aria-label="Movies" onSubmit={apply}>
             <div className={styles.fields}>
-              <GenreFilter
-                genres={genres}
-                value={draft.genres}
-                onChange={(slugs) => {
-                  setDraft((current) => ({ ...current, genres: slugs }))
-                  onChange({ genres: slugs })
-                }}
-              />
-              <RangeFilter
-                label="Release year"
-                min={YEAR_TRACK_MIN}
-                max={yearMax}
-                step={1}
-                value={draft.year}
-                readout={readoutOf(yearBounds.from, yearBounds.to, 'Any year')}
-                bounds={[String(YEAR_TRACK_MIN), String(yearMax)]}
-                onValueChange={(year) => setDraft((current) => ({ ...current, year }))}
-                onValueCommitted={(year) => {
-                  const next = fromThumbs(
-                    year,
-                    { from: filters.yearFrom, to: filters.yearTo },
-                    YEAR_TRACK_MIN,
-                    yearMax,
-                  )
-                  if (next.from !== filters.yearFrom || next.to !== filters.yearTo) {
-                    onChange({ yearFrom: next.from, yearTo: next.to })
-                  }
-                }}
-              />
-              <RangeFilter
-                label="Runtime"
-                min={RUNTIME_TRACK.min}
-                max={RUNTIME_TRACK.max}
-                step={RUNTIME_TRACK.step}
-                value={draft.runtime}
-                readout={readoutOf(runtimeBounds.from, runtimeBounds.to, 'Any length', ' min')}
-                bounds={[formatRuntime(RUNTIME_TRACK.min), `${formatRuntime(RUNTIME_TRACK.max)}+`]}
-                onValueChange={(runtime) => setDraft((current) => ({ ...current, runtime }))}
-                onValueCommitted={(runtime) => {
-                  const next = fromThumbs(
-                    runtime,
-                    { from: filters.runtimeMin, to: filters.runtimeMax },
-                    RUNTIME_TRACK.min,
-                    RUNTIME_TRACK.max,
-                  )
-                  if (next.from !== filters.runtimeMin || next.to !== filters.runtimeMax) {
-                    onChange({ runtimeMin: next.from, runtimeMax: next.to })
-                  }
-                }}
-              />
-              {/* A floor picked on the review form's stars. A `ratingMax` (a hand-written link, the API)
-                  still applies and has its chip; lifting the chip or Reset clears both ends. */}
-              <RatingFilter
-                value={draft.ratingMin}
-                onChange={(ratingMin) => {
-                  setDraft((current) => ({ ...current, ratingMin }))
-                  onChange({ ratingMin })
-                }}
-              />
-              <PersonFilter
-                value={draft.person}
-                onChange={(next) => {
-                  setDraft((current) => ({ ...current, person: next }))
-                  onChange({ person: next?.slug ?? '' })
-                }}
-              />
+              <div className={styles.title}>
+                <Input
+                  ref={titleRef}
+                  name="q"
+                  type="search"
+                  label="Title"
+                  placeholder="Search by title"
+                  value={draft.q}
+                  onChange={(event) => {
+                    const q = event.target.value
+                    setDraft((current) => ({ ...current, q }))
+                  }}
+                  maxLength={MOVIE_SEARCH_MAX_LENGTH}
+                  autoComplete="off"
+                />
+              </div>
+              <div className={styles.genres}>
+                <GenreFilter
+                  genres={genres}
+                  value={draft.genres}
+                  onChange={(slugs) => setDraft((current) => ({ ...current, genres: slugs }))}
+                />
+              </div>
+              <div className={styles.person}>
+                <PersonFilter
+                  value={draft.person}
+                  onChange={(next) => setDraft((current) => ({ ...current, person: next }))}
+                />
+              </div>
+              <div className={styles.year}>
+                <RangeFilter
+                  label="Release year"
+                  min={YEAR_TRACK_MIN}
+                  max={yearMax}
+                  step={1}
+                  value={draft.year}
+                  readout={readoutOf(yearBounds.from, yearBounds.to, 'Any year')}
+                  bounds={[String(YEAR_TRACK_MIN), String(yearMax)]}
+                  onValueChange={(year) => setDraft((current) => ({ ...current, year }))}
+                />
+              </div>
+              <div className={styles.runtime}>
+                <RangeFilter
+                  label="Runtime"
+                  min={RUNTIME_TRACK.min}
+                  max={RUNTIME_TRACK.max}
+                  step={RUNTIME_TRACK.step}
+                  value={draft.runtime}
+                  readout={readoutOf(runtimeBounds.from, runtimeBounds.to, 'Any length', ' min')}
+                  bounds={[
+                    formatRuntime(RUNTIME_TRACK.min),
+                    `${formatRuntime(RUNTIME_TRACK.max)}+`,
+                  ]}
+                  onValueChange={(runtime) => setDraft((current) => ({ ...current, runtime }))}
+                />
+              </div>
+              <div className={styles.rating}>
+                {/* A floor picked on the review form's stars. A `ratingMax` (a hand-written link, the
+                    API) still applies and has its chip; Reset or lifting the chip clears it. */}
+                <RatingFilter
+                  value={draft.ratingMin}
+                  onChange={(ratingMin) => setDraft((current) => ({ ...current, ratingMin }))}
+                />
+              </div>
             </div>
             <div className={styles.cardFooter}>
               <Button
                 type="button"
                 variant="ghost"
-                disabled={panelFilterCount === 0}
-                onClick={() =>
-                  onChange({
-                    genres: EMPTY_MOVIE_FILTERS.genres,
-                    person: EMPTY_MOVIE_FILTERS.person,
-                    yearFrom: null,
-                    yearTo: null,
-                    runtimeMin: null,
-                    runtimeMax: null,
-                    ratingMin: null,
-                    ratingMax: null,
-                  })
-                }
+                disabled={draftIsEmpty}
+                onClick={() => setDraft(emptyDraft)}
               >
                 Reset
               </Button>
-              <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
-                Done
+              <Button type="submit" disabled={disabled}>
+                Apply filters
               </Button>
             </div>
-          </div>
+          </form>
         </div>
       </div>
 
