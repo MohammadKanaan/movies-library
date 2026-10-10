@@ -14,7 +14,7 @@ type RatingFilterProps = {
 
 /** A rating floor in words, for the readout and the filter's chip. */
 export const ratingFloorLabel = (rating: number) =>
-  `${rating} ${rating === 1 ? 'star' : 'stars'} & up`
+  `${rating} ${rating === 1 ? 'star' : 'stars'}${rating === 5 ? '' : ' & up'}`
 
 /**
  * The advanced search's rating field: the lowest mean rating a movie needs, picked on the review
