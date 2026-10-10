@@ -52,6 +52,13 @@ const thumbsOf = (name: string) =>
 
 const toggle = () => screen.getByRole('button', { name: /^Filters/ })
 
+/** The star the rating floor sits on, or null when no floor is picked. */
+const pickedRating = () =>
+  within(screen.getByRole('radiogroup', { name: 'Rating' }))
+    .queryAllByRole('radio')
+    .find((radio) => (radio as HTMLInputElement).checked)
+    ?.getAttribute('value') ?? null
+
 describe('MovieFilters', () => {
   beforeEach(() => {
     vi.mocked(searchPeople)
@@ -212,12 +219,10 @@ describe('MovieFilters', () => {
     // A navigation is in flight and the URL moves under the fields: they keep what they show.
     rerender(<MovieFilters {...props} filters={next} person={null} disabled />)
     expect(field()).toHaveTextContent('Drama')
-    expect(thumbsOf('Average rating (stars)')[0]).toHaveValue('3.5')
-    expect(thumbsOf('Average rating (stars)')[1]).toHaveValue('5')
+    expect(pickedRating()).toBe('3.5')
     rerender(<MovieFilters {...props} filters={next} person={null} />)
     expect(field()).toHaveTextContent('Science Fiction')
-    expect(thumbsOf('Average rating (stars)')[0]).toHaveValue('0.5')
-    expect(thumbsOf('Average rating (stars)')[1]).toHaveValue('2')
+    expect(pickedRating()).toBeNull()
   })
 
   it('shows a chip per filter and lifts one at a time', async () => {
@@ -270,51 +275,35 @@ describe('MovieFilters', () => {
     expect(chips).toHaveTextContent('Rated up to 2')
   })
 
-  it('names a rating range open at the top by its lowest rating', () => {
+  it('names a rating floor by its lowest rating and checks its star', () => {
     setup({ ratingMin: 3.5 })
     expect(screen.getByRole('list', { name: 'Active filters' })).toHaveTextContent('Rated 3.5+')
     expect(toggle()).toHaveAttribute('aria-expanded', 'true')
     expect(toggle()).toHaveTextContent('1')
-    expect(thumbsOf('Average rating (stars)')[0]).toHaveValue('3.5')
-    expect(thumbsOf('Average rating (stars)')[1]).toHaveValue('5')
+    expect(pickedRating()).toBe('3.5')
   })
 
-  it('applies rating thumbs in half-star steps and clears bounds at the track ends', async () => {
+  it('applies a rating floor picked on the stars, keeping any highest rating, and clears it', async () => {
     const { onChange, rerenderWith } = setup()
     await userEvent.click(toggle())
-    const [lowest, highest] = thumbsOf('Average rating (stars)')
-    lowest!.focus()
-    await userEvent.keyboard('{ArrowRight}')
-    await waitFor(() =>
-      expect(onChange).toHaveBeenLastCalledWith({ ratingMin: 1, ratingMax: null }),
-    )
-    expect(screen.getByText('Rated 1+')).toBeInTheDocument()
-    rerenderWith({ ratingMin: 1 })
-    highest!.focus()
-    await userEvent.keyboard('{ArrowLeft}')
-    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith({ ratingMin: 1, ratingMax: 4.5 }))
-    expect(screen.getByText('Rated 1–4.5')).toBeInTheDocument()
-    rerenderWith({ ratingMin: 1, ratingMax: 4.5 })
-    lowest!.focus()
-    await userEvent.keyboard('{ArrowLeft}')
-    await waitFor(() =>
-      expect(onChange).toHaveBeenLastCalledWith({ ratingMin: null, ratingMax: 4.5 }),
-    )
-    rerenderWith({ ratingMax: 4.5 })
-    highest!.focus()
-    await userEvent.keyboard('{ArrowRight}')
-    await waitFor(() =>
-      expect(onChange).toHaveBeenLastCalledWith({ ratingMin: null, ratingMax: null }),
-    )
+    const rating = within(screen.getByRole('radiogroup', { name: 'Rating' }))
+    await userEvent.click(rating.getByRole('radio', { name: '3.5 stars' }))
+    expect(onChange).toHaveBeenLastCalledWith({ ratingMin: 3.5 })
+    // A highest rating from the URL is not the field's to change: a new floor leaves it be.
+    rerenderWith({ ratingMin: 3.5, ratingMax: 4.5 })
+    await userEvent.click(rating.getByRole('radio', { name: '2 stars' }))
+    expect(onChange).toHaveBeenLastCalledWith({ ratingMin: 2 })
+    await userEvent.click(screen.getByRole('button', { name: 'Clear the rating filter' }))
+    expect(onChange).toHaveBeenLastCalledWith({ ratingMin: null })
   })
 
-  it('follows rating-only URL changes and resets the rating thumbs on landing', () => {
+  it('follows rating-only URL changes and clears the stars on landing', () => {
     const { rerenderWith } = setup({ ratingMin: 3.5 })
+    rerenderWith({ ratingMin: 1 })
+    expect(pickedRating()).toBe('1')
     rerenderWith({ ratingMax: 2 })
-    expect(thumbsOf('Average rating (stars)')[0]).toHaveValue('0.5')
-    expect(thumbsOf('Average rating (stars)')[1]).toHaveValue('2')
+    expect(pickedRating()).toBeNull()
     rerenderWith({})
-    expect(thumbsOf('Average rating (stars)')[1]).toHaveValue('5')
     expect(screen.getByText('Any rating')).toBeInTheDocument()
   })
 

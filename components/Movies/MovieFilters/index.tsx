@@ -6,6 +6,7 @@ import { Input } from '@/components/Form/Input'
 import { GenreFilter } from '@/components/Movies/GenreFilter'
 import { PersonFilter } from '@/components/Movies/PersonFilter'
 import { RangeFilter } from '@/components/Movies/RangeFilter'
+import { RatingFilter } from '@/components/Movies/RatingFilter'
 import { Button } from '@/components/SCN/button'
 import {
   Select,
@@ -25,7 +26,6 @@ import {
   type MovieSort,
 } from '@/lib/dto/movies'
 import type { PersonSummary } from '@/lib/dto/people'
-import { RATING_MAX, RATING_MIN, RATING_STEP } from '@/lib/dto/reviews'
 import styles from './styles.module.scss'
 
 export const SORT_LABELS: Record<MovieSort, string> = {
@@ -68,7 +68,7 @@ type Draft = {
   person: PersonSummary | null
   year: Thumbs
   runtime: Thumbs
-  rating: Thumbs
+  ratingMin: number | null
 }
 
 const toSort = (value: string | null): MovieSort => {
@@ -152,7 +152,7 @@ const draftOf = (filters: Filters, person: PersonSummary | null): Draft => ({
     RUNTIME_TRACK.min,
     RUNTIME_TRACK.max,
   ),
-  rating: toThumbs({ from: filters.ratingMin, to: filters.ratingMax }, RATING_MIN, RATING_MAX),
+  ratingMin: filters.ratingMin,
 })
 
 /** The slider's readout: the range in words, "Any …" when neither end is bound. */
@@ -213,13 +213,6 @@ export const MovieFilters = ({
     { from: filters.runtimeMin, to: filters.runtimeMax },
     RUNTIME_TRACK.min,
     RUNTIME_TRACK.max,
-  )
-
-  const ratingBounds = fromThumbs(
-    draft.rating,
-    { from: filters.ratingMin, to: filters.ratingMax },
-    RATING_MIN,
-    RATING_MAX,
   )
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
@@ -351,29 +344,13 @@ export const MovieFilters = ({
                   }
                 }}
               />
-              <RangeFilter
-                label="Average rating (stars)"
-                min={RATING_MIN}
-                max={RATING_MAX}
-                step={RATING_STEP}
-                value={draft.rating}
-                readout={
-                  ratingBounds.from === null && ratingBounds.to === null
-                    ? 'Any rating'
-                    : ratingLabel(ratingBounds.from, ratingBounds.to)
-                }
-                bounds={[String(RATING_MIN), String(RATING_MAX)]}
-                onValueChange={(rating) => setDraft((current) => ({ ...current, rating }))}
-                onValueCommitted={(rating) => {
-                  const next = fromThumbs(
-                    rating,
-                    { from: filters.ratingMin, to: filters.ratingMax },
-                    RATING_MIN,
-                    RATING_MAX,
-                  )
-                  if (next.from !== filters.ratingMin || next.to !== filters.ratingMax) {
-                    onChange({ ratingMin: next.from, ratingMax: next.to })
-                  }
+              {/* A floor picked on the review form's stars. A `ratingMax` (a hand-written link, the API)
+                  still applies and has its chip; lifting the chip or Reset clears both ends. */}
+              <RatingFilter
+                value={draft.ratingMin}
+                onChange={(ratingMin) => {
+                  setDraft((current) => ({ ...current, ratingMin }))
+                  onChange({ ratingMin })
                 }}
               />
               <PersonFilter
