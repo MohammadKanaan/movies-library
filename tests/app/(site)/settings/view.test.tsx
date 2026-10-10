@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { SettingsView } from '@/app/(site)/settings/view'
 import type { CurrentUser, SessionSummary } from '@/lib/dto/users'
@@ -27,21 +27,27 @@ const user: CurrentUser = {
 const sessions: SessionSummary[] = []
 
 describe('SettingsView', () => {
-  it('shows the profile, email, password, sessions and delete cards', () => {
+  it('shows the profile, email, password, sessions and delete sections, each linked from the nav', () => {
     render(<SettingsView user={user} sessions={sessions} hasPassword canUpload={false} />)
-    for (const title of ['Profile', 'Email', 'Password', 'Sessions', 'Delete account']) {
-      expect(screen.getByText(title, { selector: '[data-slot="card-title"]' })).toBeInTheDocument()
-    }
+    const titles = ['Profile', 'Email', 'Password', 'Sessions', 'Delete account']
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
+    ).toEqual(titles)
+    const nav = screen.getByRole('navigation', { name: 'Settings sections' })
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['#profile', '#email', '#password', '#sessions', '#delete'])
     expect(screen.getByText('ada@example.com', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.queryByText('Browser notifications')).not.toBeInTheDocument()
     expect(screen.queryByText('Profile photo')).not.toBeInTheDocument()
   })
 
-  it('shows the profile photo card only when storage is configured', () => {
+  it('shows the profile photo section only when storage is configured', () => {
     render(<SettingsView user={user} sessions={sessions} hasPassword canUpload />)
-    expect(
-      screen.getByText('Profile photo', { selector: '[data-slot="card-title"]' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Profile photo', level: 2 })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Profile photo' })).toHaveAttribute('href', '#photo')
     expect(screen.getByRole('button', { name: 'Change photo' })).toBeInTheDocument()
   })
 
