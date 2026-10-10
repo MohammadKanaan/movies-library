@@ -70,7 +70,7 @@ const findPerson = async (slug: string): Promise<PersonSummary | null> => {
   }
 }
 
-const plural = (count: number) => `${count} ${count === 1 ? 'film' : 'films'}`
+const countFormat = new Intl.NumberFormat('en-US')
 
 const MoviesPage = async ({ searchParams }: PageProps<'/movies'>) => {
   // A garbled URL falls back to the defaults; empty filters are left out of the query.
@@ -86,33 +86,16 @@ const MoviesPage = async ({ searchParams }: PageProps<'/movies'>) => {
   }, ROUTE_MOVIES)
 
   const filtered = hasMovieFilters(url)
-  // A single genre or a single person is the page's subject; anything else is "your filters".
-  const onlyGenre = onlyGenreOf(url, genres)
-  const onlyPerson = person && !hasMovieFilters({ ...url, person: '' }) ? person : null
-  const description = onlyGenre
-    ? `${plural(movies.totalItems)} in this genre.`
-    : onlyPerson
-      ? `${plural(movies.totalItems)} credited to ${onlyPerson.name}.`
-      : filtered
-        ? `${plural(movies.totalItems)} match your filters.`
-        : ALL_MOVIES
+  // One line either way, so applying a filter swaps the words without moving the page: the
+  // toolbar and its chips already say what narrows the list, the heading says how many it left.
+  const heading = filtered
+    ? `${countFormat.format(movies.totalItems)} ${movies.totalItems === 1 ? 'movie' : 'movies'}`
+    : 'Movies'
 
   return (
     <div className={styles.page}>
       <MoviesView
-        header={
-          <PageHeader
-            title={onlyGenre?.name ?? 'Movies'}
-            description={description}
-            actions={
-              filtered ? (
-                <ButtonLink href={ROUTE_MOVIES} variant="outline">
-                  All movies
-                </ButtonLink>
-              ) : null
-            }
-          />
-        }
+        header={<PageHeader title={heading} />}
         page={movies.page}
         perPage={movies.perPage}
         totalPages={movies.totalPages}
