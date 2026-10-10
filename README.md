@@ -100,6 +100,50 @@ appends the client address. Set `TRUSTED_PROXY_HOPS` (default `1`) to the number
 > written on (no Docker daemon there); `docker compose config` passes. Treat the first
 > `docker compose --profile app up --build` as the test.
 
+## Deploying to Coolify
+
+`docker-compose.coolify.yml` is the whole stack as one Coolify resource: PostgreSQL, Redis, the
+one-shot `migrate`, `web` and `worker`, built from the same `Dockerfile`. It has no `profiles` and
+publishes no ports, and Coolify generates the database password and the auth secret.
+
+1. **New resource → Docker Compose** from this repository and branch. Under _General → Build
+   pipeline_ set **Docker Compose Location** to `/docker-compose.coolify.yml`.
+2. **Domain.** Give the `web` service your domain (`https://movies.example.com`). The proxy routes
+   it to port 3000, and `BETTER_AUTH_URL` follows it, so it is the origin of verification and
+   reset links. Point the DNS record at the Coolify server first.
+3. **Environment variables** (all optional, set them before the first deploy):
+
+   | Variable                                           | When                                                                                                 |
+   | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+   | `RESEND_API_KEY`, `EMAIL_FROM`                     | To send mail. Without a key production only logs it; `EMAIL_FROM` needs a domain verified in Resend. |
+   | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`         | Google sign-in; both or neither. Redirect URI: `<domain>/api/auth/callback/google`.                  |
+   | `R2_*` (five variables)                            | Uploads; all five or none (`docs/guides/uploads.md`).                                                |
+   | `TRUSTED_PROXY_HOPS`                               | `1` behind Coolify's proxy (the default); `2` with Cloudflare in front of it.                        |
+   | `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_API_BASE_URL` | Baked into the bundle at build time, so a change needs a redeploy.                                   |
+
+4. **Deploy.** `migrate` runs first (Prisma migrations, then the `pgboss` schema); `web` and
+   `worker` start after it succeeds, and `web` reports healthy once `/api/health` answers 200.
+   Every later deploy runs the new migrations the same way.
+
+**The first admin.** Do not run the seed in a deployment: it creates `admin@example.com` with the
+public password `password123`. Sign up through the site instead, then promote that account once
+from the `db` service's terminal in Coolify:
+
+```bash
+psql -U postgres -d movies_library -c "UPDATE users SET role = 'admin' WHERE email = 'you@example.com';"
+```
+
+The viewer is cached in Redis and a direct SQL update bypasses the hook that invalidates it, so the
+new role shows within 5 minutes, or at once after `redis-cli -n 0 flushdb` in the `redis` terminal.
+
+**Backups.** The data lives in the `db-data` volume. Back it up with `pg_dump` from the `db`
+terminal or a snapshot of the volume; check whether your Coolify version's scheduled backups
+cover a database that is part of a compose resource before relying on them.
+
+> This file has been validated with `docker compose config` but not yet run on a Coolify server;
+> treat the first deploy as the test. `exclude_from_hc` is a Coolify extension, so plain
+> `docker compose` rejects the file as written (see the comment at that line).
+
 ## Scripts
 
 | Script                    | What it does                                                            |

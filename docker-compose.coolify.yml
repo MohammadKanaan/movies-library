@@ -1,0 +1,137 @@
+# The whole stack as one Coolify resource: PostgreSQL, Redis, the one-shot migrations, the web
+# process and the worker, all from the repository's `Dockerfile`. In Coolify: New Resource ->
+# Docker Compose (Git repository), set "Docker Compose Location" to /docker-compose.coolify.yml,
+# then give the `web` service a domain (Coolify fills in the 3000 port from the
+# SERVICE_URL_WEB_3000 variable below). `docker-compose.yml` stays the local-development file.
+#
+# Coolify reads the `${NAME}` references below: `${NAME:?}` is a required value it asks for before
+# the first deploy, `${NAME:-default}` an optional one with a default, and the `SERVICE_*` names
+# are values it generates (and keeps across deployments) or fills in from the domain.
+
+# One image for the three app services. They share a build, so the first service to build it
+# warms the cache for the other two.
+x-app-build: &app-build
+  context: .
+  args:
+    # NEXT_PUBLIC_* values are inlined into the client bundle at build time.
+    NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Movies Library}
+    NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/v1}
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DATABASE_URL: postgresql://postgres:${SERVICE_PASSWORD_POSTGRES}@db:5432/movies_library
+  REDIS_URL: redis://redis:6379/0
+  # 64 generated characters; production boot refuses anything under 32 or a placeholder.
+  # Rotating it signs every user out.
+  BETTER_AUTH_SECRET: ${SERVICE_PASSWORD_64_AUTHSECRET}
+  # The public origin, scheme included. It follows the domain set on `web` in Coolify, and it is
+  # what the verification and reset links are built from.
+  BETTER_AUTH_URL: ${SERVICE_URL_WEB_3000}
+  # Proxies in front of the app that append to x-forwarded-for: Coolify's Traefik is one. Put 2 if
+  # a CDN (Cloudflare) sits in front of it, or every per-IP rate limit keys on the wrong address.
+  TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+  # Email: Resend. Without a key the mailer only logs, and production will not send.
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  EMAIL_FROM: ${EMAIL_FROM:-Movies Library <noreply@example.com>}
+  # Google sign-in is on only when both are set (redirect URI: <domain>/api/auth/callback/google).
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  # Uploads (Cloudflare R2) are on only when all five are set (docs/guides/uploads.md).
+  R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+  R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+  R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+  R2_BUCKET: ${R2_BUCKET:-}
+  R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
+      POSTGRES_DB: movies_library
+    volumes:
+      # PostgreSQL 18 images keep the cluster in a versioned directory under this path.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d movies_library']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # volatile-lru evicts only keys with a TTL (cached entries, rate-limit counters), never the
+    # TTL-less tag versions that invalidate the cache.
+    command: ['redis-server', '--maxmemory', '256mb', '--maxmemory-policy', 'volatile-lru']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot: applies the Prisma migrations, then installs or upgrades the `pgboss` schema, and
+  # exits. `web` and `worker` start only after it succeeded. Seeding is not part of a deployment
+  # (the seed creates public accounts); see "Deploying to Coolify" in README.md.
+  migrate:
+    build: *app-build
+    image: movies-library-app
+    restart: 'no'
+    # A container that exits on purpose must not count against the deployment's health. This key is
+    # a Coolify extension, so plain `docker compose` rejects this file; check it with the line
+    # removed (`grep -v exclude_from_hc docker-compose.coolify.yml | docker compose -f - config`).
+    exclude_from_hc: true
+    command:
+      - sh
+      - -c
+      - bun run db:deploy && node_modules/.bin/tsx --tsconfig worker/tsconfig.json worker/migrate.ts
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: *app-build
+    image: movies-library-app
+    restart: unless-stopped
+    command: ['bun', 'run', 'start']
+    # No `ports:` entry on purpose: the domain set on this service in Coolify routes to port 3000
+    # through its proxy (the `3000` in SERVICE_URL_WEB_3000), and a published host port would
+    # bypass it.
+    environment: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # The image has no curl; Node's fetch does the probe. 200 means PostgreSQL and Redis answer.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    build: *app-build
+    image: movies-library-app
+    restart: unless-stopped
+    command: ['bun', 'run', 'worker']
+    environment: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  db-data:
+  redis-data:
